@@ -17,8 +17,8 @@ students and instructors.
 
 ## License
 
-This software is licensed under the terms of the MIT license.
-Please read the LICENSE.md file.
+This software is licensed under the terms of the AGPL 3.0
+license. Please read the LICENSE file.
 
 
 ## Documentation
