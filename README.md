@@ -38,8 +38,14 @@ they have been able to use TST in Windows, using Cygwin.
 
 TST is a simple set of scripts. All you need is to copy all
 scripts in a directory in your system and puth the directory in
-the PATH. Running command below, TST will be downloaded
-and installed in the `~/.tst` directory and put that directory in
-your `~/.profile`.
+the PATH. The command below, downloads and installs tst command
+line tools. It also helps you to configure your shell environment
+to make it easier to use tst.
 
-    $ curl -sSL http://tst-online.appspot.com/tst | bash
+    $ curl -q -sSL https://raw.githubusercontent.com/daltonserey/tst/master/etc/install.sh | bash
+    $ curl -q -sSL http://bit.ly/tst-install | bash
+
+To download a development pre-release, use the command below.
+
+    $ curl -q -sSL https://raw.githubusercontent.com/daltonserey/tst/develop/etc/install.sh | bash -s --development-version
+    $ curl -q -sSL http://bit.ly/tst-dev-install | bash -s --development-version

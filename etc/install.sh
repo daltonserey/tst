@@ -2,7 +2,14 @@
 # coding: utf-8
 # (c) 2016 Dalton Serey, UFCG
 #
-# TST Installer script. Download and install tst CLI scripts. 
+# Interactive TST Installer script. Download and install tst CLI scripts. 
+
+# constants
+INSTALL_DIR=~/.tst2.install
+TST_DIR=~/.tst2
+CONFIG_FILE=~/.tst/config.json
+USER_DOT_PROFILE=~/.profile2
+USER_DOT_BASH_PROFILE=~/.bash_profile2
 
 # colors
 RESET="\033[0m"
@@ -29,14 +36,14 @@ WARNING=$LRED
 IMPORTANT=$LBLUE
 QUESTION=$LGREEN
 
-# read a 'y' or 'n' from keyboard
+# read either 'y' or 'n' from keyboard
 function get_yes_or_no {
     while true; do 
-        read -s -n 1 KEY
-        if [ "$KEY" == 'y' ]; then break; fi
-        if [ "$KEY" == 'n' ]; then break; fi
+        read -s -n 1 ANSWER
+        if [ "$ANSWER" == 'y' ]; then break; fi
+        if [ "$ANSWER" == 'n' ]; then break; fi
     done
-    echo $KEY
+    echo $ANSWER
 }
 
 # print with color
@@ -44,91 +51,25 @@ function print {
     echo -n -e $2"$1"$RESET
 }
 
-# set environment for tst CLI
-function set_environment {
-
-    # setup .profile
-    DOT_PROFILE=~/.profile2
-
-    # assume .profile is not configured
-    DOT_PROFILE_CONFIGURED="false"
-    if [ ! -f $DOT_PROFILE ]; then
-        # create .profile
-        print "* creating $DOT_PROFILE\n" $IMPORTANT
-        echo "# This file was created by the TST install procedure." >> $DOT_PROFILE
-        echo "# However, it is not part of TST itself and you can" >> $DOT_PROFILE
-        echo "# edit this file however you need." >> $DOT_PROFILE
-        echo "# Keep the tst section below or move them to the" >> $DOT_PROFILE
-        echo "# appropriate rc file, to make tst easier to use." >> $DOT_PROFILE
-    else
-        # .profile exists: check if is configured
-        LINES=$(grep -E "source.*tst.path.inc" $DOT_PROFILE 2> /dev/null)
-        if [ "$?" == "0" ]; then
-            DOT_PROFILE_CONFIGURED="true"
-        fi
-
-        # make a bakcup copy
-        if [ "$DOT_PROFILE_CONFIGURED" != "true" ]; then
-            print "* copying $DOT_PROFILE" $NORMAL
-            print " => " $WARNING
-            print "$DOT_PROFILE.bak\n" $NORMAL
-            cp $DOT_PROFILE $DOT_PROFILE.bak
-        fi
-    fi
-
-    # add source line to .profile
-    if [ "$DOT_PROFILE_CONFIGURED" == "true" ]; then
-        print "File $DOT_PROFILE already configured. No changes made.\n"
-    else
-        TST_PATH_INCLUDE=$TSTDIR/tst/etc/tst.path.inc
-        echo >> $DOT_PROFILE
-        echo "# The next line sets up the PATH for tst" >> $DOT_PROFILE
-        echo "source '$TST_PATH_INCLUDE'" >> $DOT_PROFILE
-        print "File $DOT_PROFILE configured.\n"
-    fi
-
-    ## setup .bash_profile
-    DOT_BASH_PROFILE=~/.bash_profile2
-    DOT_BASH_PROFILE_CONFIGURED="false"
-    if [ ! -f $DOT_BASH_PROFILE ]; then
-        print "* creating $DOT_BASH_PROFILE\n" $IMPORTANT
-        echo "# This file was created by the TST install script." >> $DOT_BASH_PROFILE
-        echo "# However, it is not part of TST itself and you can" >> $DOT_BASH_PROFILE
-        echo "# edit this file however you need." >> $DOT_BASH_PROFILE
-    else
-        LINES=$(grep -E ".profile.*\. .*profile" $DOT_BASH_PROFILE 2> /dev/null)
-        if [ "$?" == "0" ]; then
-            DOT_BASH_PROFILE_CONFIGURED="true"
-        fi
-        
-        if [ "$DOT_BASH_PROFILE_CONFIGURED" != "true" ]; then
-            print "* copying $DOT_BASH_PROFILE" $NORMAL
-            print " => " $WARNING
-            print "$DOT_BASH_PROFILE.bak\n" $NORMAL
-            cp $DOT_BASH_PROFILE $DOT_BASH_PROFILE.bak
-        fi
-    fi
-
-    if [ "$DOT_BASH_PROFILE_CONFIGURED" == "true" ]; then
-        print "File $DOT_BASH_PROFILE already configured. No changes made.\n"
-    else
-        echo >> $DOT_BASH_PROFILE
-        echo "# Source both .profile and .bashrc for login shells" >> $DOT_BASH_PROFILE
-        echo "if [ -f ~/.profile ]; then . ~/.profile; fi # Added by tst install script" >> $DOT_BASH_PROFILE
-        echo "if [ -f ~/.bashrc ]; then . ~/.bashrc; fi # Added by tst install script" >> $DOT_BASH_PROFILE
-        print "File $DOT_BASH_PROFILE configured.\n"
-    fi
-}
-
 
 # MAIN
-if [ "$1" == "--set-env" ]; then
-    set_environment
-    exit 0
-fi
+# process options
+while (( $# > 0 )); do
+    case "$1" in
+        --del-previous)
+            DELETE_PREVIOUS="true"
+            ;;
+        --development-version)
+            DOWNLOAD_DEV_VERSION="true"
+            ;;
+        --*)
+            print "invalid option $1" $WARNING
+            exit 1
+            ;;
+    esac
+    shift
+done
 
-# DOWNLOAD AND INSTALL TST
-print "Download and install tst command line tools\n" $IMPORTANT
 
 # require curl or abort
 CURL=$(command -v curl)
@@ -146,64 +87,108 @@ if [ $? != 0 ]; then
     exit 1
 fi
 
-# create tst directory
-TSTDIR=~/.tst3
-if [ -d $TSTDIR ]; then
-    # remove if required by '--del-previous' option
-    if [ "$1" == '--del-previous' ]; then
-        print "* deleting previous installation\n" $NORMAL
-        OLD_INSTALLATION=~/.tst"-$(date +%Y-%m-%dT%H:%M:%S)"
-        mv $TSTDIR $OLD_INSTALLATION
-    else
-        print "You already have tst installed\n" $WARNING
-        print "* installation aborted\n" $NORMAL
-        print "Use --del-previous option to delete previous installation\n" $NORMAL
-        print "Use --set-env option to configure environment\n" $NORMAL
-        exit 1
-    fi
+# identify releases url
+if [ "$DOWNLOAD_DEV_VERSION" == "true" ]; then
+    RELEASES_URL='https://api.github.com/repos/daltonserey/tst/releases'
+    print "* fetching development pre-release information\n" $NORMAL
+else
+    RELEASES_URL='https://api.github.com/repos/daltonserey/tst/releases/latest'
+    print "* fetching latest release information\n" $NORMAL
 fi
 
-# create new tst installation dir
-mkdir $TSTDIR
-if [ -f "$OLD_INSTALLATION/config.json" ]; then
-    cp $OLD_INSTALLATION/config.json $TSTDIR
-fi
-cd $TSTDIR
-
-# get zipball_url of latest release
-print "* checking tst latest release\n" $NORMAL
-LATEST_URL='https://api.github.com/repos/daltonserey/tst/releases/latest'
-LATEST_RELEASE=$(curl -q $LATEST_URL 2> /dev/null)
+# download releases info; identify tag_name and zipball_url
+RELEASES=$(curl -q $RELEASES_URL 2> /dev/null)
 if [ $? != 0 ]; then
-    print "Couldn't download info about latest release\n" $WARNING
+    print "Couldn't download release information\n" $WARNING
     print "Installation aborted\n" $NORMAL
-    exit
+    exit 1
 fi
-ZIPBALL_URL=$(echo -e "$LATEST_RELEASE" | grep "zipball_url" | cut -f 4 -d '"')
+TAG_NAME=$(echo -e "$RELEASES" | grep "tag_name" | cut -f 4 -d '"')
+ZIPBALL_URL=$(echo -e "$RELEASES" | grep "zipball_url" | cut -f 4 -d '"')
 
-# download the latest release
-print "* downloading tst latest release\n" $NORMAL
+# cancel installation it there's no release available
+if [ "$TAG_NAME" == "" ]; then
+    echo -e $RELEASES
+    print "No release available\n" $WARNING
+    print "Installation canceled\n" $IMPORTANT
+    exit 1
+fi
+print "> release: $TAG_NAME\n" $NORMAL
+
+# check for previous installation
+if [ -d $TST_DIR ]; then
+
+    # check previous installation version
+    if [ -f "$TST_DIR/release.json" ]; then
+        PREVIOUS_TAG_NAME=$(cat $TST_DIR/release.json | grep "tag_name" | cut -f 4 -d '"')
+    fi
+
+    # check whether previous installation is update
+    if [ "$PREVIOUS_TAG_NAME" == "$TAG_NAME" ]; then
+        print "An installation of this version was found\n" $IMPORTANT
+    else
+        print "A previous version ($PREVIOUS_TAG_NAME) of TST was found\n" $IMPORTANT
+    fi
+
+    print "Delete and proceed? (y/n) " $QUESTION
+    get_yes_or_no
+    if [ "$ANSWER" != "y" ]; then
+        print "Installation cancelled by user\n" $IMPORTANT
+        exit 0
+    fi
+    # delete previous installation
+    rm -rf $TST_DIR
+
+fi
+
+# create installation dir
+if [ -f "$INSTALL_DIR" ]; then
+    print "* deleting failed attempt to install" $WARNING 
+    rm -rf $INSTALL_DIR
+fi
+
+mkdir $INSTALL_DIR
+
+# download latest release
+cd $INSTALL_DIR
+print "* downloading release zip\n" $NORMAL
 curl -q -Lko tst.zip $ZIPBALL_URL 2> /dev/null
 if [ $? != 0 ]; then
-    print "Couldn't download the latest release\n" $WARNING
+    rm -rf $INSTALL_DIR
+    echo $ZIPBALL_URL
+    print "Couldn't download release zip\n" $WARNING
     print "Installation aborted\n" $NORMAL
-    exit
+    print "Temporary files deleted\n" $NORMAL
+    exit 1
 fi
 
-# unzip tst
+# unzip and install tst scripts
 print "* unzipping and installing tst scripts\n" $NORMAL
 unzip -q tst.zip
-
-# move distribution contents to tst folder
-mv daltonserey-tst*/* $TSTDIR
+rm tst.zip
+mv daltonserey-tst*/* $INSTALL_DIR
+rm daltonserey-tst*/.gitignore
 rmdir daltonserey-tst*
 
+# add user configuration file
+if [ -f $CONFIG_FILE ]; then
+    cp $CONFIG_FILE $INSTALL_DIR/
+fi
+
+# add release.json
+echo "{\"tag_name\": \"$TAG_NAME\"}" > release.json
+
+# rename TST_DIR to definitive name
+mv $INSTALL_DIR $TST_DIR
 print "Installation finished.\n" $IMPORTANT
+
+# configure environment
 print "\nConfigure environment? (y/n) " $QUESTION
 get_yes_or_no
-if [ "$KEY" == "y" ]; then
-    set_environment
-    print "Environment successfully configured.\n" $IMPORTANT
+if [ "$ANSWER" == "y" ]; then
+    $TST_DIR/etc/setenv.sh
+    print "Environment configured.\n" $IMPORTANT
+    exit
 else
     print "Environment was" $NORMAL
     print " not " $WARNING
@@ -211,8 +196,7 @@ else
     print "Remember to add " $NORMAL
     print "~/.tst/bin" $IMPORTANT
     print " to your PATH\n" $NORMAL
-    print "Or run " $NORMAL
-    print "~/.tst/assets/install.sh --set-env" $IMPORTANT
-    print " to configure your environment.\n" $NORMAL
+    print "To configure your environment, run:\n" $NORMAL
+    print "    ~/.tst/etc/install.sh --set-environment\n" $IMPORTANT
     exit
 fi
