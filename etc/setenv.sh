@@ -9,6 +9,7 @@ TST_DIR=~/.tst
 USER_DOT_PROFILE=~/.profile
 USER_DOT_BASH_PROFILE=~/.bash_profile
 TST_PATH_INCLUDE=$TST_DIR/etc/tst.path.inc
+TST_PYTHONPATH_INCLUDE=$TST_DIR/etc/tst.pythonpath.inc
 
 # colors
 RESET="\033[0m"
@@ -54,6 +55,9 @@ function update_dot_profile {
     echo >> $USER_DOT_PROFILE
     echo "# The next line sets up the PATH for tst" >> $USER_DOT_PROFILE
     echo "source '$TST_PATH_INCLUDE'" >> $USER_DOT_PROFILE
+    echo >> $USER_DOT_PROFILE
+    echo "# The next line sets up the PYTHONPATH for tst" >> $USER_DOT_PROFILE
+    echo "source '$TST_PYTHONPATH_INCLUDE'" >> $USER_DOT_PROFILE
 }
 
 function update_dot_bash_profile {
