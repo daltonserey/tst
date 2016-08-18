@@ -113,8 +113,10 @@ if [ ! -f $USER_DOT_BASH_PROFILE ]; then
 else
     CHECK=$(grep -E ".profile.*\. .*profile" $USER_DOT_BASH_PROFILE 2> /dev/null)
     if [ "$?" == "0" ]; then
+        # .bash_profile looks ok
         print "$USER_DOT_BASH_PROFILE looks ok. Not modified.\n" $NORMAL
     else
+        # .bash_profile does not look ok
         print "* $USER_DOT_BASH_PROFILE" $NORMAL
         print " => " $WARNING
         print "$USER_DOT_BASH_PROFILE.bak\n" $NORMAL
