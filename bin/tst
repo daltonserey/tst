@@ -5,8 +5,7 @@
 # TST Commander. Invokes TST commands. It supports both internal
 # and external commands. Internal commands are functions within
 # this script named 'tst_*' and external commands are scripts
-# named 'tst_*.py' contained within the base directory of this
-# script during runtime.
+# named 'tst-*.py' contained in the ~/.tst/commands directory.
 #
 # To invoke a command, use the general syntax:
 #
@@ -38,7 +37,7 @@ def tst_help(args):
 
     print("\nInternal commands:")
     for cmd in internals():
-        print(" %-12s%s" % (cmd, globals()['tst_' + cmd].__doc__))
+        print(" %-12s%s" % (cmd, globals()['tst-' + cmd].__doc__))
 
 
 def tst_newver(args):
