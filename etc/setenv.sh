@@ -8,6 +8,7 @@
 TST_DIR=~/.tst
 USER_DOT_PROFILE=~/.profile
 USER_DOT_BASH_PROFILE=~/.bash_profile
+TST_PATH_INCLUDE=$TST_DIR/etc/tst.path.inc
 
 # colors
 RESET="\033[0m"
@@ -49,75 +50,81 @@ function print {
     echo -n -e $2"$1"$RESET
 }
 
-# MAIN
+function update_dot_profile {
+    echo >> $USER_DOT_PROFILE
+    echo "# The next line sets up the PATH for tst" >> $USER_DOT_PROFILE
+    echo "source '$TST_PATH_INCLUDE'" >> $USER_DOT_PROFILE
+}
 
-# assume .profile is not configured
-DOT_PROFILE_CONFIGURED="false"
-if [ ! -f $USER_DOT_PROFILE ]; then
-    # create .profile
-    print "* creating $USER_DOT_PROFILE\n" $NORMAL
+function update_dot_bash_profile {
+    echo >> $USER_DOT_BASH_PROFILE
+    echo "# Source both .profile and .bashrc for login shells" >> $USER_DOT_BASH_PROFILE
+    echo "if [ -f ~/.profile ]; then . ~/.profile; fi # Added by tst install script" >> $USER_DOT_BASH_PROFILE
+    echo "if [ -f ~/.bashrc ]; then . ~/.bashrc; fi # Added by tst install script" >> $USER_DOT_BASH_PROFILE
+}
+
+function create_dot_profile {
     echo "# This file was created by the TST install procedure." >> $USER_DOT_PROFILE
     echo "# However, it is not part of TST itself and you can" >> $USER_DOT_PROFILE
     echo "# edit this file however you need." >> $USER_DOT_PROFILE
     echo "# Keep the tst section below or move them to the" >> $USER_DOT_PROFILE
     echo "# appropriate rc file, to make tst easier to use." >> $USER_DOT_PROFILE
-else
-    # .profile exists: check it is configured
-    LINES=$(grep -E "source.*tst.path.inc" $USER_DOT_PROFILE 2> /dev/null)
-    if [ "$?" == "0" ]; then
-        DOT_PROFILE_CONFIGURED="true"
-    fi
+}
 
-    # make a bakcup copy
-    if [ "$DOT_PROFILE_CONFIGURED" != "true" ]; then
-        print "* copying $USER_DOT_PROFILE" $NORMAL
-        print " => " $WARNING
-        print "$USER_DOT_PROFILE.bak\n" $NORMAL
-        cp $USER_DOT_PROFILE $USER_DOT_PROFILE.bak
-    fi
-fi
-
-# add source line to .profile
-if [ "$DOT_PROFILE_CONFIGURED" == "true" ]; then
-    print "$USER_DOT_PROFILE seems already configured.\n" $NORMAL
-    print "No changes made.\n" $IMPORTANT
-else
-    TST_PATH_INCLUDE=$TST_DIR/etc/tst.path.inc
-    echo >> $USER_DOT_PROFILE
-    echo "# The next line sets up the PATH for tst" >> $USER_DOT_PROFILE
-    echo "source '$TST_PATH_INCLUDE'" >> $USER_DOT_PROFILE
-    print "* configuring $USER_DOT_PROFILE\n" $NORMAL
-fi
-
-## setup .bash_profile
-print "* configuring $USER_DOT_BASH_PROFILE\n" $NORMAL
-DOT_BASH_PROFILE_CONFIGURED="false"
-if [ ! -f $USER_DOT_BASH_PROFILE ]; then
-    print "* creating $USER_DOT_BASH_PROFILE\n" $NORMAL
+function create_dot_bash_profile {
     echo "# This file was created by the TST install script." >> $USER_DOT_BASH_PROFILE
     echo "# However, it is not part of TST itself and you can" >> $USER_DOT_BASH_PROFILE
     echo "# edit this file however you need." >> $USER_DOT_BASH_PROFILE
+}
+
+# MAIN
+
+# configure .profile
+CHANGES_MADE="false"
+if [ ! -f $USER_DOT_PROFILE ]; then
+    create_dot_profile
+    update_dot_profile
+    CHANGES_MADE="true"
+    print "File ~/.profile created.\n" $IMPORTANT
 else
-    LINES=$(grep -E ".profile.*\. .*profile" $USER_DOT_BASH_PROFILE 2> /dev/null)
+    # .profile DOES exist: check if it is configured
+    CHECK=$(grep -E "source.*tst.path.inc" $USER_DOT_PROFILE 2> /dev/null)
     if [ "$?" == "0" ]; then
-        DOT_BASH_PROFILE_CONFIGURED="true"
-    fi
-    
-    if [ "$DOT_BASH_PROFILE_CONFIGURED" != "true" ]; then
-        print "* copying $USER_DOT_BASH_PROFILE" $NORMAL
+        # .profile looks ok
+        print "$USER_DOT_PROFILE looks ok. Not modified.\n" $NORMAL
+    else
+        # .profile does not look ok: create backup
+        print "* $USER_DOT_PROFILE" $NORMAL
         print " => " $WARNING
-        print "$USER_DOT_BASH_PROFILE.bak\n" $NORMAL
-        cp $USER_DOT_BASH_PROFILE $USER_DOT_BASH_PROFILE.bak
+        print "$USER_DOT_PROFILE.bak\n" $NORMAL
+        cp $USER_DOT_PROFILE $USER_DOT_PROFILE.bak
+        update_dot_profile
+        CHANGES_MADE="true"
+        print "File ~/.profile updated.\n" $IMPORTANT
     fi
 fi
 
-if [ "$DOT_BASH_PROFILE_CONFIGURED" == "true" ]; then
-    print "$USER_DOT_BASH_PROFILE seems already configured.\n" $NORMAL
-    print "No changes made.\n" $IMPORTANT
+# configure .bash_profile
+if [ ! -f $USER_DOT_BASH_PROFILE ]; then
+    create_dot_bash_profile
+    update_dot_bash_profile
+    CHANGES_MADE="true"
+    print "File ~/.bash_profile created.\n" $IMPORTANT
 else
-    print "* configuring $USER_DOT_BASH_PROFILE configured.\n" $NORMAL
-    echo >> $USER_DOT_BASH_PROFILE
-    echo "# Source both .profile and .bashrc for login shells" >> $USER_DOT_BASH_PROFILE
-    echo "if [ -f ~/.profile ]; then . ~/.profile; fi # Added by tst install script" >> $USER_DOT_BASH_PROFILE
-    echo "if [ -f ~/.bashrc ]; then . ~/.bashrc; fi # Added by tst install script" >> $USER_DOT_BASH_PROFILE
+    CHECK=$(grep -E ".profile.*\. .*profile" $USER_DOT_BASH_PROFILE 2> /dev/null)
+    if [ "$?" == "0" ]; then
+        print "$USER_DOT_BASH_PROFILE looks ok. Not modified.\n" $NORMAL
+    else
+        print "* $USER_DOT_BASH_PROFILE" $NORMAL
+        print " => " $WARNING
+        print "$USER_DOT_BASH_PROFILE.bak\n" $NORMAL
+        cp $USER_DOT_BASH_PROFILE $USER_DOT_BASH_PROFILE.bak
+        update_dot_bash_profile
+        CHANGES_MADE="true"
+        print "File ~/.bash_profile updated.\n" $IMPORTANT
+    fi
+fi
+
+if [ "$CHANGES_MADE" == "false" ]; then
+    print "No changes made.\n" $IMPORTANT
 fi

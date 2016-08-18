@@ -63,7 +63,7 @@ while (( $# > 0 )); do
             DOWNLOAD_DEV_VERSION="true"
             ;;
         --*)
-            print "invalid option $1" $WARNING
+            print "invalid option $1\n" $WARNING
             exit 1
             ;;
     esac
