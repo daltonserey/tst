@@ -78,18 +78,6 @@ def tst_newver(args):
         print("tst: TST version %s is available" % last_version)
 
 
-def run_external_command(command, args):
-    cmd_args = " ".join(args)
-    command_line = os.expanduser("~/.tst/commands/tst-%s.py --one_line_help" % (command, cmd_args))
-    cmd = shlex.split(command_line.encode('utf-8'))
-    try:
-        subprocess.check_call(cmd)
-    except subprocess.CalledProcessError:
-        pass
-    except OSError:
-        print("tst: unknown command '%s'" % command, file=sys.stderr)
-
-
 def get_one_line_help(command):
 
     script = "/Users/dalton/Dropbox/tst/2/cli/tst-%s.py" % command
@@ -106,7 +94,7 @@ def get_one_line_help(command):
 
 def run_external_command(command, args):
     cmd_args = " ".join(args)
-    command_line = "~/.tst/commands/tst-%s.py %s" % (command, cmd_args)
+    command_line = os.expanduser("~/.tst/commands/tst-%s.py --one_line_help" % (command, cmd_args))
     cmd = shlex.split(command_line.encode('utf-8'))
     try:
         subprocess.check_call(cmd)
@@ -114,7 +102,6 @@ def run_external_command(command, args):
         pass
     except OSError:
         print("tst: unknown command '%s'" % command, file=sys.stderr)
-        print(cmd)
 
 
 def internals():
