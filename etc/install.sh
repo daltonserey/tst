@@ -5,8 +5,8 @@
 # Interactive TST Installer script. Download and install tst CLI scripts. 
 
 # constants
-INSTALL_DIR=~/.tst2.install
-TST_DIR=~/.tst2
+INSTALL_DIR=~/.tst.install
+TST_DIR=~/.tst
 CONFIG_FILE=~/.tst/config.json
 USER_DOT_PROFILE=~/.profile2
 USER_DOT_BASH_PROFILE=~/.bash_profile2
@@ -108,7 +108,6 @@ ZIPBALL_URL=$(echo -e "$RELEASES" | grep "zipball_url" | cut -f 4 -d '"')
 
 # cancel installation it there's no release available
 if [ "$TAG_NAME" == "" ]; then
-    echo -e $RELEASES
     print "No release available\n" $WARNING
     print "Installation canceled\n" $IMPORTANT
     exit 1
@@ -125,7 +124,7 @@ if [ -d $TST_DIR ]; then
 
     # check whether previous installation is update
     if [ "$PREVIOUS_TAG_NAME" == "$TAG_NAME" ]; then
-        print "An installation of this version was found\n" $IMPORTANT
+        print "Version $PREVIOUS_TAG_NAME is already installed\n" $IMPORTANT
     else
         print "A previous version ($PREVIOUS_TAG_NAME) of TST was found\n" $IMPORTANT
     fi
