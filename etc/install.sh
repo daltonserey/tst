@@ -114,19 +114,19 @@ if [ "$TAG_NAME" == "" ]; then
 fi
 print "> release: $TAG_NAME\n" $NORMAL
 
-# check for previous installation
+# check for other installation
 if [ -d $TST_DIR ]; then
 
-    # check previous installation version
+    # check other installation version
     if [ -f "$TST_DIR/release.json" ]; then
         PREVIOUS_TAG_NAME=$(cat $TST_DIR/release.json | grep "tag_name" | cut -f 4 -d '"')
     fi
 
-    # check whether previous installation is update
+    # check if other installation is the same to be installed
     if [ "$PREVIOUS_TAG_NAME" == "$TAG_NAME" ]; then
         print "Version $PREVIOUS_TAG_NAME is already installed\n" $IMPORTANT
     else
-        print "A previous version ($PREVIOUS_TAG_NAME) of TST was found\n" $IMPORTANT
+        print "A different version ($PREVIOUS_TAG_NAME) of TST was found\n" $IMPORTANT
     fi
 
     print "Delete and proceed? (y/n) " $QUESTION
@@ -135,7 +135,7 @@ if [ -d $TST_DIR ]; then
         print "Installation cancelled by user\n" $IMPORTANT
         exit 0
     fi
-    # delete previous installation
+    # delete existing installation
     rm -rf $TST_DIR
 
 fi

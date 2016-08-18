@@ -42,10 +42,10 @@ the PATH. The command below, downloads and installs tst command
 line tools. It also helps you to configure your shell environment
 to make it easier to use tst.
 
-    $ curl -q -sSL https://raw.githubusercontent.com/daltonserey/tst/master/etc/install.sh | bash
-    $ curl -q -sSL http://bit.ly/tst-install | bash
+    $ bash -c "$(curl -q -sSL https://raw.githubusercontent.com/daltonserey/tst/master/etc/install.sh)"
+    $ bash -c "$(curl -q -sSL http://bit.ly/tst-install)"
 
 To download a development pre-release, use the command below.
 
-    $ curl -q -sSL https://raw.githubusercontent.com/daltonserey/tst/develop/etc/install.sh | bash -s --development-version
-    $ curl -q -sSL http://bit.ly/tst-dev-install | bash -s --development-version
+    $ bash -c "$(curl -q -sSL https://raw.githubusercontent.com/daltonserey/tst/develop/etc/install.sh)" -s --development-version
+    $ bash -c "$(curl -q -sSL http://bit.ly/tst-dev-install)" -s --development-version
