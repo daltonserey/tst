@@ -37,7 +37,7 @@ def tst_help(args):
 
     print("\nInternal commands:")
     for cmd in internals():
-        print(" %-12s%s" % (cmd, globals()['tst-' + cmd].__doc__))
+        print(" %-12s%s" % (cmd, globals()['tst_' + cmd].__doc__))
 
 
 def tst_newver(args):
@@ -80,7 +80,7 @@ def tst_newver(args):
 
 def run_external_command(command, args):
     cmd_args = " ".join(args)
-    command_line = "tst-%s.py --one_line_help" % (command, cmd_args)
+    command_line = "~/.tst/commands/tst-%s.py --one_line_help" % (command, cmd_args)
     cmd = shlex.split(command_line.encode('utf-8'))
     try:
         subprocess.check_call(cmd)
@@ -107,7 +107,7 @@ def get_one_line_help(command):
 
 def run_external_command(command, args):
     cmd_args = " ".join(args)
-    command_line = "tst_%s.py %s" % (command, cmd_args)
+    command_line = "~/.tst/commands/tst-%s.py %s" % (command, cmd_args)
     cmd = shlex.split(command_line.encode('utf-8'))
     try:
         subprocess.check_call(cmd)
