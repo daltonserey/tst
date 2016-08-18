@@ -103,8 +103,8 @@ if [ $? != 0 ]; then
     print "Installation aborted\n" $NORMAL
     exit 1
 fi
-TAG_NAME=$(echo -e "$RELEASES" | grep "tag_name" | cut -f 4 -d '"')
-ZIPBALL_URL=$(echo -e "$RELEASES" | grep "zipball_url" | cut -f 4 -d '"')
+TAG_NAME=$(echo -e "$RELEASES" | grep "tag_name" | cut -f 4 -d '"' | head -1)
+ZIPBALL_URL=$(echo -e "$RELEASES" | grep "zipball_url" | cut -f 4 -d '"' | head -1)
 
 # cancel installation it there's no release available
 if [ "$TAG_NAME" == "" ]; then
@@ -112,7 +112,7 @@ if [ "$TAG_NAME" == "" ]; then
     print "Installation canceled\n" $IMPORTANT
     exit 1
 fi
-print "> release: $TAG_NAME\n" $NORMAL
+print "> version available: $TAG_NAME\n" $NORMAL
 
 # check for other installation
 if [ -d $TST_DIR ]; then

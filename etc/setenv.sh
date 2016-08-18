@@ -5,9 +5,6 @@
 # Configure bash environment for TST. 
 
 # constants
-INSTALL_DIR=~/.tst2.install
-TST_DIR=~/.tst2
-CONFIG_FILE=~/.tst/config.json
 USER_DOT_PROFILE=~/.profile2
 USER_DOT_BASH_PROFILE=~/.bash_profile2
 
