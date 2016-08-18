@@ -5,8 +5,8 @@
 # Configure bash environment for TST. 
 
 # constants
-USER_DOT_PROFILE=~/.profile2
-USER_DOT_BASH_PROFILE=~/.bash_profile2
+USER_DOT_PROFILE=~/.profile
+USER_DOT_BASH_PROFILE=~/.bash_profile
 
 # colors
 RESET="\033[0m"
