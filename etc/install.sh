@@ -195,7 +195,5 @@ else
     print "Remember to add " $NORMAL
     print "~/.tst/bin" $IMPORTANT
     print " to your PATH\n" $NORMAL
-    print "To configure your environment, run:\n" $NORMAL
-    print "    ~/.tst/etc/install.sh --set-environment\n" $IMPORTANT
     exit
 fi
