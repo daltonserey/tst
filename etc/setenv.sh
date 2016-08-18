@@ -5,6 +5,7 @@
 # Configure bash environment for TST. 
 
 # constants
+TST_DIR=~/.tst
 USER_DOT_PROFILE=~/.profile
 USER_DOT_BASH_PROFILE=~/.bash_profile
 
@@ -81,7 +82,7 @@ if [ "$DOT_PROFILE_CONFIGURED" == "true" ]; then
     print "$USER_DOT_PROFILE seems already configured.\n" $NORMAL
     print "No changes made.\n" $IMPORTANT
 else
-    TST_PATH_INCLUDE=$1/etc/tst.path.inc
+    TST_PATH_INCLUDE=$TST_DIR/etc/tst.path.inc
     echo >> $USER_DOT_PROFILE
     echo "# The next line sets up the PATH for tst" >> $USER_DOT_PROFILE
     echo "source '$TST_PATH_INCLUDE'" >> $USER_DOT_PROFILE
