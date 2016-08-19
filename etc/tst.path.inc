@@ -1,2 +1,2 @@
 # add tst bin to PATH
-PATH=~/.tst/bin:$PATH
+export PATH=~/.tst/bin:$PATH
