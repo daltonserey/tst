@@ -16,18 +16,14 @@
 
 from __future__ import print_function
 from __future__ import unicode_literals
-import os
 import sys
-import glob
+import os
 import shlex
-import subprocess
 
-from subprocess import Popen, PIPE
-
+from subprocess import Popen, PIPE, check_call, CalledProcessError
 
 # TST INTERNAL COMMANDS
 DEFAULT_COMMAND = 'test'
-
 
 def tst_help(args):
     """short description of commands"""
@@ -105,8 +101,8 @@ def run_external_command(command, args):
     command_line = "%s %s" % (external_script(command), " ".join(args))
     cmd = shlex.split(command_line.encode('utf-8'))
     try:
-        subprocess.check_call(cmd)
-    except subprocess.CalledProcessError:
+        check_call(cmd)
+    except CalledProcessError:
         pass
     except OSError:
         print("tst: unknown command '%s'" % command, file=sys.stderr)
