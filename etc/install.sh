@@ -8,8 +8,6 @@
 INSTALL_DIR=~/.tst.install
 TST_DIR=~/.tst
 CONFIG_FILE=~/.tst/config.json
-USER_DOT_PROFILE=~/.profile
-USER_DOT_BASH_PROFILE=~/.bash_profile
 
 # colors
 RESET="\033[0m"
