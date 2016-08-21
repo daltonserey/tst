@@ -52,6 +52,7 @@ function update_dot_profile {
 
 function update_dot_bash_profile {
     echo >> $USER_DOT_BASH_PROFILE
+    echo "# Added by tst install script" >> $USER_DOT_BASH_PROFILE
     echo "# Source both .profile and .bashrc for login shells" >> $USER_DOT_BASH_PROFILE
     echo "if [ -f ~/.profile ]; then . ~/.profile; fi # Added by tst install script" >> $USER_DOT_BASH_PROFILE
     echo "if [ -f ~/.bashrc ]; then . ~/.bashrc; fi # Added by tst install script" >> $USER_DOT_BASH_PROFILE
