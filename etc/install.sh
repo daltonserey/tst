@@ -46,7 +46,12 @@ function get_yes_or_no {
 
 # print with color
 function print {
-    echo -n -e $2"$1"$RESET
+    COLOR=$2
+    if [ "$COLOR" == "" ]; then
+        COLOR=$NORMAL
+    fi
+
+    echo -n -e $COLOR"$1"$RESET
 }
 
 
@@ -59,6 +64,9 @@ while (( $# > 0 )); do
             ;;
         --development-version)
             DOWNLOAD_DEV_VERSION="true"
+            ;;
+        --update)
+            UPDATE="true"
             ;;
         --*)
             print "invalid option $1\n" $WARNING
@@ -88,17 +96,17 @@ fi
 # identify releases url
 if [ "$DOWNLOAD_DEV_VERSION" == "true" ]; then
     RELEASES_URL='https://api.github.com/repos/daltonserey/tst/releases'
-    print "* fetching development pre-release information\n" $NORMAL
+    print "* fetching development pre-release information\n"
 else
     RELEASES_URL='https://api.github.com/repos/daltonserey/tst/releases/latest'
-    print "* fetching latest release information\n" $NORMAL
+    print "* fetching latest release information\n"
 fi
 
 # download releases info; identify tag_name and zipball_url
 RELEASES=$(curl -q $RELEASES_URL 2> /dev/null)
 if [ $? != 0 ]; then
     print "Couldn't download release information\n" $WARNING
-    print "Installation aborted\n" $NORMAL
+    print "Installation aborted\n"
     exit 1
 fi
 TAG_NAME=$(echo -e "$RELEASES" | grep "tag_name" | cut -f 4 -d '"' | head -1)
@@ -110,7 +118,6 @@ if [ "$TAG_NAME" == "" ]; then
     print "Installation canceled\n" $IMPORTANT
     exit 1
 fi
-print "Version available to download: $TAG_NAME\n" $IMPORTANT
 
 # create TST_DIR if one doesn't exist
 if [ ! -d $TST_DIR ]; then
@@ -123,17 +130,21 @@ if [ -f "$TST_DIR/release.json" ]; then
 
     # notify user about previous installation
     if [ "$PREVIOUS_TAG_NAME" == "$TAG_NAME" ]; then
-        print "This version is already installed\n" $IMPORTANT
+        print "tst is update (version $TAG_NAME)\n" $IMPORTANT
+        exit
     else
-        print "Current version installed is $PREVIOUS_TAG_NAME\n" $IMPORTANT
+        print "new version of tst is available\n"
+        print "updating from version $PREVIOUS_TAG_NAME => $TAG_NAME\n"
     fi
 
     # ask user whether to proceed and overwrite installation
-    print "Proceed and overwrite? (y/n) " $QUESTION
-    get_yes_or_no
-    if [ "$ANSWER" != "y" ]; then
-        print "Installation cancelled by user\n" $IMPORTANT
-        exit 0
+    if [ "$UPDATE" != "true" ]; then
+        print "Proceed and overwrite? (y/n) " $QUESTION
+        get_yes_or_no
+        if [ "$ANSWER" != "y" ]; then
+            print "Installation cancelled by user\n" $IMPORTANT
+            exit 0
+        fi
     fi
 fi
 
@@ -146,19 +157,19 @@ mkdir $INSTALL_DIR
 
 # download latest release into INSTALL_DIR
 cd $INSTALL_DIR
-print "* downloading release zip\n" $NORMAL
+print "* downloading release zip\n"
 curl -q -Lko tst.zip $ZIPBALL_URL 2> /dev/null
 if [ $? != 0 ]; then
     rm -rf $INSTALL_DIR
     echo $ZIPBALL_URL
     print "Couldn't download release zip\n" $WARNING
-    print "Installation aborted\n" $NORMAL
-    print "Temporary files deleted\n" $NORMAL
+    print "Installation aborted\n"
+    print "Temporary files deleted\n"
     exit 1
 fi
 
 # unzip and install tst scripts within INSTALL_DIR
-print "* unzipping and installing tst scripts\n" $NORMAL
+print "* unzipping and installing tst scripts\n"
 unzip -q tst.zip
 rm tst.zip
 
@@ -185,11 +196,11 @@ if [ "$ANSWER" == "y" ]; then
     print "Environment configured.\n" $IMPORTANT
     exit
 else
-    print "Environment was" $NORMAL
+    print "Environment was"
     print " not " $WARNING
-    print "configured.\n" $NORMAL
-    print "Remember to add " $NORMAL
+    print "configured.\n"
+    print "Remember to add "
     print "~/.tst/bin" $IMPORTANT
-    print " to your PATH\n" $NORMAL
+    print " to your PATH\n"
     exit
 fi

@@ -85,7 +85,7 @@ def internals():
 
 
 def externals():
-    return ["login", "checkout", "test", "commit"]
+    return ["update", "login", "checkout", "test", "commit"]
 
 
 def custom_commands():

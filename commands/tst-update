@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# coding: utf-8
+# (c) 2016 Dalton Serey, UFCG
+#
+# Update tst CLI scripts.
+if [ "$1" == "--development-version" ]; then
+    bash -c "$(curl -q -sSL https://raw.githubusercontent.com/daltonserey/tst/develop/etc/install.sh)" -s --update
+else
+    bash -c "$(curl -q -sSL https://raw.githubusercontent.com/daltonserey/tst/develop/etc/install.sh)" -s --update --development-version
+fi
