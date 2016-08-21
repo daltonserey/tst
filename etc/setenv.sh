@@ -36,16 +36,6 @@ WARNING=$LRED
 IMPORTANT=$LBLUE
 QUESTION=$LGREEN
 
-# read either 'y' or 'n' from keyboard
-function get_yes_or_no {
-    while true; do 
-        read -s -n 1 ANSWER
-        if [ "$ANSWER" == 'y' ]; then break; fi
-        if [ "$ANSWER" == 'n' ]; then break; fi
-    done
-    echo $ANSWER
-}
-
 # print with color
 function print {
     echo -n -e $2"$1"$RESET
@@ -83,6 +73,12 @@ function create_dot_bash_profile {
 
 # MAIN
 
+if [ "$1" == "--non-interactive" ]; then
+    INTERACTIVE="false"
+else
+    INTERACTIVE="true"
+fi
+
 # configure .profile
 CHANGES_MADE="false"
 if [ ! -f $USER_DOT_PROFILE ]; then
@@ -95,7 +91,9 @@ else
     CHECK=$(grep -E "source.*tst.path.inc" $USER_DOT_PROFILE 2> /dev/null)
     if [ "$?" == "0" ]; then
         # .profile looks ok
-        print "$USER_DOT_PROFILE looks ok. Not modified.\n" $NORMAL
+        if [ "INTERACTIVE" == "true" ]; then
+            print "$USER_DOT_PROFILE looks ok. Not modified.\n" $NORMAL
+        fi
     else
         # .profile does not look ok: create backup
         print "* $USER_DOT_PROFILE" $NORMAL
@@ -118,7 +116,9 @@ else
     CHECK=$(grep -E ".profile.*\. .*profile" $USER_DOT_BASH_PROFILE 2> /dev/null)
     if [ "$?" == "0" ]; then
         # .bash_profile looks ok
-        print "$USER_DOT_BASH_PROFILE looks ok. Not modified.\n" $NORMAL
+        if [ "INTERACTIVE" == "true" ]; then
+            print "$USER_DOT_BASH_PROFILE looks ok. Not modified.\n" $NORMAL
+        fi
     else
         # .bash_profile does not look ok
         print "* $USER_DOT_BASH_PROFILE" $NORMAL

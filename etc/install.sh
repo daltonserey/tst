@@ -8,6 +8,7 @@
 INSTALL_DIR=~/.tst.install
 TST_DIR=~/.tst
 CONFIG_FILE=~/.tst/config.json
+INTERACTIVE="true"
 
 # colors
 RESET="\033[0m"
@@ -65,8 +66,12 @@ while (( $# > 0 )); do
         --development-version)
             DOWNLOAD_DEV_VERSION="true"
             ;;
-        --update)
-            UPDATE="true"
+        --non-interactive)
+            INTERACTIVE="false"
+            ;;
+        --dir)
+            TST_DIR=$2
+            shift
             ;;
         --*)
             print "invalid option $1\n" $WARNING
@@ -75,7 +80,6 @@ while (( $# > 0 )); do
     esac
     shift
 done
-
 
 # require curl or abort
 CURL=$(command -v curl)
@@ -96,10 +100,14 @@ fi
 # identify releases url
 if [ "$DOWNLOAD_DEV_VERSION" == "true" ]; then
     RELEASES_URL='https://api.github.com/repos/daltonserey/tst/releases'
-    print "* fetching development pre-release information\n"
+    if [ "$INTERACTIVE" == "true" ]; then
+        print "* fetching development pre-release information\n"
+    fi
 else
     RELEASES_URL='https://api.github.com/repos/daltonserey/tst/releases/latest'
-    print "* fetching latest release information\n"
+    if [ "$INTERACTIVE" == "true" ]; then
+        print "* fetching latest release information\n"
+    fi
 fi
 
 # download releases info; identify tag_name and zipball_url
@@ -119,10 +127,8 @@ if [ "$TAG_NAME" == "" ]; then
     exit 1
 fi
 
-# create TST_DIR if one doesn't exist
-if [ ! -d $TST_DIR ]; then
-    mkdir $TST_DIR
-fi
+# create TST_DIR if it doesn't exist
+mkdir -p $TST_DIR
 
 # check for previous installation version
 if [ -f "$TST_DIR/release.json" ]; then
@@ -130,15 +136,14 @@ if [ -f "$TST_DIR/release.json" ]; then
 
     # notify user about previous installation
     if [ "$PREVIOUS_TAG_NAME" == "$TAG_NAME" ]; then
-        print "tst is update (version $TAG_NAME)\n" $IMPORTANT
+        print "Installed tst is update (version $TAG_NAME)\n" $IMPORTANT
         exit
     else
-        print "new version of tst is available\n"
-        print "updating from version $PREVIOUS_TAG_NAME => $TAG_NAME\n"
+        print "New version of tst available (version $TAG_NAME)\n" $IMPORTANT
     fi
 
-    # ask user whether to proceed and overwrite installation
-    if [ "$UPDATE" != "true" ]; then
+    if [ "$INTERACTIVE" == "true" ]; then
+        # ask user whether to proceed and overwrite installation
         print "Proceed and overwrite? (y/n) " $QUESTION
         get_yes_or_no
         if [ "$ANSWER" != "y" ]; then
@@ -150,14 +155,18 @@ fi
 
 # create new installation dir
 if [ -f "$INSTALL_DIR" ]; then
-    print "* deleting failed attempt to install" $WARNING 
+    if [ "$INTERACTIVE" == "true" ]; then
+        print "* deleting failed attempt to install" $WARNING 
+    fi
     rm -rf $INSTALL_DIR
 fi
 mkdir $INSTALL_DIR
 
 # download latest release into INSTALL_DIR
 cd $INSTALL_DIR
-print "* downloading release zip\n"
+if [ "$INTERACTIVE" == "true" ]; then
+    print "* downloading release zip\n"
+fi
 curl -q -Lko tst.zip $ZIPBALL_URL 2> /dev/null
 if [ $? != 0 ]; then
     rm -rf $INSTALL_DIR
@@ -169,14 +178,18 @@ if [ $? != 0 ]; then
 fi
 
 # unzip and install tst scripts within INSTALL_DIR
-print "* unzipping and installing tst scripts\n"
+if [ "$INTERACTIVE" == "true" ]; then
+    print "* unzipping and installing tst scripts\n"
+fi
 unzip -q tst.zip
 rm tst.zip
 
 # install files in TST_DIR
-rm daltonserey-tst*/.gitignore
+mkdir -p $TST_DIR/bin
 mv daltonserey-tst*/bin/* $TST_DIR/bin/
+mkdir -p $TST_DIR/commands
 mv daltonserey-tst*/commands/* $TST_DIR/commands/
+mkdir -p $TST_DIR/etc
 mv daltonserey-tst*/etc/* $TST_DIR/etc/
 
 # update release.json in TST_DIR
@@ -188,11 +201,21 @@ rm -rf $INSTALL_DIR
 print "Installation finished.\n" $IMPORTANT
 
 
-# configure environment
-print "\nConfigure environment? (y/n) " $QUESTION
-get_yes_or_no
-if [ "$ANSWER" == "y" ]; then
-    $TST_DIR/etc/setenv.sh
+# configure environment?
+if [ "$INTERACTIVE" == "true" ]; then
+    print "\nConfigure environment? (y/n) " $QUESTION
+    get_yes_or_no
+    CONFIGURE_ENVIRONMENT=$ANSWER
+else
+    CONFIGURE_ENVIRONMENT="y"
+fi
+
+if [ "$CONFIGURE_ENVIRONMENT" == "y" ]; then
+    if [ "INTERACTIVE" == "true" ]; then
+        $TST_DIR/etc/setenv.sh
+    else
+        $TST_DIR/etc/setenv.sh --non-interactive
+    fi
     print "Environment configured.\n" $IMPORTANT
     exit
 else
