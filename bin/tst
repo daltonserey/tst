@@ -18,7 +18,6 @@ from __future__ import print_function
 from __future__ import unicode_literals
 import sys
 import os
-import shlex
 
 from subprocess import Popen, PIPE, check_call, CalledProcessError
 
@@ -27,85 +26,58 @@ DEFAULT_COMMAND = 'test'
 
 def tst_help(args):
     """short description of commands"""
-    print("External commands:")
-    for cmd in externals():
-        print(" %-12s%s" % (cmd, get_one_line_help(cmd)))
-
-    print("\nInternal commands:")
+    print("usage: tst [<command>] [<args>]\n")
+    print("Available commands:\n")
     for cmd in internals():
-        print(" %-12s%s" % (cmd, globals()['tst_' + cmd].__doc__))
+        print("  %-12s%s" % (cmd, globals()['tst_' + cmd].__doc__))
+    for cmd in externals():
+        print("  %-12s%s" % (cmd, get_one_line_help(cmd)))
+ 
+    custom = custom_commands()
+    if custom:
+        print("\nCustom commands:")
+        for cmd in custom_commands():
+            print("  %-12s%s" % (cmd, get_one_line_help(cmd)))
 
 
-def tst_newver(args):
+def tst_version(args):
     """print version of currently installed TST CLI"""
-    TST_CLI_URL = "https://dl.dropboxusercontent.com/u/9427789/tst"
-    CHANGELOG = os.path.dirname(__file__) + "/CHANGELOG.md"
     try:
-        changelog = open(CHANGELOG, "r").readlines()
-        version_line = [line for line in changelog if line.startswith("## ")]
-        version = version_line[1].split()[1]
+        release_file = os.path.expanduser("~/.tst/release.json")
+        release = open(release_file).read().split('"')[3][1:]
+        msg = "tst version %s" % release
     except:
-        print("tst: couldn't read CHANGELOG.md")
-        sys.exit(1)
+        msg = "your tst installation is either corrupted or outdated"
 
-    print(version)
-    print("checking for new version...")
-
-    # perform request
-    # TODO: remove requests; use json description of version
-    import requests
-    session = requests.session()
-    response = session.get(TST_CLI_URL + "/CHANGELOG.md",
-        allow_redirects=False
-    )
-
-    if response.status_code != 200:
-        print("tst: couldn't check for updates (status code = %d)" % response.status_code)
-        sys.exit()
-
-    # process response
-    changelog = response.text.splitlines()
-    version_line = [line for line in changelog if line.startswith("## ")]
-    last_version = version_line[1].split()[1]
-
-    if last_version == version:
-        print("tst: TST is up to date")
-    else:
-        print("tst: TST version %s is available" % last_version)
-
-
-def external_script(command):
-    script = os.path.expanduser("~/.tst/commands/tst-%s" % command)
-    if os.path.isfile(script):
-        return script
-
-    print("Command not found: %s" % script)
-    sys.exit()
+    print(msg)
 
 
 def get_one_line_help(command):
 
-    script = "~/.tst/commands/tst-%s.py" % command
-    process = Popen([script, "--one-line-help"], stdout=PIPE, stderr=PIPE) 
+    script = os.path.expanduser("~/.tst/commands/tst-%s" % command)
+    try:
+        process = Popen([script, "--one-line-help"], stdout=PIPE, stderr=PIPE)
+    except:
+        return "<no help available>"
 
     try:
         stdout, stderr = process.communicate()
     except: # something went wrong
-        return "<couldn't find one line help for %s>" % command
+        return "<no help available>"
 
     # collect report from stderr or stdout
-    return stdout.strip()
+    return stdout.strip().splitlines()[0]
 
 
-def run_external_command(command, args):
-    command_line = "%s %s" % (external_script(command), " ".join(args))
-    cmd = shlex.split(command_line.encode('utf-8'))
+def run_command_script(command, args):
+    script_name = os.path.expanduser("~/.tst/commands/tst-%s" % command)
+    args.insert(0, script_name)
     try:
-        check_call(cmd)
+        check_call(args)
     except CalledProcessError:
         pass
     except OSError:
-        print("tst: unknown command '%s'" % command, file=sys.stderr)
+        print("tst: couldn't run command '%s'" % command, file=sys.stderr)
 
 
 def internals():
@@ -113,7 +85,12 @@ def internals():
 
 
 def externals():
-    return ["login", "checkout", "test", "commit", "version"]
+    return ["login", "checkout", "test", "commit"]
+
+
+def custom_commands():
+    commands = os.environ.get("TST_CUSTOM_COMMANDS")
+    return [] if commands is None else commands.split(":")
 
 
 def identify_and_run_command(args):
@@ -123,17 +100,17 @@ def identify_and_run_command(args):
         run_internal_command = globals()["tst_" + command_name]
         run_internal_command(args)
 
-    elif args and args[0] in externals():
+    elif args and (args[0] in externals() or args[0] in custom_commands()):
         command_name = args.pop(0)
-        run_external_command(command_name, args)
+        run_command_script(command_name, args)
 
     else: # neither internal, nor external command!?
-        args.insert(0, DEFAULT_COMMAND)
-        identify_and_run_command(args)
+        command_name = DEFAULT_COMMAND
+        run_command_script(command_name, args)
 
 
 if __name__ == "__main__":
     # make a safe and mutable copy of the arguments list
     args = sys.argv[:]
-    args.pop(0) # discard commander name
+    args.pop(0) # discard commander name (tst)
     identify_and_run_command(args)

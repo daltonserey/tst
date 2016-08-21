@@ -110,43 +110,41 @@ if [ "$TAG_NAME" == "" ]; then
     print "Installation canceled\n" $IMPORTANT
     exit 1
 fi
-print "> version available: $TAG_NAME\n" $NORMAL
+print "Version available to download: $TAG_NAME\n" $IMPORTANT
 
-# check for other installation
-if [ -d $TST_DIR ]; then
+# create TST_DIR if one doesn't exist
+if [ ! -d $TST_DIR ]; then
+    mkdir $TST_DIR
+fi
 
-    # check other installation version
-    if [ -f "$TST_DIR/release.json" ]; then
-        PREVIOUS_TAG_NAME=$(cat $TST_DIR/release.json | grep "tag_name" | cut -f 4 -d '"')
-    fi
+# check for previous installation version
+if [ -f "$TST_DIR/release.json" ]; then
+    PREVIOUS_TAG_NAME=$(cat $TST_DIR/release.json | grep "tag_name" | cut -f 4 -d '"')
 
-    # check if other installation is the same to be installed
+    # notify user about previous installation
     if [ "$PREVIOUS_TAG_NAME" == "$TAG_NAME" ]; then
-        print "Version $PREVIOUS_TAG_NAME is already installed\n" $IMPORTANT
+        print "This version is already installed\n" $IMPORTANT
     else
-        print "A different version ($PREVIOUS_TAG_NAME) of TST was found\n" $IMPORTANT
+        print "Current version installed is $PREVIOUS_TAG_NAME\n" $IMPORTANT
     fi
 
-    print "Delete and proceed? (y/n) " $QUESTION
+    # ask user whether to proceed and overwrite installation
+    print "Proceed and overwrite? (y/n) " $QUESTION
     get_yes_or_no
     if [ "$ANSWER" != "y" ]; then
         print "Installation cancelled by user\n" $IMPORTANT
         exit 0
     fi
-    # delete existing installation
-    rm -rf $TST_DIR
-
 fi
 
-# create installation dir
+# create new installation dir
 if [ -f "$INSTALL_DIR" ]; then
     print "* deleting failed attempt to install" $WARNING 
     rm -rf $INSTALL_DIR
 fi
-
 mkdir $INSTALL_DIR
 
-# download latest release
+# download latest release into INSTALL_DIR
 cd $INSTALL_DIR
 print "* downloading release zip\n" $NORMAL
 curl -q -Lko tst.zip $ZIPBALL_URL 2> /dev/null
@@ -159,25 +157,25 @@ if [ $? != 0 ]; then
     exit 1
 fi
 
-# unzip and install tst scripts
+# unzip and install tst scripts within INSTALL_DIR
 print "* unzipping and installing tst scripts\n" $NORMAL
 unzip -q tst.zip
 rm tst.zip
-mv daltonserey-tst*/* $INSTALL_DIR
+
+# install files in TST_DIR
 rm daltonserey-tst*/.gitignore
-rmdir daltonserey-tst*
+mv daltonserey-tst*/bin/* $TST_DIR/bin/
+mv daltonserey-tst*/commands/* $TST_DIR/commands/
+mv daltonserey-tst*/etc/* $TST_DIR/etc/
 
-# add user configuration file
-if [ -f $CONFIG_FILE ]; then
-    cp $CONFIG_FILE $INSTALL_DIR/
-fi
+# update release.json in TST_DIR
+cd $TST_DIR
+echo "{\"tag_name\": \"$TAG_NAME\"}" > $TST_DIR/release.json
 
-# add release.json
-echo "{\"tag_name\": \"$TAG_NAME\"}" > release.json
-
-# rename TST_DIR to definitive name
-mv $INSTALL_DIR $TST_DIR
+# end installation
+rm -rf $INSTALL_DIR
 print "Installation finished.\n" $IMPORTANT
+
 
 # configure environment
 print "\nConfigure environment? (y/n) " $QUESTION
