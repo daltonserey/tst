@@ -44,7 +44,7 @@ def tst_version(args):
     """print version of currently installed TST CLI"""
     try:
         release_file = os.path.expanduser("~/.tst/release.json")
-        release = open(release_file).read().split('"')[3][1:]
+        release = open(release_file).read().split('"')[3]
         msg = "tst version %s" % release
     except:
         msg = "your tst installation is either corrupted or outdated"
