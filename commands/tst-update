@@ -3,7 +3,7 @@
 # (c) 2016 Dalton Serey, UFCG
 #
 # Update tst CLI scripts.
-if [ "$1" != "--one-line-help" ]; then
+if [ "$1" == "--one-line-help" ]; then
     echo "update tst"
     exit
 fi
