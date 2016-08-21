@@ -200,30 +200,19 @@ echo "{\"tag_name\": \"$TAG_NAME\"}" > $TST_DIR/release.json
 rm -rf $INSTALL_DIR
 print "Installation finished.\n" $IMPORTANT
 
-
-# configure environment?
+# configure environment if in interactive mode
 if [ "$INTERACTIVE" == "true" ]; then
     print "\nConfigure environment? (y/n) " $QUESTION
     get_yes_or_no
-    CONFIGURE_ENVIRONMENT=$ANSWER
-else
-    CONFIGURE_ENVIRONMENT="y"
-fi
-
-if [ "$CONFIGURE_ENVIRONMENT" == "y" ]; then
-    if [ "INTERACTIVE" == "true" ]; then
+    if [ "ANSWER" == "y" ]; then
         $TST_DIR/etc/setenv.sh
     else
-        $TST_DIR/etc/setenv.sh --non-interactive
+        print "Environment was"
+        print " not " $WARNING
+        print "configured.\n"
+        print "Remember to add "
+        print "~/.tst/bin" $IMPORTANT
+        print " to your PATH\n"
+        exit
     fi
-    print "Environment configured.\n" $IMPORTANT
-    exit
-else
-    print "Environment was"
-    print " not " $WARNING
-    print "configured.\n"
-    print "Remember to add "
-    print "~/.tst/bin" $IMPORTANT
-    print " to your PATH\n"
-    exit
 fi

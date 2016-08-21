@@ -132,5 +132,5 @@ else
 fi
 
 if [ "$CHANGES_MADE" == "false" ]; then
-    print "No changes made.\n" $IMPORTANT
+    print "Environment seems ok. No changes made.\n" $IMPORTANT
 fi
