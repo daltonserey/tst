@@ -110,7 +110,7 @@ else
     fi
 fi
 
-# download releases info; identify tag_name and zipball_url
+# download releases info: identify tag_name and zipball_url
 RELEASES=$(curl -q $RELEASES_URL 2> /dev/null)
 if [ $? != 0 ]; then
     print "Couldn't download release information\n" $WARNING
@@ -120,7 +120,7 @@ fi
 TAG_NAME=$(echo -e "$RELEASES" | grep "tag_name" | cut -f 4 -d '"' | head -1)
 ZIPBALL_URL=$(echo -e "$RELEASES" | grep "zipball_url" | cut -f 4 -d '"' | head -1)
 
-# cancel installation it there's no release available
+# cancel installation if there's no release available
 if [ "$TAG_NAME" == "" ]; then
     print "No release available\n" $WARNING
     print "Installation canceled\n" $IMPORTANT
@@ -136,7 +136,7 @@ if [ -f "$TST_DIR/release.json" ]; then
 
     # notify user about previous installation
     if [ "$PREVIOUS_TAG_NAME" == "$TAG_NAME" ]; then
-        print "Installed tst is update (version $TAG_NAME)\n" $IMPORTANT
+        print "Installed tst is up-to-date (version $TAG_NAME)\n" $IMPORTANT
         exit
     else
         print "New version of tst available (version $TAG_NAME)\n" $IMPORTANT
@@ -198,7 +198,7 @@ echo "{\"tag_name\": \"$TAG_NAME\"}" > $TST_DIR/release.json
 
 # end installation
 rm -rf $INSTALL_DIR
-print "Installation finished.\n" $IMPORTANT
+print "Installation finished\n" $IMPORTANT
 
 # configure environment if in interactive mode
 if [ "$INTERACTIVE" == "true" ]; then
