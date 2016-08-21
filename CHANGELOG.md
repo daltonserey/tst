@@ -3,6 +3,11 @@
 All relevant changes to this project are documented in this file.
 
 
+## 0.4.0 - 2016-08-21
+### Added
+- Source code now hosted at Github.com.
+- Improved install and update support.
+
 ## 0.3.11 - 2015-11-23
 ### Added
 
