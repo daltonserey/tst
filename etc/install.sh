@@ -204,7 +204,7 @@ print "Installation finished\n" $IMPORTANT
 if [ "$INTERACTIVE" == "true" ]; then
     print "\nConfigure environment? (y/n) " $QUESTION
     get_yes_or_no
-    if [ "ANSWER" == "y" ]; then
+    if [ "$ANSWER" == "y" ]; then
         $TST_DIR/etc/setenv.sh
     else
         print "Environment was"
