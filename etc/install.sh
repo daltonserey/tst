@@ -69,7 +69,8 @@ while (( $# > 0 )); do
         --non-interactive)
             INTERACTIVE="false"
             ;;
-        --dir)
+        --installation-dir)
+            INSTALLATION_DIR="true"
             TST_DIR=$2
             shift
             ;;
@@ -154,13 +155,13 @@ if [ -f "$TST_DIR/release.json" ]; then
 fi
 
 # create new installation dir
-if [ -f "$INSTALL_DIR" ]; then
+if [ -d "$INSTALL_DIR" ]; then
     if [ "$INTERACTIVE" == "true" ]; then
         print "* deleting failed attempt to install" $WARNING 
     fi
     rm -rf $INSTALL_DIR
 fi
-mkdir $INSTALL_DIR
+mkdir -p $INSTALL_DIR
 
 # download latest release into INSTALL_DIR
 cd $INSTALL_DIR
@@ -191,6 +192,9 @@ mkdir -p $TST_DIR/commands
 mv daltonserey-tst*/commands/* $TST_DIR/commands/
 mkdir -p $TST_DIR/etc
 mv daltonserey-tst*/etc/* $TST_DIR/etc/
+mv daltonserey-tst*/CHANGELOG.md $TST_DIR/
+mv daltonserey-tst*/README.md $TST_DIR/
+mv daltonserey-tst*/LICENSE $TST_DIR/
 
 # update release.json in TST_DIR
 cd $TST_DIR
@@ -207,12 +211,8 @@ if [ "$INTERACTIVE" == "true" ]; then
     if [ "$ANSWER" == "y" ]; then
         $TST_DIR/etc/setenv.sh
     else
-        print "Environment was"
-        print " not " $WARNING
-        print "configured.\n"
-        print "Remember to add "
-        print "~/.tst/bin" $IMPORTANT
-        print " to your PATH\n"
+        print "Environment was$WARNING not $NORMAL configured.\n"
+        print "Remember to add $IMPORTANT$TST_DIR/bin $NORMAL to your PATH\n"
         exit
     fi
 fi
