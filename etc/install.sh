@@ -228,7 +228,7 @@ if [ "$INTERACTIVE" == "true" ]; then
         if [ "$ANSWER" == "y" ]; then
             mkdir -p ~/.old_tst
             mv $OLD_TST ~/.old_tst/
-            print "The directory was moved to ~/.old_tst"
+            print "The old directory was moved to ~/.old_tst\n" $IMPORTANT
         fi
     fi
 fi
