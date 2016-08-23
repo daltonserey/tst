@@ -5,11 +5,8 @@
 # Interactive script to configure bash environment for TST. 
 
 # constants
-TST_DIR=~/.tst
 DOT_PROFILE=~/.profile
 DOT_BASHRC=~/.bashrc
-TST_PATH_INCLUDE=$TST_DIR/etc/tst.path.inc
-TST_PYTHONPATH_INCLUDE=$TST_DIR/etc/tst.pythonpath.inc
 
 # colors
 RESET="\033[0m"
@@ -39,23 +36,6 @@ QUESTION=$LGREEN
 # print with color
 function print {
     echo -n -e $2"$1"$RESET
-}
-
-function update_dot_profile {
-    echo >> $DOT_PROFILE
-    echo "# The next line sets up the PATH for tst" >> $DOT_PROFILE
-    echo "source '$TST_PATH_INCLUDE'" >> $DOT_PROFILE
-    echo >> $DOT_PROFILE
-    echo "# The next line sets up the PYTHONPATH for tst" >> $DOT_PROFILE
-    echo "source '$TST_PYTHONPATH_INCLUDE'" >> $DOT_PROFILE
-}
-
-function update_dot_bash_profile {
-    echo >> $DOT_BASHRC
-    echo "# Added by tst install script" >> $DOT_BASHRC
-    echo "# Source both .profile and .bashrc for login shells" >> $DOT_BASHRC
-    echo "if [ -f ~/.profile ]; then . ~/.profile; fi # Added by tst install script" >> $DOT_BASHRC
-    echo "if [ -f ~/.bashrc ]; then . ~/.bashrc; fi # Added by tst install script" >> $DOT_BASHRC
 }
 
 function update_file {
