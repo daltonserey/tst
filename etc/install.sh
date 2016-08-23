@@ -222,21 +222,12 @@ if [ "$INTERACTIVE" == "true" ]; then
     OLD_TST=~/tst
     if [ -d "$OLD_TST" ]; then
         print "\nWe found what seems to be an older installation.\n" $IMPORTANT
-        print "$OLD_TST" $WARNING
+        print "$OLD_TST\n" $WARNING
         print "Delete? (y/n) " $QUESTION
         get_yes_or_no
         if [ "$ANSWER" == "y" ]; then
             mkdir -p ~/.old_tst
             mv $OLD_TST ~/.old_tst/
         fi
-    fi
-    print "\nDelete previous installation? (y/n) " $QUESTION
-    get_yes_or_no
-    if [ "$ANSWER" == "y" ]; then
-        $TST_DIR/etc/setenv.sh
-    else
-        print "Environment was$WARNING not $NORMAL configured.\n"
-        print "Remember to add $IMPORTANT$TST_DIR/bin $NORMAL to your PATH\n"
-        exit
     fi
 fi
