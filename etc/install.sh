@@ -85,16 +85,16 @@ done
 # require curl or abort
 CURL=$(command -v curl)
 if [ $? != 0 ]; then
-    echo "the installation script requires the curl command";
-    echo "aborting installation";
+    print "The installation script requires the curl command" $WARNING
+    print "Aborting installation"
     exit 1
 fi
 
 # require unzip or abort
 UNZIP=$(command -v unzip)
 if [ $? != 0 ]; then
-    echo "the installation script requires the unzip command";
-    echo "aborting installation";
+    print "The installation script requires the unzip command" $WARNING
+    print "Aborting installation";
     exit 1
 fi
 
