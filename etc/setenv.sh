@@ -5,8 +5,12 @@
 # Interactive script to configure bash environment for TST. 
 
 # constants
+TST_DIR=~/.tst
 DOT_PROFILE=~/.profile
 DOT_BASHRC=~/.bashrc
+INC_FILE=~/.tst/etc/tst.inc
+TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
+NEWLINE="source '$INC_FILE' # $TIMESTAMP"
 
 # colors
 RESET="\033[0m"
@@ -38,52 +42,55 @@ function print {
     echo -n -e $2"$1"$RESET
 }
 
-function update_file {
+function create_backup {
     FILE=$1
-    PATTERN_PATH="source.*tst.inc.*"
-    PATH_FILE=~/.tst/etc/tst.inc
-    TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
-    LINE="source '$PATH_FILE' # $TIMESTAMP"
+    if [ -f "$FILE" ]; then
+        TIMESTAMP=$(date "+%Y-%m-%dT%H:%M:%S")
+        cp $FILE $FILE.bak.$TIMESTAMP
+    fi
+}
 
-    CHECK=$(grep -E "$PATTERN_PATH" $FILE 2> /dev/null)
+function replace_refs_to_old_installation {
+    FILE=$1
+    OLD_TST=$HOME/tst
+    if [ -d "$OLD_TST" ]; then
+        sed -i -e "s|$OLD_TST|$TST_DIR|g" $FILE
+    fi
+}
+
+function add_source_line {
+    FILE=$1
+    PATTERN="source.*tst.inc.*"
+    CHECK=$(grep -E "$PATTERN" $FILE 2> /dev/null)
     if [ "$?" == "0" ]; then
-        # FILE has the tst pattern
-        if [ "$UPDATE" == "true" ]; then
-            # update line in FILE 
-            SED_COMMAND="s/$PATTERN_PATH/$LINE"
-            sed -i.bak -e "s|source.*tst.inc.*|$LINE|" $FILE
-            CHANGES_MADE="true"
-            print "File $FILE updated.\n" $IMPORTANT
-        else
-            # don't update
-            return 0
-        fi
+        # FILE has the tst pattern: update
+        sed -i -e "s|$PATTERN|$NEWLINE|" $FILE
+        print "File $FILE updated.\n"
     else
-        # FILE doesn't have the tst pattern: add LINE
+        # FILE doesn't have the tst pattern: add NEWLINE
         echo -e "\n# Next line configures environment for the TST CLI" >> $FILE
-        echo "$LINE" >> $FILE
-        print "Three lines added to $FILE.\n" $IMPORTANT
-        CHANGES_MADE="true"
+        echo "$NEWLINE" >> $FILE
+        print "Lines added to $FILE.\n"
     fi
 }
 
 # MAIN
-if [ "$1" == "--update" ]; then
-    UPDATE="true"
-fi
 
-# configure .profile
+# configure .profile if it exists
 if [ -f $DOT_PROFILE ]; then
-    update_file $DOT_PROFILE
+    create_backup $DOT_PROFILE
+    replace_refs_to_old_installation $DOT_PROFILE
+    add_source_line $DOT_PROFILE
 fi
 
-# create .bashrc, if it doesn't exist
-if [ ! -f $DOT_BASHRC ]; then
-    touch .bashrc
+# create .bashrc if it doesn't exist
+if [ -f $DOT_BASHRC ]; then
+    touch $DOT_BASHRC
 fi
 
-update_file $DOT_BASHRC
+# backup .bashrc
+create_backup $DOT_BASHRC
 
-if [ "$CHANGES_MADE" != "true" ]; then
-    print "Environment seems ok. No changes made.\n"
-fi
+# configure .bashrc
+replace_refs_to_old_installation $DOT_BASHRC
+add_source_line $DOT_BASHRC

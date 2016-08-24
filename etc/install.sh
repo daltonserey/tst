@@ -237,6 +237,3 @@ if [ "$INTERACTIVE" == "true" ]; then
         fi
     fi
 fi
-
-# edit .bashrc # TODO: should go to setenv.sh
-sed -i.bak -e "s|$HOME/tst|$HOME/.tst|g" ~/.bashrc
