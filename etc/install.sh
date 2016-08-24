@@ -220,6 +220,10 @@ if [ "$INTERACTIVE" == "true" ]; then
         print "Remember to add $IMPORTANT$TST_DIR/bin $NORMAL to your PATH\n"
         exit
     fi
+    print "Remember that to use tst immediately, you must, either:" $IMPORTANT
+    print "- type the command:$IMPORTANT source ~/.bashrc"
+    print "  or"
+    print "- close the current shell and open a new one."
 fi
 
 # delete/rename previous installation
