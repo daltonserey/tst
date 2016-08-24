@@ -57,6 +57,11 @@ function print {
 
 
 # MAIN
+if [[ "$EUID" == "0" ]]; then
+   print "This script cannot be run as root\n" $WARNING
+   exit 1
+fi
+
 # process options
 while (( $# > 0 )); do
     case "$1" in
