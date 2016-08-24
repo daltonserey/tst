@@ -220,7 +220,7 @@ if [ "$INTERACTIVE" == "true" ]; then
         print "Remember to add $IMPORTANT$TST_DIR/bin $NORMAL to your PATH\n"
         exit
     fi
-    print "Remember that to use tst immediately, you must, either:\n" $IMPORTANT
+    print "\nRemember that to use tst immediately, you must, either:\n" $IMPORTANT
     print "- type the command:$IMPORTANT source ~/.bashrc\n"
     print "  or\n"
     print "- close the current shell and open a new one.\n"
