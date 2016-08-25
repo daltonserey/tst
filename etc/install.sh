@@ -2,13 +2,29 @@
 # coding: utf-8
 # (c) 2016 Dalton Serey, UFCG
 #
-# Interactive TST Installer script. Download and install tst CLI scripts. 
+# Interactive TST Installer script. Run this script to download
+# and install TST CLI tools. This script can be invoked with
+# these options:
+#
+# --pre-release
+#       Download the latest pre-release version available.
+#
+# --update
+#       Update existing installation. In this mode, the install
+#       script runs in non-interactive mode. It prints less
+#       evolution messages, it doesn't ask whether or not to
+#       overwrite previous installations, it doesn't configure
+#       the enviroment and doesn't delete old installations of
+#       tst.  This mode is used by the tst update command.
+#
+# --installation-dir <dir>
+#       Install the new version into <dir>.
 
 # constants
 INSTALL_DIR=~/.tst.install
 TST_DIR=~/.tst
 CONFIG_FILE=~/.tst/config.json
-INTERACTIVE="true"
+UPDATE="false"
 
 # colors
 RESET="\033[0m"
@@ -65,14 +81,11 @@ fi
 # process options
 while (( $# > 0 )); do
     case "$1" in
-        --del-previous)
-            DELETE_PREVIOUS="true"
-            ;;
-        --development-version)
+        --pre-release)
             DOWNLOAD_DEV_VERSION="true"
             ;;
-        --non-interactive)
-            INTERACTIVE="false"
+        --update)
+            UPDATE="true"
             ;;
         --installation-dir)
             INSTALLATION_DIR="true"
@@ -106,12 +119,12 @@ fi
 # identify releases url
 if [ "$DOWNLOAD_DEV_VERSION" == "true" ]; then
     RELEASES_URL='https://api.github.com/repos/daltonserey/tst/releases'
-    if [ "$INTERACTIVE" == "true" ]; then
+    if [ "$UPDATE" == "false" ]; then
         print "* fetching development pre-release information\n"
     fi
 else
     RELEASES_URL='https://api.github.com/repos/daltonserey/tst/releases/latest'
-    if [ "$INTERACTIVE" == "true" ]; then
+    if [ "$UPDATE" == "false" ]; then
         print "* fetching latest release information\n"
     fi
 fi
@@ -148,11 +161,11 @@ if [ -f "$TST_DIR/release.json" ]; then
         print "New version of tst available (version $TAG_NAME)\n" $IMPORTANT
     fi
 
-    if [ "$INTERACTIVE" == "true" ]; then
+    if [ "$UPDATE" == "false" ]; then
         # ask user whether to proceed and overwrite installation
         print "Proceed and overwrite? (y/n) " $QUESTION
         get_yes_or_no
-        if [ "$ANSWER" != "y" ]; then
+        if [ "$ANSWER" == "n" ]; then
             print "Installation cancelled by user\n" $IMPORTANT
             exit 0
         fi
@@ -161,7 +174,7 @@ fi
 
 # create new installation dir
 if [ -d "$INSTALL_DIR" ]; then
-    if [ "$INTERACTIVE" == "true" ]; then
+    if [ "$UPDATE" == "false" ]; then
         print "* deleting failed attempt to install" $WARNING 
     fi
     rm -rf $INSTALL_DIR
@@ -170,7 +183,7 @@ mkdir -p $INSTALL_DIR
 
 # download latest release into INSTALL_DIR
 cd $INSTALL_DIR
-if [ "$INTERACTIVE" == "true" ]; then
+if [ "$UPDATE" == "false" ]; then
     print "* downloading release zip\n"
 fi
 curl -q -Lko tst.zip $ZIPBALL_URL 2> /dev/null
@@ -184,7 +197,7 @@ if [ $? != 0 ]; then
 fi
 
 # unzip and install tst scripts within INSTALL_DIR
-if [ "$INTERACTIVE" == "true" ]; then
+if [ "$UPDATE" == "false" ]; then
     print "* unzipping and installing tst scripts\n"
 fi
 unzip -q tst.zip
@@ -210,7 +223,7 @@ rm -rf $INSTALL_DIR
 print "Installation finished\n" $IMPORTANT
 
 # configure environment if in interactive mode
-if [ "$INTERACTIVE" == "true" ]; then
+if [ "$false" == "false" ]; then
     print "\nConfigure environment? (y/n) " $QUESTION
     get_yes_or_no
     if [ "$ANSWER" == "y" ]; then
@@ -227,7 +240,7 @@ if [ "$INTERACTIVE" == "true" ]; then
 fi
 
 # delete/rename previous installation
-if [ "$INTERACTIVE" == "true" ]; then
+if [ "$UPDATE" == "false" ]; then
     OLD_TST=~/tst
     if [ -d "$OLD_TST" ]; then
         print "\nWe found what seems to be an older installation.\n" $IMPORTANT
