@@ -223,7 +223,7 @@ rm -rf $INSTALL_DIR
 print "Installation finished\n" $IMPORTANT
 
 # configure environment if in interactive mode
-if [ "$false" == "false" ]; then
+if [ "$UPDATE" == "false" ]; then
     print "\nConfigure environment? (y/n) " $QUESTION
     get_yes_or_no
     if [ "$ANSWER" == "y" ]; then
