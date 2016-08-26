@@ -51,4 +51,4 @@ environment to make it easier to use tst.
 ### Development pre-release
 
     $ bash -c "$(curl -q -sSL https://raw.githubusercontent.com/daltonserey/tst/develop/etc/install.sh)" -s --pre-release
-    $ bash -c "$(curl -q -sSL http://bit.ly/tst-install-beta)" -s --pre-release
+    $ bash -c "$(curl -q -sSL http://bit.ly/tst-install-pre)" -s --pre-release
