@@ -228,15 +228,15 @@ if [ "$UPDATE" == "false" ]; then
     get_yes_or_no
     if [ "$ANSWER" == "y" ]; then
         $TST_DIR/etc/setenv.sh
+        print "\nRemember that to use tst immediately, you must, either:\n" $IMPORTANT
+        print "- type the command:$IMPORTANT source .bashrc\n"
+        print "  or\n"
+        print "- close the current shell and open a new one.\n"
     else
         print "Environment was$WARNING not $NORMAL configured.\n"
         print "Remember to add $IMPORTANT$TST_DIR/bin $NORMAL to your PATH\n"
         exit
     fi
-    print "\nRemember that to use tst immediately, you must, either:\n" $IMPORTANT
-    print "- type the command:$IMPORTANT source ~/.bashrc\n"
-    print "  or\n"
-    print "- close the current shell and open a new one.\n"
 fi
 
 # delete/rename previous installation
