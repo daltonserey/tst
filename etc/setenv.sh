@@ -62,6 +62,9 @@ function comment_out_old_tst {
 [[ "$VERBOSE" == "true" ]] && print "* updating .bashrc\n"
 sed -i~ "\|$OLD_TST| s/^/#/" $BASHRC
 
+# comment out lines with refs to pre-release tst.inc file
+sed -i~ "/.*tst.inc.*/ s/^/#/" $BASHRC
+
 # update/add source tst.paths.inc
 pattern=".*source.*tst.paths.inc.*"
 source_line="source '$PATHS_FILE'"
