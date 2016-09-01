@@ -32,6 +32,7 @@ LBLUE="\033[1;34m"
 LGREEN="\033[1;32m"
 
 # semantic colors
+RESET="\033[0m"
 NORMAL=$LGRAY
 WARNING=$LRED
 IMPORTANT=$LBLUE
@@ -104,10 +105,10 @@ while (( $# > 0 )); do
 done
 
 # set releases url
-print "Starting tst $mode\n"
+print "Starting tst $mode\n" $IMPORTANT
 if [ "$GET_PRE_RELEASE" == "true" ]; then
     releases_url='https://api.github.com/repos/daltonserey/tst/releases'
-    [[ "$verbose" == "true" ]] && print "* fetching development pre-release information\n"
+    [[ "$verbose" == "true" ]] && print "* cheking available releases\n"
 else
     releases_url='https://api.github.com/repos/daltonserey/tst/releases/latest'
     [[ "$verbose" == "true" ]] && print "* fetching latest release information\n"
@@ -124,17 +125,17 @@ tag_name=$(echo -e "$releases" | grep "tag_name" | cut -f 4 -d '"' | head -1)
 zipball_url=$(echo -e "$releases" | grep "zipball_url" | cut -f 4 -d '"' | head -1)
 
 # cancel installation if there's no release available
-if [ "$tag_name" == "" ]; then
+if [[ "$tag_name" == "" ]]; then
     print "No release available\n" $WARNING
     print "$mode canceled\n" $IMPORTANT
     exit 1
 else
-    print "Current tst release available: $tag_name\n"
+    print "Latest available release: $tag_name\n" $IMPORTANT
 fi
 
 # if in installation mode, check for previous installation
 if [[ "$mode" == "installation" ]] && [[ -d "$TST_DIR" ]]; then
-    print "An installation of tst was found\n" $IMPORTANT
+    print "\nAn installation of tst was found\n" $WARNING
     print "Overwrite? (y/n) " $QUESTION
     get_yes_or_no
     if [ "$answer" == "n" ]; then
@@ -152,7 +153,7 @@ mkdir -p $INSTALL_DIR
 cd $INSTALL_DIR
 
 # download latest release into INSTALL_DIR
-[[ "$verbose" == "true" ]] && print "* downloading release zip\n"
+[[ "$verbose" == "true" ]] && print "* downloading $tag_name zip\n"
 curl -q -Lko tst.zip $zipball_url &> $INSTALL_DIR/log
 if [[ $? != 0 ]]; then
     rm -rf $INSTALL_DIR
@@ -164,13 +165,12 @@ if [[ $? != 0 ]]; then
 fi
 
 # unzip tst scripts
-[[ "$verbose" == "true" ]] && print "* unzipping and installing tst scripts\n"
+[[ "$verbose" == "true" ]] && print "* unzipping installation files\n"
 unzip -q tst.zip
 
-# create TST_DIR if it doesn't exist
+# install tst
+[[ "$verbose" == "true" ]] && print "* installing tst scripts\n"
 mkdir -p $TST_DIR
-
-# install tst files
 mkdir -p $TST_DIR/bin
 mv daltonserey-tst*/bin/* $TST_DIR/bin/
 mkdir -p $TST_DIR/commands
@@ -187,7 +187,7 @@ echo "{\"tag_name\": \"$tag_name\"}" > $TST_DIR/release.json
 
 # finish installation/update
 rm -rf $INSTALL_DIR
-print "$mode finished\n" $IMPORTANT
+print "Finished $mode\n" $IMPORTANT
 
 # end script if this is an update
 [[ "$mode" == "update" ]] && exit 0
@@ -210,10 +210,9 @@ print "\nConfigure environment? (y/n) " $QUESTION
 get_yes_or_no
 if [[ "$answer" == "y" ]]; then
     $TST_DIR/etc/setenv.sh
-    print "\nRemember that to use tst immediately, you must, either:\n" $IMPORTANT
-    print "- type the command:$IMPORTANT source ~/.bashrc\n"
-    print "  or\n"
-    print "- close the current shell and open a new one.\n"
+    print "Finished environment configuration\n" $IMPORTANT
+    print "\nTo make configuration take effect immediately, type the command:\n"
+    print "*$IMPORTANT source ~/.bashrc$NORMAL\n"
 else
     print "Environment was$WARNING not$NORMAL configured.\n"
     print "Remember to add $IMPORTANT$TST_DIR/bin$NORMAL to PATH and PYTHONPATH\n"
