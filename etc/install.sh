@@ -93,6 +93,7 @@ require_command unzip
 
 # process options
 mode="install"
+process="Installation"
 verbose="true"
 while (( $# > 0 )); do
     case "$1" in
@@ -101,6 +102,7 @@ while (( $# > 0 )); do
             ;;
         --update)
             mode="update"
+            process="Update"
             verbose="false"
             ;;
         --installation-dir)
@@ -117,7 +119,7 @@ while (( $# > 0 )); do
 done
 
 # set releases url
-print "Starting tst install/update\n"
+print "Starting tst $process\n"
 if [ "$GET_PRE_RELEASE" == "true" ]; then
     releases_url='https://api.github.com/repos/daltonserey/tst/releases'
     [[ "$verbose" == "true" ]] && print "* fetching development pre-release information\n"
@@ -130,7 +132,7 @@ fi
 releases=$(curl -q $releases_url 2> /dev/null)
 if [[ $? != 0 ]]; then
     print "Couldn't download release information\n" $WARNING
-    print "Installation aborted\n"
+    print "$process aborted\n"
     exit 1
 fi
 tag_name=$(echo -e "$releases" | grep "tag_name" | cut -f 4 -d '"' | head -1)
@@ -139,7 +141,7 @@ zipball_url=$(echo -e "$releases" | grep "zipball_url" | cut -f 4 -d '"' | head 
 # cancel installation if there's no release available
 if [ "$tag_name" == "" ]; then
     print "No release available\n" $WARNING
-    print "Installation canceled\n" $IMPORTANT
+    print "$process canceled\n" $IMPORTANT
     exit 1
 fi
 
@@ -149,7 +151,7 @@ if [[ "$mode" == "install" ]] && [[ -d "$TST_DIR" ]]; then
     print "Overwrite? (y/n) " $QUESTION
     get_yes_or_no
     if [ "$answer" == "n" ]; then
-        print "Installation cancelled by user\n"
+        print "$process cancelled by user\n"
         exit 0
     fi
 fi
@@ -170,7 +172,7 @@ if [[ $? != 0 ]]; then
     echo $zipball_url
     print "Couldn't download release zip\n" $WARNING
     print "Temporary files deleted\n"
-    print "Installation aborted\n"
+    print "$process aborted\n"
     exit 1
 fi
 
@@ -196,9 +198,9 @@ mv daltonserey-tst*/LICENSE $TST_DIR/
 cd $TST_DIR
 echo "{\"tag_name\": \"$tag_name\"}" > $TST_DIR/release.json
 
-# finish installation
+# finish installation/update
 rm -rf $INSTALL_DIR
-print "Installation finished\n" $IMPORTANT
+print "$process finished\n" $IMPORTANT
 
 # end script if this is an update
 [[ "$mode" == "update" ]] && exit 0
