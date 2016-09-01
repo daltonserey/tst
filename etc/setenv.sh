@@ -28,7 +28,7 @@ function comment_out_old_tst {
     local file old_tst
     file=$1
     old_tst=$HOME/tst
-    sed -i'' "\|$old_tst| s/^/#/" $file
+    sed -i "\|$old_tst| s/^/#/" $file
 }
 
 # MAIN
@@ -37,7 +37,7 @@ function comment_out_old_tst {
 [[ -f $BASHRC ]] && create_backup $BASHRC || touch $BASHRC
 
 # comment out lines with refs to old tst version
-sed -i'' "\|$OLD_TST| s/^/#/" $BASHRC
+sed -i "\|$OLD_TST| s/^/#/" $BASHRC
 
 # update/add source tst.paths.inc
 pattern=".*source.*tst.paths.inc.*"
@@ -45,7 +45,7 @@ source_line="source '$PATHS_FILE'"
 if grep -q -E "$pattern" $BASHRC; then
     # update source line
     echo "Updating .bashrc ($source_line)"
-    sed -i'' "s|$pattern|$source_line # $TIMESTAMP|" $BASHRC
+    sed -i "s|$pattern|$source_line # $TIMESTAMP|" $BASHRC
 else
     # add source line
     echo "Adding "$source_line" to .bashrc"
@@ -59,10 +59,12 @@ source_line="source '$COMPLETION_FILE'"
 if grep -q -E "$pattern" $BASHRC; then
     # update source line
     echo "Updating .bashrc ($source_line)"
-    sed -i'' "s|$pattern|$source_line # $TIMESTAMP|" $BASHRC
+    sed -i "s|$pattern|$source_line # $TIMESTAMP|" $BASHRC
 else
     # add source line
     echo "Adding "$source_line" to .bashrc"
     echo -e "\n# The next line configures completion for TST" >> $BASHRC
     echo "$source_line # $TIMESTAMP" >> $BASHRC
 fi
+
+rm -f $BASHRC-e
