@@ -92,8 +92,7 @@ require_command curl
 require_command unzip
 
 # process options
-mode="install"
-process="Installation"
+mode="installation"
 verbose="true"
 while (( $# > 0 )); do
     case "$1" in
@@ -102,7 +101,6 @@ while (( $# > 0 )); do
             ;;
         --update)
             mode="update"
-            process="Update"
             verbose="false"
             ;;
         --installation-dir)
@@ -119,7 +117,7 @@ while (( $# > 0 )); do
 done
 
 # set releases url
-print "Starting tst $process\n"
+print "Starting tst $mode\n"
 if [ "$GET_PRE_RELEASE" == "true" ]; then
     releases_url='https://api.github.com/repos/daltonserey/tst/releases'
     [[ "$verbose" == "true" ]] && print "* fetching development pre-release information\n"
@@ -132,7 +130,7 @@ fi
 releases=$(curl -q $releases_url 2> /dev/null)
 if [[ $? != 0 ]]; then
     print "Couldn't download release information\n" $WARNING
-    print "$process aborted\n"
+    print "$mode aborted\n"
     exit 1
 fi
 tag_name=$(echo -e "$releases" | grep "tag_name" | cut -f 4 -d '"' | head -1)
@@ -141,17 +139,17 @@ zipball_url=$(echo -e "$releases" | grep "zipball_url" | cut -f 4 -d '"' | head 
 # cancel installation if there's no release available
 if [ "$tag_name" == "" ]; then
     print "No release available\n" $WARNING
-    print "$process canceled\n" $IMPORTANT
+    print "$mode canceled\n" $IMPORTANT
     exit 1
 fi
 
 # in install mode, check for previous installation
-if [[ "$mode" == "install" ]] && [[ -d "$TST_DIR" ]]; then
+if [[ "$mode" == "installation" ]] && [[ -d "$TST_DIR" ]]; then
     print "An installation of tst was found\n" $IMPORTANT
     print "Overwrite? (y/n) " $QUESTION
     get_yes_or_no
     if [ "$answer" == "n" ]; then
-        print "$process cancelled by user\n"
+        print "$mode cancelled by user\n"
         exit 0
     fi
 fi
@@ -172,7 +170,7 @@ if [[ $? != 0 ]]; then
     echo $zipball_url
     print "Couldn't download release zip\n" $WARNING
     print "Temporary files deleted\n"
-    print "$process aborted\n"
+    print "$mode aborted\n"
     exit 1
 fi
 
@@ -200,7 +198,7 @@ echo "{\"tag_name\": \"$tag_name\"}" > $TST_DIR/release.json
 
 # finish installation/update
 rm -rf $INSTALL_DIR
-print "$process finished\n" $IMPORTANT
+print "$mode finished\n" $IMPORTANT
 
 # end script if this is an update
 [[ "$mode" == "update" ]] && exit 0
