@@ -9,10 +9,8 @@ from __future__ import unicode_literals
 
 import os
 import sys
-import webbrowser
 import json
 import codecs
-import subprocess
 import signal
 
 from subprocess import Popen, PIPE, CalledProcessError
