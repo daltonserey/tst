@@ -26,29 +26,26 @@ TST_DIR=~/.tst
 CONFIG_FILE=~/.tst/config.json
 
 # colors
-RESET="\033[0m"
-BLACK="\033[0;30m"
-BLUE="\033[0;34m"
-BROWN="\033[0;33m"
-CYAN="\033[0;36m"
-DGRAY="\033[1;30m"
-GREEN="\033[0;32m"
-LBLUE="\033[1;34m"
-LCYAN="\033[1;36m"
 LGRAY="\033[0;37m"
-LGREEN="\033[1;32m"
-LPURPLE="\033[1;35m"
 LRED="\033[1;31m"
-PURPLE="\033[0;35m"
-RED="\033[0;31m"
-WHITE="\033[1;37m"
-YELLOW="\033[1;33m"
+LBLUE="\033[1;34m"
+LGREEN="\033[1;32m"
 
 # semantic colors
 NORMAL=$LGRAY
 WARNING=$LRED
 IMPORTANT=$LBLUE
 QUESTION=$LGREEN
+
+# print with color
+function print {
+    COLOR=$2
+    if [[ "$COLOR" == "" ]]; then
+        COLOR=$NORMAL
+    fi
+
+    echo -n -e $COLOR"$1"$RESET
+}
 
 # read either 'y' or 'n' from keyboard
 function get_yes_or_no {
@@ -58,16 +55,6 @@ function get_yes_or_no {
         [[ "$answer" == "n" ]] && break
     done
     echo $answer
-}
-
-# print with color
-function print {
-    COLOR=$2
-    if [ "$COLOR" == "" ]; then
-        COLOR=$NORMAL
-    fi
-
-    echo -n -e $COLOR"$1"$RESET
 }
 
 # locate command or abort
@@ -141,9 +128,11 @@ if [ "$tag_name" == "" ]; then
     print "No release available\n" $WARNING
     print "$mode canceled\n" $IMPORTANT
     exit 1
+else
+    print "Current tst release available: $tag_name\n"
 fi
 
-# in install mode, check for previous installation
+# if in installation mode, check for previous installation
 if [[ "$mode" == "installation" ]] && [[ -d "$TST_DIR" ]]; then
     print "An installation of tst was found\n" $IMPORTANT
     print "Overwrite? (y/n) " $QUESTION
