@@ -2,7 +2,7 @@
 _tst_completion() 
 {
     local commands current config
-    commands="version help login checkout commit test"
+    commands="version help login checkout commit test update"
     config=~/.tst/config.json
     COMPREPLY=()
     current="${COMP_WORDS[COMP_CWORD]}"
@@ -20,6 +20,13 @@ _tst_completion()
     if [[ "$command" == "login" ]] && [[ $COMP_CWORD == 2 ]]; then
         [[ -f $config ]] && email=$(grep email $config | cut -f 4 -d '"')
         COMPREPLY=($(compgen -W "${email}" -- ${current}))
+        return 0
+    fi
+
+    # complete update (only one arg)
+    if [[ "$command" == "update" ]] && [[ $COMP_CWORD == 2 ]]; then
+        [[ -f $config ]] && email=$(grep email $config | cut -f 4 -d '"')
+        COMPREPLY=($(compgen -W "--pre-release" -- ${current}))
         return 0
     fi
 
