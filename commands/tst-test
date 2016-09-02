@@ -11,7 +11,6 @@ import re
 import sys
 import json
 import glob
-import getopt
 import shlex
 import signal
 import string
@@ -21,24 +20,7 @@ import argparse
 
 import tstlib
 
-# try to import yaml
-try:
-    import yaml
-    we_have_yaml = True
-
-    # reconfigure yaml to load unicode strings instead of str
-    from yaml import Loader, SafeLoader
-    def construct_yaml_str(self, node):
-        return self.construct_scalar(node)
-
-    Loader.add_constructor(u'tag:yaml.org,2002:str', construct_yaml_str)
-    SafeLoader.add_constructor(u'tag:yaml.org,2002:str', construct_yaml_str)
-
-except ImportError:
-  we_have_yaml = False
-
-from datetime import datetime, date
-from subprocess import Popen, PIPE, CalledProcessError
+from subprocess import Popen, PIPE
 
 TIMEOUT_DEFAULT = 2
 PYTHON = "python2.7"
@@ -339,7 +321,7 @@ class TestCase():
 
     def __init__(self, test):
 
-        # get data from tst.json or tst.yaml
+        # get data from tst.json
         self.name = test.get('name')
         self.type = test.get('type', 'io')
         self.input = test.get('input', "")

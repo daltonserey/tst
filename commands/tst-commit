@@ -14,8 +14,6 @@ import md5
 import time
 import json
 
-import requests
-
 import tstlib
 
 def get_results(program_md5):
@@ -160,8 +158,6 @@ def main():
 
         # was there a different error?
         if response.status_code != 200:
-            print(response.stdout)
-            print("tst: are you logged in?", file=sys.stderr)
             print("tst: status code: %d" % response.status_code)
             sys.exit()
 

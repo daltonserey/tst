@@ -3,6 +3,12 @@
 All relevant changes to this project are documented in this file.
 
 
+## 0.4.1 - 2016-09-11
+### Added
+- Improved install and update support.
+- Added environment configuration script.
+- Added command line completion support.
+
 ## 0.4.0 - 2016-08-21
 ### Added
 - Source code now hosted at Github.com.

@@ -8,8 +8,8 @@ if [ "$1" == "--one-line-help" ]; then
     exit
 fi
 
-if [ "$1" != "--development-version" ]; then
-    bash -c "$(curl -q -sSL https://raw.githubusercontent.com/daltonserey/tst/develop/etc/install.sh)" -s --non-interactive
+if [ "$1" == "--pre-release" ]; then
+    bash -c "$(curl -q -sSL http://bit.ly/tst-install-pre)" -s --update --pre-release
 else
-    bash -c "$(curl -q -sSL https://raw.githubusercontent.com/daltonserey/tst/develop/etc/install.sh)" -s --non-interactive --development-version
+    bash -c "$(curl -q -sSL http://bit.ly/tst-install)" -s --update
 fi
