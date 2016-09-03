@@ -25,6 +25,7 @@ except ImportError:
 # Constants
 TSTDIR = os.path.expanduser("~/.tst/")
 TSTCONFIG = os.path.expanduser(TSTDIR + "config.json")
+TSTRELEASE = os.path.expanduser(TSTDIR + "release.json")
 TSTJSON = os.path.expanduser("./tst.json")
 
 
@@ -135,8 +136,7 @@ class TSTOnline:
         curl_command = ['curl', '-X', 'PATCH', '-v', '-s']
         headers = {}
         headers['Authorization'] = 'Bearer %s' % self.token
-        config = read_config()
-        headers['TST-CLI-Release'] = config.get('release')
+        headers['TST-CLI-Release'] = get_release()
         for hname, hvalue in headers.items():
             curl_command.append('-H')
             curl_command.append('%s: %s' % (hname, hvalue))
@@ -230,6 +230,16 @@ def read_tstjson(exit=False):
         raise CorruptedConfigFile(msg)
 
     return tstjson
+
+
+def get_release():
+    try:
+        with codecs.open(TSTRELEASE, mode='r', encoding='utf-8') as f:
+            release = f.read().split('"')[3]
+    except:
+        release = ''
+
+    return release
 
 
 def read_config(exit=False):
