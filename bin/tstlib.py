@@ -135,6 +135,8 @@ class TSTOnline:
         curl_command = ['curl', '-X', 'PATCH', '-v', '-s']
         headers = {}
         headers['Authorization'] = 'Bearer %s' % self.token
+        config = read_config()
+        headers['TST-CLI-Release'] = config.get('release')
         for hname, hvalue in headers.items():
             curl_command.append('-H')
             curl_command.append('%s: %s' % (hname, hvalue))
