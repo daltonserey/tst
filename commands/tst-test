@@ -660,7 +660,7 @@ def debug(msg=""):
 def main():
 
     # read tstjson
-    tstjson = tstlib.read_tstjson(exit=True)
+    tstjson = tstlib.read_tstjson(quit_on_fail=True)
 
     # read data from cli
     filenames, timeout, verbosity = read_cli()

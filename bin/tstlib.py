@@ -212,10 +212,15 @@ def read_json(jsonfile, exit_on_fail=False):
     return tstjson
 
 
-def read_tstjson(exit=False):
+def read_tstjson(exit=False, quit_on_fail=False):
 
     if not os.path.exists(TSTJSON):
-        return {}
+        if quit_on_fail:
+            msg = "tst: not a tst directory"
+            print(msg, file=sys.stderr)
+            sys.exit(1)
+            
+        return None
 
     try:
         with codecs.open(TSTJSON, mode='r', encoding='utf-8') as f:
@@ -223,9 +228,9 @@ def read_tstjson(exit=False):
 
     except ValueError:
         msg = "tst: %s is corrupted" % TSTJSON
-        if exit:
+        if exit or quit_on_fail:
             print(msg, file=sys.stderr)
-            sys.exit()
+            sys.exit(1)
 
         raise CorruptedConfigFile(msg)
 
