@@ -178,7 +178,7 @@ class TSTOnline:
             raise ConnectionFail("can't connect to tst online")
 
         # text
-        reponse_lines = response.headers.splitlines()
+        response_lines = response.headers.splitlines()
         response.status_code = None
         for i in xrange(len(response_lines)-1, -1, -1):
             if response_lines[i].startswith("HTTP"):
