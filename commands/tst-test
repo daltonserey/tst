@@ -83,8 +83,9 @@ def unpack_results(run_method):
     def wrapper(self, *args, **kwargs):
         run_method(self, *args, **kwargs)
 
-        if self.testcase.type == 'io':
-            self.result['summary'] = STATUS_CODE[self.result['status']]
+        #if self.testcase.type == 'io':
+        #    self.result['summary'] = STATUS_CODE[self.result['status']]
+        self.result['summary'] = STATUS_CODE[self.result['status']]
           
     return wrapper
 
@@ -624,10 +625,9 @@ def report_results(subjects, output):
 
     elif output == 'summary':
         cwd = os.path.basename(os.path.normpath(os.getcwd()))
-        data = {cwd:{}}
+        print("%s:" % cwd)
         for subject in subjects:
-            data[cwd][subject.filename] = subject.verdict()
-        print(data2json(data).encode('utf-8'))
+            print("    %s: %s" % (subject.filename, subject.verdict()))
 
     return
 
@@ -662,10 +662,14 @@ def debug(msg=''):
 def main():
 
     # read tstjson
+    config = tst.read_config(exit=True)
     tstjson = tst.read_tstjson(quit_on_fail=True)
 
     # parse command line data
     filenames, timeout, output = parse_cli()
+
+    # set output to user's preference if any
+    output = config.get('output', output)
 
     # remove files that belong to the test 
     files_to_remove = [f['name'] for f in tstjson.get('files', [])]
