@@ -29,11 +29,11 @@ def main(token):
         print("Copie e cole seu token aqui:")
         token = raw_input().strip()
 
-    email = raw_input("Seu email: ")
+    user = raw_input("user email: ")
 
     # request login authentication at google
     headers = {'Authorization': 'Bearer ' + token}
-    url = config['url'] + '/token/validate/%s' % email
+    url = config['url'] + '/token/validate/%s' % user
 
     print("Validando o token no TST Online.")
     try:
@@ -48,13 +48,13 @@ def main(token):
         sys.exit()
 
     config['access_token'] = token
-    config['email'] = email
+    config['user'] = user
     with open(os.path.expanduser("~/.curlrc"), "a") as curlrc:
         curlrc.write('-H "Authorization: Bearer %s"' % token)
         
     tstlib.save_config(config)
     print("Token validado.")
-    print("Você está logado no tst-online como '%s'." % email)
+    print("Você está logado no tst-online como '%s'." % user)
 
 
 if __name__ == "__main__":

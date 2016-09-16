@@ -28,6 +28,12 @@ TSTCONFIG = os.path.expanduser(TSTDIR + "config.json")
 TSTRELEASE = os.path.expanduser(TSTDIR + "release.json")
 TSTJSON = os.path.expanduser("./tst.json")
 
+LRED = '\033[1;31m'
+LGREEN = '\033[1;32m'
+GREEN="\033[9;32m"
+WHITE="\033[1;37m"
+LCYAN = '\033[1;36m'
+RESET = '\033[0m'
 
 def date_handler(obj):
     if hasattr(obj, 'isoformat'):
@@ -214,7 +220,7 @@ def read_tstjson(exit=False, quit_on_fail=False):
 
     if not os.path.exists(TSTJSON):
         if quit_on_fail:
-            msg = "tst: not a tst directory"
+            msg = "tst: NOT a tst directory"
             print(msg, file=sys.stderr)
             sys.exit(1)
             

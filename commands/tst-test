@@ -15,6 +15,7 @@ import signal
 import string
 import unicodedata
 import argparse
+import difflib
 
 import tstlib as tst
 
@@ -26,12 +27,14 @@ if sys.version_info < (2,7):
     sys.stderr.write('tst.py: requires python 2.7 or later\n')
     sys.exit(1)
 
+REDIRECTED = os.fstat(0) != os.fstat(1)
+
 STATUS_CODE = {
     # TST test codes
     'DefaultError': 'e',
     'Timeout': 't',
     'Success': '.',
-    'NormalizedSuccess': '*',
+    'QuasiSuccess': '*',
     'AllTokensSequence': '@',
     'AllTokensMultiset': '&',
     'MissingTokens': '%',
@@ -53,6 +56,7 @@ STATUS_CODE = {
 }
 
 LRED = '\033[1;31m'
+LBLUE = '\033[1;34m'
 LGREEN = '\033[1;32m'
 GREEN="\033[9;32m"
 WHITE="\033[1;37m"
@@ -246,7 +250,7 @@ class TestRun:
         # 3. Was it a NORMALIZED SUCCESSFUL run?
         normalized_stdout = preprocess(stdout, DEFAULT_OPS)
         if self.testcase.normalized_output == normalized_stdout:
-            self.result['status'] = 'NormalizedSuccess'
+            self.result['status'] = 'QuasiSuccess'
             return
 
         # 4. Doesn't the testcase specify TOKENS?
@@ -525,11 +529,18 @@ class StatusLine:
         self.lastline = ''
 
 
-def print_text(color, text):
+def indent(text):
     lines = text.splitlines()
-    text = "\n".join(["        %s" % l for l in lines])
-    text = color + text.rstrip() + RESET
-    print(text)
+    text = "\n".join(["    %s" % l for l in lines])
+    return text
+
+
+def color(color, text):
+    reset = RESET
+    if REDIRECTED:
+        color = ""
+        reset = ""
+    return color + text + reset
 
 
 def report_results(subjects, output):
@@ -537,39 +548,46 @@ def report_results(subjects, output):
     if output == 'debug':
         report = {}
         for subject in subjects:
+            if all([r['status'] == 'Success' for r in subject.results()]) == True:
+                continue
+            print(color(LBLUE, "# %s: `%s`" % (subject.filename, subject.summary())))
             fails = []
             for res in subject.results():
                 if res['status'] == 'Success':
                     continue
 
-                print(LCYAN + "\n== Test '%s' ==" % (res['name'] or "") + RESET)
-                print("    [Summary '%s']" % res['summary'])
-                if res['status'] == 'Timeout' and res['type'] == 'io':
-                    print('    [Test input]')
-                    print_text(LCYAN, res['input'])
+                if res['type'] == 'io':
+                    name = '`%s`: ' % res['name'] if res['name'] else ''
+                    print(color(LCYAN, "## %s`%s` (`%s`)" % (name, res['status'], res['summary'])))
+                    if res['status'] == 'Timeout':
+                        print('- input')
+                        print(color(LCYAN, indent(res['input'])))
 
-                    print('    [Expected output]')
-                    print_text(LGREEN, res['output'])
+                    else:
+                        print('### input:')
+                        print(color(LCYAN, indent(res['input'])))
 
-                    print('    [Observed output: Timeout]')
+                        print('### output diff')
+                        differ = difflib.Differ()
+                        diff = differ.compare(res['stdout'].splitlines(), res['output'].splitlines())
+                        for e in diff:
+                            if e[0] == '+':
+                                line = indent(color(LGREEN, "+ ") + color('\033[1;32;100m', e[2:]))
+                            elif e[0] == '-':
+                                line = indent(color(LRED, "- ") + color('\033[1;31;100m', e[2:]))
+                            else:
+                                line = indent(color('\033[2m', e))
+                            print(line.encode('utf-8'))
 
-                elif res['type'] == 'io':
-                    print('    [Test input]')
-                    print_text(LCYAN, res['input'])
+                elif res['type'] == 'script':
+                    name = '`%s`: ' % res['name'] if res['name'] else ''
+                    print(color(LCYAN, "## %s`%s` (`%s`)" % (name, res['status'], res['summary'])))
+                    report = res['stderr'] or res['stdout']
+                    if report:
+                        print('### test script: `%s`' % res['command'])
+                        print(indent(report))
 
-                    print('    [Expected output]')
-                    print_text(LGREEN, res['output'])
-
-                    print('    [Observed output]')
-                    print_text(LRED, res['stdout'])
-
-                    print('    [Expected output (literal)]')
-                    print_text(LGREEN, repr(str(res['output'])))
-
-                    print('    [Observed output (literal)]')
-                    print_text(LRED, repr(str(res['stdout'])))
-
-        print()
+            print()
 
     elif output == 'debug':
         report = {}
@@ -617,7 +635,7 @@ def report_results(subjects, output):
 def parse_cli():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('-t', '--timeout', type=int, default=5, help='stop execution at TIMEOUT seconds')
-    parser.add_argument('-o', '--output', default='raw', choices=['raw', 'debug', 'json', 'summary'], help='set output type')
+    parser.add_argument('-o', '--output', default='debug', choices=['raw', 'debug', 'json', 'summary'], help='set output type')
     parser.add_argument('filename', nargs='*', default=[''])
     args = parser.parse_args()
 
@@ -694,7 +712,7 @@ def main():
 
 if __name__ == '__main__':
     if len(sys.argv) > 1 and sys.argv[1] == '--one-line-help':
-        print('run tests specifiec in tst.json')
+        print('run tests specified in tst.json')
         sys.exit(0)
 
     main()
