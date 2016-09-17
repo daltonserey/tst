@@ -635,7 +635,7 @@ def report_results(subjects, output):
 def parse_cli():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('-t', '--timeout', type=int, default=5, help='stop execution at TIMEOUT seconds')
-    parser.add_argument('-o', '--output', default='debug', choices=['raw', 'debug', 'json', 'summary'], help='set output type')
+    parser.add_argument('-o', '--output', choices=['raw', 'debug', 'json', 'summary'], help='set output type')
     parser.add_argument('filename', nargs='*', default=[''])
     args = parser.parse_args()
 
@@ -668,8 +668,8 @@ def main():
     # parse command line data
     filenames, timeout, output = parse_cli()
 
-    # set output to user's preference if any
-    output = config.get('output', output)
+    # set default output to user's preference if any
+    output = output or config.get('output') or 'debug'
 
     # remove files that belong to the test 
     files_to_remove = [f['name'] for f in tstjson.get('files', [])]
