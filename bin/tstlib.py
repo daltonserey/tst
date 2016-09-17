@@ -28,6 +28,12 @@ TSTCONFIG = os.path.expanduser(TSTDIR + "config.json")
 TSTRELEASE = os.path.expanduser(TSTDIR + "release.json")
 TSTJSON = os.path.expanduser("./tst.json")
 
+LRED = '\033[1;31m'
+LGREEN = '\033[1;32m'
+GREEN="\033[9;32m"
+WHITE="\033[1;37m"
+LCYAN = '\033[1;36m'
+RESET = '\033[0m'
 
 def date_handler(obj):
     if hasattr(obj, 'isoformat'):
@@ -210,9 +216,14 @@ def read_json(jsonfile, exit_on_fail=False):
     return tstjson
 
 
-def read_tstjson(exit=False):
+def read_tstjson(exit=False, quit_on_fail=False):
 
     if not os.path.exists(TSTJSON):
+        if quit_on_fail:
+            msg = "tst: NOT a tst directory"
+            print(msg, file=sys.stderr)
+            sys.exit(1)
+            
         return {}
 
     try:
@@ -221,9 +232,9 @@ def read_tstjson(exit=False):
 
     except ValueError:
         msg = "tst: %s is corrupted" % TSTJSON
-        if exit:
+        if exit or quit_on_fail:
             print(msg, file=sys.stderr)
-            sys.exit()
+            sys.exit(1)
 
         raise CorruptedConfigFile(msg)
 

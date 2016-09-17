@@ -23,14 +23,16 @@ from subprocess import Popen, PIPE, check_call, CalledProcessError
 
 # TST INTERNAL COMMANDS
 DEFAULT_COMMAND = 'test'
+EXTERNALS = ["update", "login", "checkout", "test", "commit", "config"]
+INTERNALS = ["help", "version"]
 
 def tst_help(args):
     """short description of commands"""
     print("usage: tst [<command>] [<args>]\n")
     print("Available commands:\n")
-    for cmd in internals():
+    for cmd in INTERNALS:
         print("  %-12s%s" % (cmd, globals()['tst_' + cmd].__doc__))
-    for cmd in externals():
+    for cmd in EXTERNALS:
         print("  %-12s%s" % (cmd, get_one_line_help(cmd)))
  
     custom = custom_commands()
@@ -41,7 +43,7 @@ def tst_help(args):
 
 
 def tst_version(args):
-    """print version of currently installed TST CLI"""
+    """print version of currently installed tst"""
     try:
         release_file = os.path.expanduser("~/.tst/release.json")
         release = open(release_file).read().split('"')[3]
@@ -80,14 +82,6 @@ def run_command_script(command, args):
         print("tst: couldn't run command '%s'" % command, file=sys.stderr)
 
 
-def internals():
-    return [f[4:] for f in globals().keys() if f.startswith('tst_')]
-
-
-def externals():
-    return ["update", "login", "checkout", "test", "commit"]
-
-
 def custom_commands():
     commands = os.environ.get("TST_CUSTOM_COMMANDS")
     return [] if commands is None else commands.split(":")
@@ -95,12 +89,12 @@ def custom_commands():
 
 def identify_and_run_command(args):
 
-    if args and args[0] in internals():
+    if args and args[0] in INTERNALS:
         command_name = args.pop(0) # discard command name
         run_internal_command = globals()["tst_" + command_name]
         run_internal_command(args)
 
-    elif args and (args[0] in externals() or args[0] in custom_commands()):
+    elif args and (args[0] in EXTERNALS or args[0] in custom_commands()):
         command_name = args.pop(0)
         run_command_script(command_name, args)
 

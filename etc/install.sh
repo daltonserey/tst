@@ -91,11 +91,6 @@ while (( $# > 0 )); do
             mode="update"
             verbose="false"
             ;;
-        --installation-dir)
-            INSTALLATION_DIR="true"
-            TST_DIR=$2
-            shift
-            ;;
         --*)
             print "invalid option $1\n" $WARNING
             exit 1

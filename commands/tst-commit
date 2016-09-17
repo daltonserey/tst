@@ -149,15 +149,14 @@ def main():
         tstonline = tstlib.TSTOnline(token)
         response = tstonline.patch(assignment_url(assignment_key), payload)
 
-        # was there an error 412?
-        if response.status_code == 412:
-            msg = response.json()['messages'][0]
-            print("tst: %s" % msg, file=sys.stderr)
-            print("tst: status code: %d" % response.status_code)
-            sys.exit()
-
-        # was there a different error?
+        # was there an error?
         if response.status_code != 200:
+            try:
+                msg = response.json()['messages'][0]
+            except:
+                msg = "no message from server"
+
+            msg and print("tst: %s" % tst.RED + msg + tst.RESET, file=sys.stderr)
             print("tst: status code: %d" % response.status_code)
             sys.exit()
 
@@ -203,7 +202,7 @@ if __name__ == "__main__":
 
     config = tstlib.read_config(exit=True)
     headers = {'Authorization': 'Bearer ' + config['access_token']}
-    tstjson = tstlib.read_tstjson(exit=True)
+    tstjson = tstlib.read_tstjson(quit_on_fail=True)
     assignment_key = get_key()
     key = "%X" % int(assignment_key)
     main()

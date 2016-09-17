@@ -125,7 +125,7 @@ if __name__ == "__main__":
         sys.exit()
 
     config = tstlib.read_config(exit=True)
-    tstjson = tstlib.read_tstjson(exit=True)
+    tstjson = tstlib.read_tstjson(quit_on_fail=False)
     logfile = os.path.expanduser("~/.tst/logs")
     log = codecs.open(logfile, mode="a", encoding='utf-8')
     headers = {'Authorization': 'Bearer ' + config['access_token']}
