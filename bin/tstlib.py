@@ -224,7 +224,7 @@ def read_tstjson(exit=False, quit_on_fail=False):
             print(msg, file=sys.stderr)
             sys.exit(1)
             
-        return None
+        return {}
 
     try:
         with codecs.open(TSTJSON, mode='r', encoding='utf-8') as f:
