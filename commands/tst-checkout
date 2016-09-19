@@ -57,7 +57,7 @@ def checkout_url(key):
 def main():
     assignment_key = get_key()
     token = config['access_token']
-    tstonline = tstlib.TSTOnline(token)
+    tstonline = tstlib.Server(token)
     url = checkout_url(assignment_key) + '?checkout=true'
     
     # perform request

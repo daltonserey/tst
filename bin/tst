@@ -24,7 +24,7 @@ from subprocess import Popen, PIPE, check_call, CalledProcessError
 # TST INTERNAL COMMANDS
 DEFAULT_COMMAND = 'test'
 EXTERNALS = ["update", "login", "checkout", "test", "commit", "config"]
-HIDDEN = ['checkout2']
+HIDDEN = ['checkout2', 'commit2']
 INTERNALS = ["help", "version"]
 
 def tst_help(args):

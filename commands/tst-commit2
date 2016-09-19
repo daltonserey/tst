@@ -16,7 +16,7 @@ import tstlib as tst
 from tstlib import data2json
 
 def help():
-    print("usage: tst-checkout [name]")
+    print("usage: tst-commit [name]")
     sys.exit(1)
 
 
@@ -30,7 +30,7 @@ def mkdirs(dirname):
 
 
 def activity_url(iid):
-    activities_endpoint = config['url'] + "/api/activity"
+    activities_endpoint = "http://tst-online.appspot.com/api/activity"
     return "%s/%s" % (activities_endpoint, str(iid))
 
 
@@ -55,7 +55,7 @@ def save_yaml(yamlfile, data):
 
         # save tests
         if 'tests' in data:
-            y.write('\ntests:\n')
+            y.write('tests:\n')
             for test in data['tests']:
                 is_first = True
                 for test_field, field_value in test.items():
@@ -68,7 +68,7 @@ def save_yaml(yamlfile, data):
                     is_first = False
 
         if 'files' in data:
-            y.write('\nfiles:\n')
+            y.write('files:\n')
             for file in data['files']:
                 is_first = True
                 for file_field, field_value in file.items():
@@ -87,7 +87,6 @@ def save_activity(data):
     # save tst.json
     tstjson = {}
     tstjson['kind'] = 'activity'
-    tstjson['name'] = data['name']
     tstjson['create_datetime'] = data['create_datetime']
     tstjson['collaborators'] = data['collaborators']
     tstjson['last_update_user'] = data['last_update_user']
@@ -107,7 +106,6 @@ def save_activity(data):
     # save yaml
     tstyaml = {}
     tstyaml['name'] = data['name']
-    tstyaml['type'] = data['type']
     tstyaml['label'] = data['label']
     tstyaml['tests'] = data['new_tests'][-1]
     tstyaml['files'] = data['files']
@@ -122,50 +120,48 @@ def save_activity(data):
 
 def main():
 
+    import yaml
+
+    # read tst.json
     TSTJSON = './tst.json'
-    if os.path.exists(TSTJSON):
-        if len(sys.argv) > 1:
-            print("you can't checkout an object inside another")
-            print("don't you mean `tst checkout` only?")
-            sys.exit(1)
-        tstjson = tst.read_tstjson(quit_on_fail=True)
-        name = tstjson['name']
-        directory = '.'
-    else:
-        name = sys.argv[1]
-        if len(sys.argv) > 2:
-            directory = sys.argv[2]
-        else:
-            directory = name
-
-    # define object kind
-    kind = 'assignment' if name.isdigit() else 'activity'
-
-    # request object data
-    server = tst.Server()
-    url = activity_url(name)
-    response = server.get(url)
-    try:
-        object_json = response.json()
-    except:
-        print(response.stdout)
-        print(response.stderr)
+    if not os.path.exists(TSTJSON):
+        print('tst: this is not a tst directory')
         sys.exit(1)
 
-    # change to activity directory
-    if not os.path.exists(directory):
-        mkdirs(directory)
-    os.chdir(directory)
+    tstjson = tst.read_tstjson(quit_on_fail=True)
 
-    # save object to local filesystem
-    save = globals()["save_" + kind]
-    save(object_json)
+    # gather all activity data
+    activity = {}
+    
+    # read activity yaml
+    yamlfilename = tstjson['name'] + '.yaml'
+    with codecs.open(yamlfilename, mode='r', encoding='utf-8') as y:
+        yamlfile = yaml.load(y.read())
 
+    # read name, label, tests and files
+    activity['name'] = yamlfile['name']
+    activity['label'] = yamlfile['label']
+    activity['tests'] = yamlfile['tests']
+    activity['files'] = yamlfile['files']
+
+    # read text
+    if '\n' in yamlfile['text']:
+        activity['text'] = yamlfile['text']
+    else:
+        mdfile = yamlfile['text']
+        with codecs.open(mdfile, mode='r', encoding='utf-8') as md:
+            activity['text'] = md5.md5(yamlfile['text']).hexdigest()
+    
+    # read contents of files
+    for file in activity['files']:
+        with codecs.open(file['name'], mode='r', encoding='utf-8') as f:
+            file['data'] = md5.md5(f.read()).hexdigest()
+    print(data2json(activity))
 
 # main
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == '--one-line-help':
-        print("update tst objects")
+        print("record local changes to the repository")
         sys.exit()
 
     config = tst.read_config(exit=True)
