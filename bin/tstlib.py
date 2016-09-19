@@ -72,9 +72,13 @@ class CorruptedConfigFile(Exception): pass
 class ConnectionFail(Exception): pass
 
 
-class TSTOnline:
+class Server:
     
-    def __init__(self, token):
+    def __init__(self, token=None):
+        if token == None:
+            config = read_config() 
+            token = config['access_token']
+
         self.token = token
 
 
@@ -85,7 +89,7 @@ class TSTOnline:
 
 
     def get(self, url, headers={}):
-        curl_command = ['curl', '-v', '-s']
+        curl_command = ['curl', '-v', '-sL']
         headers['Authorization'] = 'Bearer %s' % self.token
         for hname, hvalue in headers.items():
             curl_command.append('-H')

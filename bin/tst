@@ -24,6 +24,7 @@ from subprocess import Popen, PIPE, check_call, CalledProcessError
 # TST INTERNAL COMMANDS
 DEFAULT_COMMAND = 'test'
 EXTERNALS = ["update", "login", "checkout", "test", "commit", "config"]
+HIDDEN = ['checkout2']
 INTERNALS = ["help", "version"]
 
 def tst_help(args):
@@ -94,7 +95,7 @@ def identify_and_run_command(args):
         run_internal_command = globals()["tst_" + command_name]
         run_internal_command(args)
 
-    elif args and (args[0] in EXTERNALS or args[0] in custom_commands()):
+    elif args and (args[0] in EXTERNALS or args[0] in custom_commands() or args[0] in HIDDEN):
         command_name = args.pop(0)
         run_command_script(command_name, args)
 
