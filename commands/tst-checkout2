@@ -88,6 +88,7 @@ def save_activity(data):
     tstjson = {}
     tstjson['kind'] = 'activity'
     tstjson['name'] = data['name']
+    tstjson['label'] = data['label']
     tstjson['create_datetime'] = data['create_datetime']
     tstjson['collaborators'] = data['collaborators']
     tstjson['last_update_user'] = data['last_update_user']

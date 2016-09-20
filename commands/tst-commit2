@@ -20,6 +20,23 @@ def help():
     sys.exit(1)
 
 
+def activity_differ(activity, tstjson):
+    fields = ["text", "tests", "files", "label"]
+    patches = {}
+    for field in fields:
+        if tstjson[field] != activity[field]:
+            if isinstance(tstjson[field], basestring):
+                patches[field] = "changed"
+                continue
+            if type(tstjson[field]) == dict:
+                patches[field] = {}
+                for key, value in tstjson[field].items():
+                    if tstjson[field][key] != activity[field][key]:
+                        patches[field][key] = "changed"
+
+    return patches
+
+                    
 def main():
 
     import yaml
@@ -60,12 +77,9 @@ def main():
             activity['files'][filename] = md5.md5(f.read()).hexdigest()
 
     # identify changed fields
-    #fields = ["name", "label", "text", "tests", "files"]
-    #changed = []
-    #for field in fields:
-    #    if tstjson["name"]
+    patches = activity_differ(activity, tstjson)
 
-    print(data2json(activity))
+    print(data2json(patches).encode('utf-8'))
 
 # main
 if __name__ == "__main__":
