@@ -7,6 +7,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import json
+import yaml
 import os
 import sys
 import codecs
@@ -37,23 +38,13 @@ def activity_differ(activity, tstjson):
     return patches
 
                     
-def main():
-
-    import yaml
-
-    # read tst.json
-    TSTJSON = './tst.json'
-    if not os.path.exists(TSTJSON):
-        print('tst: this is not a tst directory')
-        sys.exit(1)
-
-    tstjson = tst.read_tstjson(quit_on_fail=True)
+def read_activity(name):
 
     # gather activity data
     activity = {}
     
     # read activity yaml
-    yamlfilename = tstjson['name'] + '.yaml'
+    yamlfilename = name + '.yaml'
     with codecs.open(yamlfilename, mode='r', encoding='utf-8') as y:
         yamlfile = yaml.load(y.read())
 
@@ -76,10 +67,26 @@ def main():
         with codecs.open(filename, mode='r', encoding='utf-8') as f:
             activity['files'][filename] = md5.md5(f.read()).hexdigest()
 
-    # identify changed fields
-    patches = activity_differ(activity, tstjson)
+    return activity
 
-    print(data2json(patches).encode('utf-8'))
+
+def main():
+
+    # read tst.json
+    TSTJSON = './tst.json'
+    if not os.path.exists(TSTJSON):
+        print('tst: this is not a tst directory')
+        sys.exit(1)
+
+    tstjson = tst.read_tstjson(quit_on_fail=True)
+
+    # read activity
+    activity = read_activity(tstjson['name'])
+
+    # identify changed fields
+    changes = activity_differ(activity, tstjson)
+
+    print(data2json(changes).encode('utf-8'))
 
 # main
 if __name__ == "__main__":
