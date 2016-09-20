@@ -22,7 +22,7 @@ def help():
 
 
 def activity_differ(activity, tstjson):
-    fields = ["text", "tests", "files", "label"]
+    fields = ["text", "tests", "files", "label", "type"]
     patches = {}
     for field in fields:
         if tstjson[field] != activity[field]:
@@ -51,6 +51,7 @@ def read_activity(name):
     # read name, label, tests and files
     activity['name'] = yamlfile['name']
     activity['label'] = yamlfile['label']
+    activity['type'] = yamlfile['type']
     activity['tests'] = [md5.md5(json.dumps(t, sort_keys=True)).hexdigest() for t in yamlfile['tests']]
     activity['files'] = {file['name']:None for file in yamlfile['files']}
 
