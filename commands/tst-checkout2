@@ -94,10 +94,14 @@ def save_activity(data):
     tstjson['last_update_datetime'] = data['last_update_datetime']
     tstjson['type'] = data['type']
     tstjson['owner'] = data['owner']
+    tstjson['text'] = data['text']
     tstjson['state'] = data['state']
+    tstjson['text'] = md5.md5(data['text'].encode('utf-8')).hexdigest()
     tstjson['version'] = "%s.%s.%s" % (data['major'], data['minor'], data['patch'])
     tstjson['files'] = {f['name']: md5.md5(f['data'].encode('utf-8')).hexdigest() for f in data['files']}
+    tstjson['tests'] = [md5.md5(json.dumps(t, sort_keys=True)).hexdigest() for t in data['new_tests'][-1]]
     tst.save_tstjson(tstjson)
+
 
     # save markdown
     textfile = data['name'] + ".md" 
