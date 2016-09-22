@@ -15,7 +15,13 @@ import md5
 import difflib
 
 import tstlib as tst
-from tstlib import data2json
+from tstlib import show
+
+try:
+    from cStringIO import StringIO
+except:
+    from StringIO import StringIO
+
 
 def help():
     print("usage: tst-commit [name]")
@@ -27,68 +33,74 @@ def activity_url(iid):
     return "%s/%s" % (activities_endpoint, str(iid))
 
 
-def activity_differ(activity, tstjson):
-    fields = ["text", "tests", "files", "label", "type"]
-    patches = {}
-    for field in fields:
-        if tstjson[field] != activity[field]:
-            if isinstance(tstjson[field], basestring):
-                patches[field] = "changed"
-                continue
-            if type(tstjson[field]) == dict:
-                patches[field] = {}
-                for key, value in tstjson[field].items():
-                    if tstjson[field][key] != activity[field][key]:
-                        patches[field][key] = "changed"
+def bump_patch(version):
+    major, minor, patch = map(int, version.split("."))
+    patch += 1
+    return "%d.%d.%d" % (major, minor, patch)
 
-    d = difflib.ndiff(activity['tests'], tstjson['tests'])
-    patches['tests_in'] = []
-    line = 0
-    for e in d:
-        if e[0] in " +-":
-            patches['tests_in'].append((line, e[0], e[2:]))
-        if e[0] == '-':
-            line -= 1
-        line += 1
 
-    return patches
+def bump_minor(version):
+    major, minor, patch = map(int, version.split("."))
+    minor += 1
+    patch = 0
+    return "%d.%d.%d" % (major, minor, patch)
 
-                    
-def read_activity(name):
 
-    # gather activity data
-    activity = {}
-    
-    # read activity yaml
-    yamlfilename = name + '.yaml'
-    with codecs.open(yamlfilename, mode='r', encoding='utf-8') as y:
-        yamlfile = yaml.load(y.read())
+def bump_major(version):
+    major, minor, patch = map(int, version.split("."))
+    major += 1
+    minor = 0
+    patch = 0
+    return "%d.%d.%d" % (major, minor, patch)
 
-    # read name, label, tests and files
-    activity['name'] = yamlfile['name']
-    activity['label'] = yamlfile['label']
-    activity['type'] = yamlfile['type']
-    activity['tests'] = [md5.md5(json.dumps(t, sort_keys=True)).hexdigest() for t in yamlfile['tests']]
-    activity_files = ('tst.json', activity['name'] + '.md', activity['name'] + '.yaml')
-    files = [f for f in os.listdir('.') if f not in activity_files and os.path.isfile(f)]
-    activity['files'] = {file:None for file in files}
 
-    # read text
-    if '\n' in yamlfile['text']:
-        activity['text'] = yamlfile['text']
-    else:
-        mdfile = yamlfile['text']
-        with codecs.open(mdfile, mode='r', encoding='utf-8') as md:
-            activity['text'] = md5.md5(md.read().encode('utf-8')).hexdigest()
-    
-    # read contents of files
-    for filename in activity['files'].keys():
-        if not os.path.isfile(filename):
-            continue
-        with codecs.open(filename, mode='r', encoding='utf-8') as f:
-            activity['files'][filename] = md5.md5(f.read().encode('utf-8')).hexdigest()
+def report(changes):
+    if not changes:
+        return ""
 
-    return activity
+    text = StringIO()
+
+    # add textual contents changes
+    text_fields = ['name', 'label', 'type', 'text']
+    if any(e in changes.keys() for e in text_fields):
+        text.write("## Fields changed\n\n")
+        for f in text_fields:
+            if f in changes.keys():
+                text.write("  - %s\n" % f)
+        text.write('\n')
+
+    # add removed tests
+    removed = [i for i in xrange(len(changes.get('tests', []))) if changes['tests'][i][0] == '-']
+    if removed:
+        text.write("## Tests removed\n\n")
+        for i in removed:
+            text.write('  - test #%d: %s\n' % (changes['tests'][i][2], changes['tests'][i][1]))
+        text.write('\n')
+        
+    # add added tests
+    added = [i for i in xrange(len(changes.get('tests', []))) if changes['tests'][i][0] == '+']
+    if added:
+        text.write("## Tests added\n\n")
+        for i in added:
+            text.write('  - test #%d: %s\n' % (changes['tests'][i][2], changes['tests'][i][1]))
+        text.write('\n')
+        
+    # add files changed
+    if 'files' in changes:
+        text.write("## Files changed/added\n\n")
+        for filename in changes['files']:
+            text.write('- %s\n' % filename)
+        text.write('\n')
+
+    # add unknown files
+    if 'unknown' in changes:
+        text.write("## Unknown files\n\n")
+        for fn in changes['unknown']:
+            text.write('  - %s\n' % fn)
+        text.write("\n  Use `tst add <file>` to add file to the activity.\n")
+        text.write("  Or type `tst clean` to remove all unknown files.\n\n")
+
+    return text.getvalue()
 
 
 def main():
@@ -96,34 +108,54 @@ def main():
     # read tst.json
     TSTJSON = './tst.json'
     if not os.path.exists(TSTJSON):
-        print('tst: this is not a tst directory')
+        print('This is not a tst directory.')
         sys.exit(1)
 
     tstjson = tst.read_tstjson(quit_on_fail=True)
 
     # check for updates
-    server = tst.Server()
-    url = activity_url(tstjson['iid']) + "/version"
-    version = server.get(url).stdout
-    if version != tstjson['version']:
-        print("Update available: %s => %s" % (tstjson['version'], version))
-        print("Run `tst checkout`")
-        sys.exit(0)
+    if check_server:
+        server = tst.Server()
+        url = activity_url(tstjson['iid']) + "/version"
+        server_version = server.get(url).json()
+        if server_version['version_token'] != tstjson['version_token']:
+            print("Update available: %s => %s" % (tstjson['version'], version['version']))
+            print("Run `tst checkout` to update local copy")
+            sys.exit(0)
 
     # read activity
-    activity = read_activity(tstjson['name'])
+    activity = tst.read_activity(tstjson)
 
-    # identify changed fields
-    changes = activity_differ(activity, tstjson)
+    # calculate delta bewteen directory and checked out version
+    changes = tst.activity_differ(activity, tstjson)
 
-    #print(data2json(changes).encode('utf-8'))
-    print(data2json(activity).encode('utf-8'))
+    print("# Activity '%s'\n" % tstjson['name'])
+    print(report(changes), end='')
+
+    if changes is None:
+        print('Activity is up-to-date with the server.')
+        print('Nothing to commit.')
+    elif changes.keys() == ['unknown']:
+        print('Activity is up-to-date with the server.')
+        print('However, there are unknown files in the activity directory.')
+    else:
+        print('You have not saved changes to commit. Use:')
+        print('  - `tst commit` to save changes')
+        print('  - `tst checkout --overwrite` to discard changes')
 
 # main
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == '--one-line-help':
         print("record local changes to the repository")
         sys.exit()
+
+    check_server = False
+    if len(sys.argv) > 1 and sys.argv[1] == '--check-server':
+        check_server = True
+
+    if len(sys.argv) > 1 and sys.argv[-1] == '-D':
+        tst.DEBUG = True
+        sys.argv.pop()
 
     config = tst.read_config(exit=True)
     main()

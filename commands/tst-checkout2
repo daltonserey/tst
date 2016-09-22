@@ -54,11 +54,9 @@ def save_yaml(yamlfile, data):
         y.write("label: %s\n" % data['label'])
 
         # save text
-        if data['text'][-1] == '\n':
+        if 'text' in data:
             y.write("text: |\n")
             y.write("%s\n" % indent(data['text']))
-        else:
-            y.write("text: %s\n" % data['text'])
 
         # save tests
         if 'tests' in data:
@@ -91,12 +89,14 @@ def save_yaml(yamlfile, data):
                     is_first = False
 
 
-def save_activity(data):
+def save_activity(data, text_in_file):
 
     # save tst.json
     tstjson = {}
     tstjson['kind'] = 'activity'
     tstjson['name'] = data['name']
+    tstjson['version'] = "%s.%s.%s" % (data['major'], data['minor'], data['patch'])
+    tstjson['version_token'] = data['version_token']
     tstjson['iid'] = data['iid']
     tstjson['label'] = data['label']
     tstjson['create_datetime'] = data['create_datetime']
@@ -108,15 +108,14 @@ def save_activity(data):
     tstjson['text'] = data['text']
     tstjson['state'] = data['state']
     tstjson['text'] = md5.md5(data['text'].encode('utf-8')).hexdigest()
-    tstjson['version'] = "%s.%s.%s" % (data['major'], data['minor'], data['patch'])
     tstjson['files'] = {f['name']: md5.md5(f['data'].encode('utf-8')).hexdigest() for f in data['files']}
     tstjson['tests'] = [md5.md5(json.dumps(t, sort_keys=True)).hexdigest() for t in data['new_tests'][-1]]
+    tstjson['text_in_file'] = text_in_file
     tst.save_tstjson(tstjson)
 
-
     # save markdown
-    if SAVE_TEXT_IN_FILE:
-        textfile = data['name'] + ".md" 
+    if text_in_file:
+        textfile = tstjson['name'] + '.md'
         with codecs.open(textfile, mode='w', encoding='utf-8') as f:
             f.write(data['text'])
 
@@ -126,9 +125,7 @@ def save_activity(data):
     tstyaml['type'] = data['type']
     tstyaml['label'] = data['label']
     tstyaml['tests'] = data['new_tests'][-1]
-    if SAVE_TEXT_IN_FILE:
-        tstyaml['text'] = data['name'] + '.md'
-    else:
+    if not text_in_file:
         tstyaml['text'] = data['text']
     save_yaml(data['name'] + '.yaml', tstyaml)
 
@@ -138,15 +135,16 @@ def save_activity(data):
         with codecs.open(filename, mode='w', encoding='utf-8') as f:
             f.write(file['data'])
 
-def main():
+def main(text_in_file):
 
     TSTJSON = './tst.json'
     if os.path.exists(TSTJSON):
         if len(sys.argv) > 1:
-            print("you can't checkout an object inside another")
-            print("don't you mean `tst checkout` only?")
+            print("You can't checkout an activity inside another.")
+            print("To checkout over this activity use `tst checkout`.")
             sys.exit(1)
         tstjson = tst.read_tstjson(quit_on_fail=True)
+        text_in_file = text_in_file or tstjson.get('text_in_file', False)
         name = tstjson['name']
         directory = '.'
     else:
@@ -180,7 +178,7 @@ def main():
 
     # save object to local filesystem
     save = globals()["save_" + kind]
-    save(object_json)
+    save(object_json, text_in_file)
 
 
 # main
@@ -189,10 +187,10 @@ if __name__ == "__main__":
         print("update tst objects")
         sys.exit()
 
-    SAVE_TEXT_IN_FILE = False
+    text_in_file = False
     if sys.argv[-1] == '--text-in-file':
-        SAVE_TEXT_IN_FILE = True
+        text_in_file = True
         sys.argv.pop()
 
     config = tst.read_config(exit=True)
-    main()
+    main(text_in_file)

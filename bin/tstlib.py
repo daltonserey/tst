@@ -22,6 +22,15 @@ try:
 except ImportError:
     we_have_requests = False
 
+# optionally import yaml, md5 and difflib
+try:
+    import yaml
+    import md5
+    import difflib
+    we_have_yaml = True
+except ImportError:
+    we_have_yaml = False
+
 # Constants
 TSTDIR = os.path.expanduser("~/.tst/")
 TSTCONFIG = os.path.expanduser(TSTDIR + "config.json")
@@ -52,7 +61,13 @@ def data2json(data):
         separators=(',', ': '),
         ensure_ascii=False)
 
+def show(data):
+    if not 'DEBUG' in globals():
+        return
 
+    print(data2json(data).encode('utf-8'))
+    sys.exit()
+    
 def to_unicode(obj, encoding='utf-8'):
     assert isinstance(obj, basestring), type(obj)
     if isinstance(obj, unicode):
@@ -84,8 +99,14 @@ class Server:
 
     class Response:
 
+        def __init__(self):
+            self._json = None
+
         def json(self):
-            return json.loads(self.text)
+            if not self._json:
+                self._json = json.loads(self.text)
+
+            return self._json
 
 
     def get(self, url, headers={}):
@@ -321,6 +342,98 @@ def requests_required(method):
     return check_requests
 
 
+def read_activity(tstjson):
+
+    # gather activity data
+    activity = {}
+    
+    # read activity yaml
+    yamlfilename = tstjson['name'] + '.yaml'
+    with codecs.open(yamlfilename, mode='r', encoding='utf-8') as y:
+        yamlfile = yaml.load(y.read())
+
+    # read name, label, tests and files
+    activity['name'] = yamlfile['name']
+    activity['label'] = yamlfile['label']
+    activity['type'] = yamlfile['type']
+    activity['tests'] = [md5.md5(json.dumps(t, sort_keys=True)).hexdigest() for t in yamlfile.get('tests', {})]
+
+    # identify files in activity
+    tst_files = ['tst.json', activity['name'] + '.yaml']
+    #textfile = None if 'text' in yamlfile else (activity['name'] + '.md')
+    textfile = activity['name'] + '.md' if 'text' not in yamlfile else None
+    if textfile:
+        tst_files.append(textfile)
+    files = [f for f in os.listdir('.') if f not in tst_files and os.path.isfile(f)]
+    activity['files'] = {file:None for file in files}
+
+    # read text
+    if textfile:
+        with codecs.open(textfile, mode='r', encoding='utf-8') as md:
+            activity['text'] = md5.md5(md.read().encode('utf-8')).hexdigest()
+    else:
+        activity['text'] = md5.md5(yamlfile['text'].encode('utf-8')).hexdigest()
+    
+    # read contents of files
+    for filename in activity['files'].keys():
+        with codecs.open(filename, mode='r', encoding='utf-8') as f:
+            try:
+                contents = f.read().encode('utf-8')
+                activity['files'][filename] = md5.md5(contents).hexdigest()
+            except:
+                print("tst: warning: couldn't read file '%s'" % filename, file=sys.stderr)
+
+    return activity
+
+
+def activity_differ(activity, tstjson):
+    fields = ["name", "text", "tests", "files", "label", "type"]
+    delta = {}
+    unknown_files = [fn for fn in activity['files'].keys() if fn not in tstjson['files'].keys()]
+    if unknown_files:
+        delta['unknown'] = unknown_files
+
+    for field in fields:
+
+        # unchanged fields: skip
+        if tstjson[field] == activity[field]:
+            continue
+
+        # single line string: mark as changed
+        if isinstance(tstjson[field], basestring):
+            delta[field] = "changed"
+            continue
+
+        # dictionary (text, files): descend one level
+        if type(tstjson[field]) == dict:
+            for key, value in tstjson[field].items():
+                if tstjson[field][key] != activity[field][key]:
+                    if field not in delta:
+                        delta[field] = {}
+                    delta[field][key] = "changed"
+
+
+    # compare tests
+    diffs = [d for d in difflib.ndiff(tstjson['tests'], activity['tests']) if d[0] != '?']
+    index = 0
+    for i in xrange(len(diffs)):
+        line = diffs[i]
+        if line[0] == ' ':
+            index += 1
+        elif line[0] == '+':
+            previous = diffs[i-1] if (i > 0) else None
+            index = index - 1 if previous[0] == '-' else index
+            delta.setdefault('tests', []).append(('+', line[2:], index))
+            index += 1
+        elif line[0] == '-':
+            delta.setdefault('tests', []).append(('-', line[2:], index))
+            index = index + 1
+        elif line[0] == '?':
+            pass
+
+    return delta or None
+
+                    
 @requests_required
 def get(url):
     session = requests.session()
