@@ -147,7 +147,7 @@ def main():
 # main
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == '--one-line-help':
-        print("record local changes to the repository")
+        print("show the status of the current activity")
         sys.exit()
 
     check_server = False
