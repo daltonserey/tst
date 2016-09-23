@@ -54,16 +54,17 @@ def bump_major(version):
     return "%d.%d.%d" % (major, minor, patch)
 
 
-def report(changes):
+def report(changes, name):
     if not changes:
         return ""
 
     text = StringIO()
+    text.write("# Activity %s\n\n" % name)
 
     # add textual contents changes
     text_fields = ['name', 'label', 'type', 'text']
     if any(e in changes.keys() for e in text_fields):
-        text.write("## Fields changed\n\n")
+        text.write("## Textual fields changed\n\n")
         for f in text_fields:
             if f in changes.keys():
                 text.write("  - %s\n" % f)
@@ -100,6 +101,7 @@ def report(changes):
         text.write("\n  Use `tst add <file>` to add file to the activity.\n")
         text.write("  Or type `tst clean` to remove all unknown files.\n\n")
 
+    text.write('---\n')
     return text.getvalue()
 
 
@@ -129,8 +131,7 @@ def main():
     # calculate delta bewteen directory and checked out version
     changes = tst.activity_differ(activity, tstjson)
 
-    print("# Activity '%s'\n" % tstjson['name'])
-    print(report(changes), end='')
+    print(report(changes, activity['name']), end='')
 
     if changes is None:
         print('Activity is up-to-date with the server.')

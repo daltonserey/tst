@@ -146,6 +146,16 @@ def main(text_in_file):
         tstjson = tst.read_tstjson(quit_on_fail=True)
         text_in_file = text_in_file or tstjson.get('text_in_file', False)
         name = tstjson['name']
+
+        # calculate delta bewteen directory and checked out version
+        activity = tst.read_activity(tstjson)
+        changes = tst.activity_differ(activity, tstjson)
+        if not overwrite and changes and set(changes.keys()) - set(['unknown']):
+            print("Sorry, this activity has local changes. Use:")
+            print("  - `tst status` to see changes")
+            print("  - `tst checkout --overwrite` to discarding changes")
+            sys.exit()
+        
         directory = '.'
     else:
         if len(sys.argv) < 2:
@@ -190,6 +200,11 @@ if __name__ == "__main__":
     text_in_file = False
     if sys.argv[-1] == '--text-in-file':
         text_in_file = True
+        sys.argv.pop()
+
+    overwrite = False
+    if sys.argv[-1] == '--overwrite':
+        overwrite = True
         sys.argv.pop()
 
     config = tst.read_config(exit=True)

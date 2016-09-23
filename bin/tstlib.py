@@ -415,19 +415,19 @@ def activity_differ(activity, tstjson):
 
     # compare tests
     diffs = [d for d in difflib.ndiff(tstjson['tests'], activity['tests']) if d[0] != '?']
-    index = 0
+    itst, iact = 0, 0
     for i in xrange(len(diffs)):
         line = diffs[i]
         if line[0] == ' ':
-            index += 1
+            itst += 1
+            iact += 1
         elif line[0] == '+':
             previous = diffs[i-1] if (i > 0) else None
-            index = index - 1 if previous[0] == '-' else index
-            delta.setdefault('tests', []).append(('+', line[2:], index))
-            index += 1
+            delta.setdefault('tests', []).append(('+', line[2:], iact))
+            iact += 1
         elif line[0] == '-':
-            delta.setdefault('tests', []).append(('-', line[2:], index))
-            index = index + 1
+            delta.setdefault('tests', []).append(('-', line[2:], itst))
+            itst += 1
         elif line[0] == '?':
             pass
 
