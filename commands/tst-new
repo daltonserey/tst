@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+if [[ $# != 1 ]]; then
+    echo "usage: tst new <name>"
+    echo "  - use only [a-zA-Z0-9] and [.-_] in name"
+    echo "  - initial character must be letter"
+    exit 1
+fi
+
+if [[ -e $1 ]]; then
+    echo "file/directory already exists: $1"
+    exit 1
+fi
+
+mkdir $1
+cd $1
+
+# create yaml file
+read -r -d '' YAMLFILE << EOM
+# TST Activity Template.
+# (c) 2016 Dalton Serey, UFCG
+#
+# An actual activity yaml will be automatically generated from
+# the activity whenever it is checked out from the server. This
+# file is just a template for you to start a new activity. After
+# you finish editing this file, use \`tst commit\` to save it to
+# the server.
+#
+# Observe that all comments in this file are completely ignored
+# by tst. You may keep them, delete them or add yor own comments
+# at will. However, keep in mind that tst will simply ignore them
+# all. In particular, they are not saved to the server.
+
+# The file system (POSIX) compatible name.
+name: $1
+
+# Short screen, readable name.
+label: Unnamed
+
+# Activity type: lesson, problem, quiz.
+type: lesson
+
+# The textual description of the activity itself. It must contain
+# all reading material and instructions necessary for any student
+# to whom the activity is assigned. Remember an activity cannot
+# contain images, but it can contain linked images that will be
+# rendered within the activity text. The text must be written in
+# markdown. Everyting indented below the line immediately below
+# this comment is part of the text. Observe that because it is a
+# multiline string, yaml comments do not work within it. Because
+# the text is markdown, anything begining with a \`#\` will be
+# considered a header. Learn markdown.
+text: |
+    # Unnamed
+    Markdown contents: 
+    - http://www.markdowntutorial.com/
+    - https://daringfireball.net/projects/markdown/
+
+# Tests section. If your activity has no tests just delete the
+# entire section begining below. To add tests, copy one of the
+# test entries. Once again, it may be useful to understand how
+# multiline scalars work in yaml to write proper complex tests.
+tests:
+-    category: public
+     name: test_name
+     input: |
+         input line1
+         input line2
+
+     output: |
+         output line1
+         output line2
+
+-    category: public
+     name: test_name
+     input: |
+         input line1
+         input line2
+
+     output: |
+         output line1
+         output line2
+EOM
+
+# create json file
+read -r -d '' TSTJSON <<- EOM
+{
+    "kind": "activity",
+    "name": "$1",
+    "state": "new"
+}
+EOM
+echo "$YAMLFILE" >> $1.yaml
+echo "$TSTJSON" >> tst.json
