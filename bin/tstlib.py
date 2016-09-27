@@ -54,7 +54,8 @@ def date_handler(obj):
 
 
 def get_release():
-    return config['release']
+    config = read_config()
+    return config.get('release', 'unknown')
 
 
 def data2json(data):
