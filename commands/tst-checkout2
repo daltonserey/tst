@@ -83,7 +83,7 @@ def main(text_in_file):
         sys.exit(1)
 
     # inspect response
-    if config['user'] not in response_json['collaborators']:
+    if config['user'] != response_json['owner'] and config['user'] not in response_json['collaborators']:
         print("tst: fatal: you have no permission to checkout this activity")
         sys.exit(1)
 
