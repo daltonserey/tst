@@ -53,6 +53,10 @@ def date_handler(obj):
     return obj
 
 
+def get_release():
+    return config['release']
+
+
 def data2json(data):
     return json.dumps(
         data,
