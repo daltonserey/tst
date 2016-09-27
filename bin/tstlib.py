@@ -403,13 +403,9 @@ def save_yaml(yamlfile, data):
 
     with codecs.open(yamlfile, mode='w', encoding='utf-8') as y:
 
-        # save name
+        # save name, type and label
         y.write("name: %s\n" % data['name'])
-
-        # save type
         y.write("type: %s\n" % data['type'])
-
-        # save type
         y.write("label: %s\n" % data['label'])
 
         # save text
@@ -425,7 +421,7 @@ def save_yaml(yamlfile, data):
                 for test_field, field_value in test.items():
                     prefix = '-   ' if is_first else '    '
                     if '\n' in field_value:
-                        y.write(prefix + '%s: |+\n' % test_field)
+                        y.write(prefix + '%s: |\n' % test_field)
                         y.write(indent(field_value, 2))
                     else:
                         y.write(prefix + '%s: %s\n' % (test_field, field_value))
