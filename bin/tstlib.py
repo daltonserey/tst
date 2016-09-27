@@ -61,13 +61,13 @@ def data2json(data):
         separators=(',', ': '),
         ensure_ascii=False)
 
-def show(data):
-    if not 'DEBUG' in globals():
-        return
 
-    print(data2json(data).encode('utf-8'))
-    sys.exit()
+def show(data, force=False):
+    if 'DEBUG' in globals() or force:
+        print(data2json(data).encode('utf-8'))
+        sys.exit()
     
+
 def to_unicode(obj, encoding='utf-8'):
     assert isinstance(obj, basestring), type(obj)
     if isinstance(obj, unicode):
@@ -132,6 +132,7 @@ class Server:
         response = self.Response()
         response.stderr = stderr
         response.stdout = stdout
+        response.exit_status = process.returncode
 
         # curl messages
         lines = [l[2:] for l in stderr.splitlines() if l and l[0] == '*']
@@ -162,8 +163,18 @@ class Server:
         return response
 
 
+    def post(self, url, payload):
+        return self.request('post', url, payload)
+
+
     def patch(self, url, payload):
-        curl_command = ['curl', '-X', 'PATCH', '-v', '-s']
+        return self.request('patch', url, payload)
+
+
+    def request(self, method, url, payload):
+        assert method in ('post', 'patch')
+        
+        curl_command = ['curl', '-X', method.upper(), '-v', '-s']
         headers = {}
         headers['Authorization'] = 'Bearer %s' % self.token
         headers['TST-CLI-Release'] = get_release()
@@ -175,7 +186,6 @@ class Server:
         curl_command.append('-d')
         data = "%s" % json.dumps(payload)
         curl_command.append(data)
-
 
         signal.alarm(20000) # timeout in seconds
         process = Popen(curl_command, stdout=PIPE, stderr=PIPE) 
@@ -191,6 +201,7 @@ class Server:
         response = self.Response()
         response.stderr = stderr
         response.stdout = stdout
+        response.exit_status = process.returncode
 
         # curl messages
         lines = [l[2:] for l in stderr.splitlines() if l and l[0] == '*']
@@ -221,31 +232,11 @@ class Server:
         return response
 
 
-def read_json(jsonfile, exit_on_fail=False):
-
-    if not os.path.exists(jsonfile):
-        return {}
-
-    try:
-        with codecs.open(jsonfile, mode='r', encoding='utf-8') as f:
-            tstjson = json.loads(to_unicode(f.read()))
-
-    except ValueError:
-        msg = "tst: %s is corrupted" % jsonfile
-        if exit_on_fail:
-            print(msg, file=sys.stderr)
-            sys.exit()
-
-        raise CorruptedConfigFile(msg)
-
-    return tstjson
-
-
 def read_tstjson(exit=False, quit_on_fail=False):
 
     if not os.path.exists(TSTJSON):
         if quit_on_fail:
-            msg = "tst: NOT a tst directory"
+            msg = "This is not a tst directory"
             print(msg, file=sys.stderr)
             sys.exit(1)
             
@@ -264,16 +255,6 @@ def read_tstjson(exit=False, quit_on_fail=False):
         raise CorruptedConfigFile(msg)
 
     return tstjson
-
-
-def get_release():
-    try:
-        with codecs.open(TSTRELEASE, mode='r', encoding='utf-8') as f:
-            release = f.read().split('"')[3]
-    except:
-        release = ''
-
-    return release
 
 
 def read_config(exit=False):
@@ -314,15 +295,6 @@ def save_config(config):
         ))
 
 
-def save_json(jsondata, jsonfile):
-    with codecs.open(jsonfile, mode="w", encoding='utf-8') as f:
-        f.write(json.dumps(
-            jsondata,
-            indent=2,
-            separators=(',', ': ')
-        ))
-
-
 def save_tstjson(tstjson):
     with codecs.open(TSTJSON, mode="w", encoding='utf-8') as f:
         f.write(json.dumps(
@@ -342,7 +314,23 @@ def requests_required(method):
     return check_requests
 
 
-def read_activity(tstjson):
+def hashify(data):
+
+    if isinstance(data, basestring):
+        return md5.md5(data.encode('utf-8')).hexdigest()
+    elif type(data) == list and all(type(e) == dict for e in data):
+        return [md5.md5(json.dumps(t, sort_keys=True)).hexdigest() for t in data]
+    elif type(data) == dict:
+        return {key:hashify(data[key]) for key in data}
+
+    # hashify works only with strings, objects and lists of objects
+    raise ValueError('tst: invalid data to hashify')
+
+
+def read_activity(tstjson=None):
+
+    if tstjson is None:
+        tstjson = read_tstjson()
 
     # gather activity data
     activity = {}
@@ -356,84 +344,227 @@ def read_activity(tstjson):
     activity['name'] = yamlfile['name']
     activity['label'] = yamlfile['label']
     activity['type'] = yamlfile['type']
-    activity['tests'] = [md5.md5(json.dumps(t, sort_keys=True)).hexdigest() for t in yamlfile.get('tests', {})]
+    activity['text'] = yamlfile['text']
+    activity['tests'] = yamlfile.get('tests', [])
 
-    # identify files in activity
-    tst_files = ['tst.json', activity['name'] + '.yaml']
-    #textfile = None if 'text' in yamlfile else (activity['name'] + '.md')
-    textfile = activity['name'] + '.md' if 'text' not in yamlfile else None
+    # add activity files
+    ignore = ['tst.json', activity['name'] + '.yaml']
+    textfile = activity['name'] + '.md' if tstjson.get('text_in_file') else None
     if textfile:
-        tst_files.append(textfile)
-    files = [f for f in os.listdir('.') if f not in tst_files and os.path.isfile(f)]
-    activity['files'] = {file:None for file in files}
+        ignore.append(textfile)
+    activity_files = [f for f in os.listdir('.') if f not in ignore and os.path.isfile(f)]
 
-    # read text
+    # identify unknown files
+    unknown_files = [f for f in activity_files if f not in tstjson['files']]
+    activity_files = [f for f in activity_files if f not in unknown_files]
+
+    # read file contents
+    activity['files'] = {}
+    for filename in activity_files:
+        try:
+            with codecs.open(filename, mode='r', encoding='utf-8') as f:
+                activity['files'][filename] = {
+                    'data': f.read(),
+                    'category': tstjson['files'][filename]['category']
+                }
+
+        except UnicodeError as e:
+            print("tst: warning: ignoring '%s' due to encoding problems" % filename, file=sys.stderr)
+
+    # read activity text
     if textfile:
-        with codecs.open(textfile, mode='r', encoding='utf-8') as md:
-            activity['text'] = md5.md5(md.read().encode('utf-8')).hexdigest()
+        try:
+            with codecs.open(textfile, mode='r', encoding='utf-8') as md:
+                activity['text'] = md.read()
+        except:
+            print("tst: fatal: couldn't read %s" % textfile, file=sys.stderr)
     else:
-        activity['text'] = md5.md5(yamlfile['text'].encode('utf-8')).hexdigest()
+        activity['text'] = yamlfile['text']
     
-    # read contents of files
-    for filename in activity['files'].keys():
-        with codecs.open(filename, mode='r', encoding='utf-8') as f:
+    return activity, unknown_files
+
+
+def get_save_function(kind):
+    return globals()["save_" + kind]
+
+
+def indent(text, level=1):
+    lines = text.splitlines()
+    text = "\n".join([level * "    " + "%s" % l for l in lines])
+    return text + '\n'
+
+
+def save_yaml(yamlfile, data):
+
+    with codecs.open(yamlfile, mode='w', encoding='utf-8') as y:
+
+        # save name
+        y.write("name: %s\n" % data['name'])
+
+        # save type
+        y.write("type: %s\n" % data['type'])
+
+        # save type
+        y.write("label: %s\n" % data['label'])
+
+        # save text
+        if 'text' in data:
+            y.write("text: |\n")
+            y.write("%s\n" % indent(data['text']))
+
+        # save tests
+        if 'tests' in data:
+            y.write('tests:\n')
+            for test in data['tests']:
+                is_first = True
+                for test_field, field_value in test.items():
+                    prefix = '-   ' if is_first else '    '
+                    if '\n' in field_value:
+                        y.write(prefix + '%s: |+\n' % test_field)
+                        y.write(indent(field_value, 2))
+                    else:
+                        y.write(prefix + '%s: %s\n' % (test_field, field_value))
+                    is_first = False
+                y.write('\n')
+
+        # save files
+        if 'files' in data:
+            y.write('\nfiles:\n')
+            for file in data['files']:
+                is_first = True
+                for file_field, field_value in file.items():
+                    prefix = '-   ' if is_first else '    '
+                    if file_field == 'data': continue
+                    if '\n' in field_value:
+                        y.write(prefix + '%s: |+\n' % file_field)
+                        y.write(indent(field_value, 2))
+                    else:
+                        y.write(prefix + '%s: %s\n' % (file_field, field_value))
+                    is_first = False
+
+
+def save_activity(data, text_in_file, is_checkout=True):
+
+    # save yaml with editable fields
+    tstyaml = {}
+    tstyaml['name'] = data['name']
+    tstyaml['type'] = data['type']
+    tstyaml['label'] = data['label']
+    tstyaml['tests'] = data['new_tests'][-1]
+    if not text_in_file:
+        tstyaml['text'] = data['text']
+
+    if is_checkout:
+        save_yaml(data['name'] + '.yaml', tstyaml)
+
+    # save text in file
+    if is_checkout and text_in_file:
+        textfile = tstjson['name'] + '.md'
+        with codecs.open(textfile, mode='w', encoding='utf-8') as f:
+            f.write(data['text'])
+
+    # save files
+    if is_checkout:
+        for filename in data['files']:
             try:
-                contents = f.read().encode('utf-8')
-                activity['files'][filename] = md5.md5(contents).hexdigest()
+                with codecs.open(filename, mode='w', encoding='utf-8') as f:
+                    f.write(data['files'][filename]['data'])
             except:
-                print("tst: warning: couldn't read file '%s'" % filename, file=sys.stderr)
+                print("tst: fatal: Can't save file '%s'" % filename, file=sys.stderr)
+                sys.exit(1)
 
-    return activity
+    # prepare tst.json
+    tstjson = {}
+
+    # keep hashified tstyaml + files (for change detection)
+    tstyaml['files'] = data['files']
+    tstjson['checkout'] = hashify(tstyaml)
+
+    # replicate some data from yaml (for easy lookup)
+    tstjson['name'] = data['name']
+    tstjson['type'] = data['type']
+    tstjson['label'] = data['label']
+
+    # activity data exclusively in tstjson
+    tstjson['files'] = {k:{'category': data['files'][k]['category']} for k in data['files']}
+    tstjson['iid'] = data['iid']
+    tstjson['kind'] = 'activity'
+    tstjson['version'] = "%s.%s.%s" % (data['major'], data['minor'], data['patch'])
+    tstjson['version_token'] = data['version_token']
+    tstjson['create_datetime'] = data['create_datetime']
+    tstjson['collaborators'] = data['collaborators']
+    tstjson['last_update_user'] = data['last_update_user']
+    tstjson['last_update_datetime'] = data['last_update_datetime']
+    tstjson['owner'] = data['owner']
+    tstjson['text_in_file'] = text_in_file
+    tstjson['state'] = data['state']
+
+    # save it
+    save_tstjson(tstjson)
 
 
-def activity_differ(activity, tstjson):
-    fields = ["name", "text", "tests", "files", "label", "type"]
+def activity_changes(activity, tstjson):
+    activity_hash = hashify(activity)
+    checkout_hash = tstjson['checkout']
+    diff = {
+        'changed_fields': spot_changes(activity_hash, checkout_hash),
+        'tests_diff': tests_differ(activity_hash['tests'], checkout_hash['tests']),
+        'missing_files': [f for f in tstjson['files'].keys() if f not in activity['files'].keys()]
+    }
+
+    return {k:diff[k] for k in diff if diff[k]}
+
+    
+
+def spot_changes(activity, checkout):
+    
+    assert type(activity) == dict, "spot_changes works only on objects"
+
+    changed = []
+    for key in activity:
+        if activity[key] == checkout.get(key):
+            continue
+
+        if isinstance(activity[key], basestring) or type(activity[key]) == list:
+            changed.append(key)
+
+        elif type(activity[key]) == dict:
+            if key in checkout:
+                subkeys = spot_changes(activity[key], checkout[key])
+                subkeys = ["%s/%s" % (key, subkey) for subkey in subkeys]
+                changed.extend(subkeys)
+            else:
+                changed.append("%s/new" % key)
+
+        else:
+            sys.exit('tst: fatal: activity corrupted')
+
+    return changed
+
+
+def tests_differ(activity, checkout):
+
     delta = {}
-    unknown_files = [fn for fn in activity['files'].keys() if fn not in tstjson['files'].keys()]
-    if unknown_files:
-        delta['unknown'] = unknown_files
-
-    for field in fields:
-
-        # unchanged fields: skip
-        if tstjson[field] == activity[field]:
-            continue
-
-        # single line string: mark as changed
-        if isinstance(tstjson[field], basestring):
-            delta[field] = "changed"
-            continue
-
-        # dictionary (text, files): descend one level
-        if type(tstjson[field]) == dict:
-            for key, value in tstjson[field].items():
-                if tstjson[field][key] != activity[field][key]:
-                    if field not in delta:
-                        delta[field] = {}
-                    delta[field][key] = "changed"
-
-
-    # compare tests
-    diffs = [d for d in difflib.ndiff(tstjson['tests'], activity['tests']) if d[0] != '?']
-    itst, iact = 0, 0
+    diffs = [d for d in difflib.ndiff(checkout, activity) if d[0] != '?']
+    index = 0
     for i in xrange(len(diffs)):
         line = diffs[i]
         if line[0] == ' ':
-            itst += 1
-            iact += 1
+            index += 1
         elif line[0] == '+':
             previous = diffs[i-1] if (i > 0) else None
-            delta.setdefault('tests', []).append(('+', line[2:], iact))
-            iact += 1
+            delta.setdefault('tests', []).append(('+', line[2:], index))
+            index += 1
         elif line[0] == '-':
-            delta.setdefault('tests', []).append(('-', line[2:], itst))
-            itst += 1
+            delta.setdefault('tests', []).append(('-', line[2:], index))
+            # index is not changed, because this line was removed
         elif line[0] == '?':
+            # this line is added by ndiff for information only
             pass
 
-    return delta or None
+    return delta.get('tests', [])
 
-                    
+
 @requests_required
 def get(url):
     session = requests.session()

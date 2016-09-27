@@ -34,122 +34,23 @@ def activity_url(iid):
     return "%s/%s" % (activities_endpoint, str(iid))
 
 
-def indent(text, level=1):
-    lines = text.splitlines()
-    text = "\n".join([level * "    " + "%s" % l for l in lines])
-    return text + '\n'
-
-
-def save_yaml(yamlfile, data):
-
-    with codecs.open(yamlfile, mode='w', encoding='utf-8') as y:
-
-        # save name
-        y.write("name: %s\n" % data['name'])
-
-        # save type
-        y.write("type: %s\n" % data['type'])
-
-        # save type
-        y.write("label: %s\n" % data['label'])
-
-        # save text
-        if 'text' in data:
-            y.write("text: |\n")
-            y.write("%s\n" % indent(data['text']))
-
-        # save tests
-        if 'tests' in data:
-            y.write('tests:\n')
-            for test in data['tests']:
-                is_first = True
-                for test_field, field_value in test.items():
-                    prefix = '-   ' if is_first else '    '
-                    if '\n' in field_value:
-                        y.write(prefix + '%s: |+\n' % test_field)
-                        y.write(indent(field_value, 2))
-                    else:
-                        y.write(prefix + '%s: %s\n' % (test_field, field_value))
-                    is_first = False
-                y.write('\n')
-
-        # save files
-        if 'files' in data:
-            y.write('\nfiles:\n')
-            for file in data['files']:
-                is_first = True
-                for file_field, field_value in file.items():
-                    prefix = '-   ' if is_first else '    '
-                    if file_field == 'data': continue
-                    if '\n' in field_value:
-                        y.write(prefix + '%s: |+\n' % file_field)
-                        y.write(indent(field_value, 2))
-                    else:
-                        y.write(prefix + '%s: %s\n' % (file_field, field_value))
-                    is_first = False
-
-
-def save_activity(data, text_in_file):
-
-    # save tst.json
-    tstjson = {}
-    tstjson['kind'] = 'activity'
-    tstjson['name'] = data['name']
-    tstjson['version'] = "%s.%s.%s" % (data['major'], data['minor'], data['patch'])
-    tstjson['version_token'] = data['version_token']
-    tstjson['iid'] = data['iid']
-    tstjson['label'] = data['label']
-    tstjson['create_datetime'] = data['create_datetime']
-    tstjson['collaborators'] = data['collaborators']
-    tstjson['last_update_user'] = data['last_update_user']
-    tstjson['last_update_datetime'] = data['last_update_datetime']
-    tstjson['type'] = data['type']
-    tstjson['owner'] = data['owner']
-    tstjson['text'] = data['text']
-    tstjson['state'] = data['state']
-    tstjson['text'] = md5.md5(data['text'].encode('utf-8')).hexdigest()
-    tstjson['files'] = {f['name']: md5.md5(f['data'].encode('utf-8')).hexdigest() for f in data['files']}
-    tstjson['tests'] = [md5.md5(json.dumps(t, sort_keys=True)).hexdigest() for t in data['new_tests'][-1]]
-    tstjson['text_in_file'] = text_in_file
-    tst.save_tstjson(tstjson)
-
-    # save markdown
-    if text_in_file:
-        textfile = tstjson['name'] + '.md'
-        with codecs.open(textfile, mode='w', encoding='utf-8') as f:
-            f.write(data['text'])
-
-    # save yaml
-    tstyaml = {}
-    tstyaml['name'] = data['name']
-    tstyaml['type'] = data['type']
-    tstyaml['label'] = data['label']
-    tstyaml['tests'] = data['new_tests'][-1]
-    if not text_in_file:
-        tstyaml['text'] = data['text']
-    save_yaml(data['name'] + '.yaml', tstyaml)
-
-    # save files
-    for file in data['files']:
-        filename = file['name']
-        with codecs.open(filename, mode='w', encoding='utf-8') as f:
-            f.write(file['data'])
-
 def main(text_in_file):
 
+    # read tst.json, if any
     TSTJSON = './tst.json'
     if os.path.exists(TSTJSON):
         if len(sys.argv) > 1:
             print("You can't checkout an activity inside another.")
-            print("To checkout over this activity use `tst checkout`.")
+            print("To checkout this activity and overwrite it, use:")
+            print("  - `tst checkout --overwrite`")
             sys.exit(1)
         tstjson = tst.read_tstjson(quit_on_fail=True)
         text_in_file = text_in_file or tstjson.get('text_in_file', False)
         name = tstjson['name']
 
         # calculate delta bewteen directory and checked out version
-        activity = tst.read_activity(tstjson)
-        changes = tst.activity_differ(activity, tstjson)
+        activity, unknown = tst.read_activity(tstjson)
+        changes = tst.activity_changes(activity, tstjson)
         if not overwrite and changes and set(changes.keys()) - set(['unknown']):
             print("Sorry, this activity has local changes. Use:")
             print("  - `tst status` to see changes")
@@ -175,10 +76,15 @@ def main(text_in_file):
     url = activity_url(name)
     response = server.get(url)
     try:
-        object_json = response.json()
+        response_json = response.json()
     except:
         print(response.stdout)
         print(response.stderr)
+        sys.exit(1)
+
+    # inspect response
+    if config['user'] not in response_json['collaborators']:
+        print("tst: fatal: you have no permission to checkout this activity")
         sys.exit(1)
 
     # change to activity directory
@@ -186,9 +92,9 @@ def main(text_in_file):
         mkdirs(directory)
     os.chdir(directory)
 
-    # save object to local filesystem
-    save = globals()["save_" + kind]
-    save(object_json, text_in_file)
+    # save using proper save function
+    save = tst.get_save_function(kind)
+    save(response_json, text_in_file, is_checkout=True)
 
 
 # main
