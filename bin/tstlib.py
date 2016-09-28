@@ -360,7 +360,7 @@ def read_activity(tstjson=None):
     activity_files = [f for f in os.listdir('.') if f not in ignore and os.path.isfile(f)]
 
     # identify unknown files
-    unknown_files = [f for f in activity_files if f not in tstjson['files']]
+    unknown_files = [f for f in activity_files if f not in tstjson.get('files', [])]
     activity_files = [f for f in activity_files if f not in unknown_files]
 
     # read file contents
