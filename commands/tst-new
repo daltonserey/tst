@@ -26,7 +26,7 @@ read -r -d '' YAMLFILE << EOM
 # the server.
 #
 # Observe that all comments in this file are completely ignored
-# by tst. You may keep them, delete them or add yor own comments
+# by tst. You may keep them, delete them or add your own comments
 # at will. However, keep in mind that tst will simply ignore them
 # all. In particular, they are not saved to the server.
 
@@ -44,7 +44,7 @@ type: lesson
 # to whom the activity is assigned. Remember an activity cannot
 # contain images, but it can contain linked images that will be
 # rendered within the activity text. The text must be written in
-# markdown. Everyting indented below the line immediately below
+# markdown. Everything indented below the line immediately below
 # this comment is part of the text. Observe that because it is a
 # multiline string, yaml comments do not work within it. Because
 # the text is markdown, anything begining with a \`#\` will be
