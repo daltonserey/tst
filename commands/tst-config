@@ -19,7 +19,7 @@ WHITE="\033[1;37m"
 LCYAN = '\033[1;36m'
 RESET = '\033[0m'
 
-FIELDS = ['user', 'group', 'url', 'output']
+FIELDS = ['user', 'group', 'url', 'output', 'domain']
 
 # read config
 config = tst.read_config()
@@ -61,7 +61,7 @@ else:
         prop = sys.argv[1]
 
         # check property
-        if not prop in FIELDS:
+        if prop not in FIELDS:
             msg = LRED + "tst: cannot configure '%s'" % prop + RESET
             print(msg, file=sys.stderr)
             sys.exit(1)

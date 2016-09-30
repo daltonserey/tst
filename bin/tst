@@ -21,11 +21,13 @@ import os
 
 from subprocess import Popen, PIPE, check_call, CalledProcessError
 
+import tstlib as tst
+
 # TST INTERNAL COMMANDS
 DEFAULT_COMMAND = 'test'
 EXTERNALS = ["update", "login", "checkout", "test", "commit", "config"]
 HIDDEN = ['checkout2', 'commit2', 'status', 'new']
-INTERNALS = ["help", "version"]
+INTERNALS = ["help", "version", "sharing"]
 
 def tst_help(args):
     """short description of commands"""
@@ -53,6 +55,46 @@ def tst_version(args):
         msg = "your tst installation is either corrupted or outdated"
 
     print(msg)
+
+
+def tst_sharing(args):
+    if len(args) == 1:
+        print("usage: tst sharing <add|remove> <username>")
+        sys.exit(1)
+        
+    tstjson = tst.read_tstjson()
+    if len(args) == 0:
+        # list all collaborators
+        collaborators =  tstjson['collaborators']
+        if collaborators:
+            print("# Collaborators\n")
+            print("  " + tstjson['owner'] + " (owner)")
+            for c in collaborators:
+                print("  " + c)
+            print()
+        sys.exit()
+        
+    # add collaborators
+    action = args[0]
+    if action != 'add':
+        print("tst: fatal: unknown sharing action")
+        sys.exit(1)
+
+    config = tst.read_config()
+    domain = config.get('domain', '')
+    usernames = []
+    for i in xrange(1, len(args)):
+        un = args[i] if '@' in args[i] else args[i] + '@' + domain
+        usernames.append(un)
+
+    server = tst.Server()
+    activity = tstjson['iid']
+    url = config['url'] + '/api/activity/%s/collaborators' % activity
+    response = server.post(url, usernames)
+    if True: # response.status_code != 200:
+        print("tst: error")
+        print(response.stdout)
+        sys.exit()
 
 
 def get_one_line_help(command):
