@@ -225,13 +225,13 @@ def main():
 
     # perform request to server
     if tstjson['state'] == 'new':
-        # POST for new activity
+        # POST new activity
         url = config['url'] + "/api/activity"
         payload = activity
         response = server.post(url, activity)
 
     else:
-        # PATCH for existing activity
+        # PATCH existing activity
         changes = tst.activity_changes(activity, tstjson)
         _assert(changes, 1, 'Acitivity was not changed.\n' + 'Nothing to commit.\n')
         _assert(not 'missing_files' in changes, 1, 'Acitivity cannot be commited due to missing files.\n' +\

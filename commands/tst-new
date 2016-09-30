@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
-if [[ $# != 1 ]]; then
-    echo "usage: tst new <name>"
+if [[ $# != 2 ]] || [[ $1 != "activity" ]]; then
+    echo "usage: tst new activity <name>"
     echo "  - use only [a-zA-Z0-9] and [.-_] in name"
     echo "  - initial character must be letter"
     exit 1
 fi
 
-if [[ -e $1 ]]; then
-    echo "file/directory already exists: $1"
+activity=$2
+if [[ -e $activity ]]; then
+    echo "file/directory already exists: $activity"
     exit 1
 fi
 
-mkdir $1
-cd $1
+mkdir $activity
+cd $activity
 
 # create yaml file
 read -r -d '' YAMLFILE << EOM
@@ -31,7 +32,7 @@ read -r -d '' YAMLFILE << EOM
 # all. In particular, they are not saved to the server.
 
 # The file system (POSIX) compatible name.
-name: $1
+name: $activity
 
 # Short screen, readable name.
 label: Unnamed
@@ -85,9 +86,9 @@ EOM
 read -r -d '' TSTJSON <<- EOM
 {
     "kind": "activity",
-    "name": "$1",
+    "name": "$activity",
     "state": "new"
 }
 EOM
-echo "$YAMLFILE" >> $1.yaml
+echo "$YAMLFILE" >> $activity.yaml
 echo "$TSTJSON" >> tst.json
