@@ -513,6 +513,11 @@ def activity_changes(activity, tstjson):
         'missing_files': [f for f in tstjson['files'].keys() if f not in activity['files'].keys()]
     }
 
+    files_changed = any(f.split("/")[1:3] for f in diff['changed_fields'] if f.startswith('files'))
+
+    if files_changed or diff['tests_diff']:
+        diff['bump_required'] = True
+
     return {k:diff[k] for k in diff if diff[k]}
 
     

@@ -26,8 +26,8 @@ import tstlib as tst
 # TST INTERNAL COMMANDS
 DEFAULT_COMMAND = 'test'
 EXTERNALS = ["update", "login", "checkout", "test", "commit", "config"]
-HIDDEN = ['checkout2', 'commit2', 'status', 'new']
-INTERNALS = ["help", "version", "sharing"]
+HIDDEN = ['checkout2', 'commit2', 'status', 'new', 'add']
+INTERNALS = ["help", "version", "sharing", "add", "ls", "remove"]
 
 def tst_help(args):
     """short description of commands"""
@@ -95,6 +95,54 @@ def tst_sharing(args):
         print("tst: error")
         print(response.stdout)
         sys.exit()
+
+
+def tst_ls(args):
+    tstjson = tst.read_tstjson()
+    files = tstjson.setdefault('files', {})
+    for fn in sorted(files.keys()):
+        visibility = files[fn].get('category', 'private')
+        print(fn, ("(%s)" % visibility if visibility == 'public' else ''))
+
+
+def tst_remove(args):
+    tstjson = tst.read_tstjson()
+    files = tstjson.setdefault('files', {})
+    if any(f not in files for f in args):
+        print("Some of the files don't exist.")
+        print("Operation aborted.")
+        sys.exit(1)
+
+    removed = {}
+    for f in args:
+        removed[f] = files.pop(f)
+
+    tst.save_tstjson(tstjson)
+    for f in removed:
+        print('removed: %s %s' % (removed[f].get('category', 'private'), f))
+
+
+def tst_add(args):
+    tstjson = tst.read_tstjson()
+    visibility = args.pop(0) if args[0] in ('public', 'private') else None
+    files = tstjson.setdefault('files', {})
+    if any(f in files for f in args):
+        print("Some files already exist.")
+        print("Operation aborted.")
+        sys.exit(1)
+
+    added = []
+    for f in args:
+        if f in added:
+            continue
+        added.append(f)
+        filedict = files.setdefault(f, {})
+        if visibility:
+            filedict['category'] = visibility
+
+    tst.save_tstjson(tstjson)
+    for f in added:
+        print('added: %s %s' % (files[f].get('category', 'private'), f))
 
 
 def get_one_line_help(command):
