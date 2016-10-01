@@ -97,6 +97,11 @@ class Server:
     def __init__(self, token=None):
         if token == None:
             config = read_config() 
+            if 'access_token' not in config:
+                print("You are not logged in.")
+                print("Use `tst login` to log in to the server.")
+                sys.exit(1)
+
             token = config['access_token']
 
         self.token = token

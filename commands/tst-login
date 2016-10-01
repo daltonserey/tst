@@ -26,16 +26,16 @@ def main(token):
 
     if not token:
         webbrowser.open(config['url'] + "/token/get")
-        print("Copie e cole seu token aqui:")
+        print("Copy and paste the token here:")
         token = raw_input().strip()
 
-    user = raw_input("user email: ")
+    user = raw_input("User email: ")
 
     # request login authentication at google
     headers = {'Authorization': 'Bearer ' + token}
     url = config['url'] + '/token/validate/%s' % user
 
-    print("Validando o token no TST Online.")
+    print("Validating the token...")
     try:
         response = requests.get(url, headers=headers)
     except Exception as e:
@@ -53,8 +53,8 @@ def main(token):
         curlrc.write('-H "Authorization: Bearer %s"' % token)
         
     tstlib.save_config(config)
-    print("Token validado.")
-    print("Você está logado no tst-online como '%s'." % user)
+    print("Token validated.")
+    print("You are now logged in as: %s" % user)
 
 
 if __name__ == "__main__":
