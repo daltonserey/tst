@@ -111,15 +111,31 @@ def bump_patch(version):
     return "%d.%d.%d" % (major, minor, patch)
 
 
-def make_patch(changes, activity, tstjson):
+
+def get_bump_level(changes):
+
+    # find --bump option in command line
+    i = next((i for i in xrange(len(sys.argv)) if sys.argv[i] == '--bump'), -1)
+    _assert(i < len(sys.argv), 1, 'Option --bump <level> incomplete.')
+    user_required_level = sys.argv[i + 1] if i > 0 else None
+    if not 'bump_required' in changes:
+        return user_required_level or 'patch'
+
+    # bump is required
+    _assert(user_required_level is not None, 1, '\nOption --bump <level> is required for this commit.')
+    _assert(user_required_level in ('major', 'minor', 'patch'), 1, 'Invalid bump level. Use major, minor or patch.')
+    return user_required_level
+
+
+def make_patch(activity, tstjson, changes, bump_level):
     if not changes:
         return None
-
-    # add bump patch
+    # add patch to bump the version number
+    bump_function = globals()['bump_' + bump_level]
     patches = [{
         'op': 'replace',
         'path': '/version',
-        'value': bump_patch(tstjson['version'])
+        'value': bump_function(tstjson['version'])
     }]
 
     # add a patch for each textual field
@@ -200,58 +216,63 @@ def _assert(condition, code=1, msg='assertion failed'):
         sys.exit(code)
 
 
-def assert_no_missed_updates(tstjson):
-    print('checking for missed updates...')
-    url = activity_url(tstjson['iid']) + "/version"
-    server_version = server.get(url).json()
-
-    if server_version['version_token'] != tstjson['version_token']:
-        print("Your copy is stale.")
-        print("  - local version: %s" % tstjson['version'])
-        print("  - server version: %s" % server_version['version'])
-        print("Use `tst checkout` to update.")
-        sys.exit(1)
-    else:
-        print("Your copy is up-to-date with the server.")
-            
-
-def main():
-
-    # read tst.json
-    tstjson = tst.read_tstjson(quit_on_fail=True)
-
-    # read activity and unknown files
-    activity, unknown = tst.read_activity(tstjson)
-
-    # perform request to server
-    if tstjson['state'] == 'new':
-        # POST new activity
-        url = config['url'] + "/api/activity"
-        payload = activity
-        response = server.post(url, activity)
-
-    else:
-        # PATCH existing activity
-        changes = tst.activity_changes(activity, tstjson)
-        _assert(changes, 1, 'Acitivity was not changed.\n' + 'Nothing to commit.\n')
-        _assert(not 'missing_files' in changes, 1, 'Acitivity cannot be commited due to missing files.\n' +\
-                                                   'Use `tst status` for more details.')
-        assert_no_missed_updates(tstjson)
-        url = activity_url(tstjson['iid'])
-        payload = make_patch(changes, activity, tstjson)
-        response = server.patch(url, payload)
-
-    # collect response and process possible errors
-    _assert(response.exit_status == 0, 1, 'tst: fatal: curl command failed\n')
+def sync_activity(response, tstjson):
+    # check response was positive
     json_response = response.json()
+    _assert(response.exit_status == 0, 1, 'tst: fatal: curl command failed\n')
     _assert('error' not in json_response, 1, 'tst: fatal: server reported error:\n' + str(json_response.get('messages', 'no server messages')))
 
     # post/patch worked: save using proper save function
     save = tst.get_save_function('activity')
     save(json_response, tstjson.get('text_in_file'), is_checkout=False)
 
+def main():
+
+    # read tst.json and activity
+    tstjson = tst.read_tstjson(quit_on_fail=True)
+    activity, unknown = tst.read_activity(tstjson)
+
+    # check whether activity is new
+    if tstjson['state'] == 'new':
+        # post new activity
+        url = config['url'] + "/api/activity"
+        payload = activity
+        response = server.post(url, activity)
+        sync_activity(response, tstjson)
+        print("First version successfully saved to the server.")
+        print("%s" % response.json()['version'])
+        sys.exit()
+
+    # read local directory and identify changes
+    changes = tst.activity_changes(activity, tstjson)
+    if not changes:
+        print("nothing to commit")
+        sys.exit()
+
+    # check for missed updates
+    server = tst.Server()
+    url = config['url'] + '/api/activity/%s/version' % tstjson['iid']
+    last_version = server.get(url).json()
+    missed_updates = False
+    if last_version['version'] != tstjson['version'] or last_version['version_token'] != tstjson['version_token']:
+        # missed updates
+        print("This activity has been updated on the server.")
+        print("Use:")
+        print("    `tst checkout --overwrite` to update and overwrite local changes")
+        print("    `tst checkout --merge` to update and merge local changes")
+        sys.exit()
+
+
+    # Check for missing files
+    _assert(not 'missing_files' in changes, 1, 'Acitivity cannot be commited due to missing files.\n' +\
+                                               'Use `tst status` for more details.')
+    url = activity_url(tstjson['iid'])
+    bump_level = get_bump_level(changes)
+    payload = make_patch(activity, tstjson, changes, bump_level)
+    response = server.patch(url, payload)
+    sync_activity(response, tstjson)
     print("Commmit finished.")
-    print("%s" % json_response['version'])
+    print("%s" % response.json()['version'])
 
 
 # main
@@ -259,10 +280,6 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == '--one-line-help':
         print("save local activity to the repository")
         sys.exit()
-
-    if len(sys.argv) > 1 and sys.argv[-1] == '-D':
-        tst.DEBUG = True
-        sys.argv.pop()
 
     config = tst.read_config(exit=True)
     server = tst.Server()
