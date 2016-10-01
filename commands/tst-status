@@ -103,6 +103,10 @@ def report(changes, unknown_files, activity):
         text.write("\n  Use `tst checkout <file>` to recover last version of a file.\n")
         text.write("  Or use `tst rm <file>` to remove a file from the activity.\n\n")
 
+    # suggest bump
+    if changes.get('bump_required'):
+        text.write("Commit requires bump option\n")
+
     return text.getvalue()
 
 
@@ -117,25 +121,50 @@ def main():
         print("Use `tst commit` to save it.")
         sys.exit()
 
-    # read activity and unknown files
+    # read local directory and identify changes
     activity, unknown = tst.read_activity(tstjson)
-
-    # identify modifications 
     changes = tst.activity_changes(activity, tstjson)
 
-    print(report(changes, unknown, activity), end='')
+    # check for missed updates
+    server = tst.Server()
+    url = config['url'] + '/api/activity/%s/version' % tstjson['iid']
+    last_version = server.get(url).json()
+    missed_updates = False
+    if last_version['version'] != tstjson['version'] or last_version['version_token'] != tstjson['version_token']:
+        missed_updates = True
 
-    if changes:
+    if print_report or (changes and not missed_updates):
+        print(report(changes, unknown, activity), end='')
         print('---')
-        print('Use `tst checkout --overwrite` to discard all changes.')
-        if 'missing_files' in changes:
-            print('This activity cannot be committed due to missing files.')
+
+    if   not changes and not missed_updates:
+        print("Activity is up-to-date.")
+        print("No action required.")
+
+    elif not changes and     missed_updates:
+        print("This activity has been updated on the server.")
+        print("Use `tst checkout` to update the activity.")
+
+    elif     changes and not missed_updates:
+        print("This activity has been locally changed.")
+        print("Use:")
+        print("    `tst checkout --overwrite` to discard your local changes.")
+        if changes.get('bump_required'):
+            print("    `tst commit --bump <level>` to send your changes to the server")
+            print("    - level is `major` if changes invalidate all previous tests")
+            print("    - level is `minor` if changes invalidate succesful tests only")
+            print("    - level is `patch` if changes do not invalidate previous tests")
+
         else:
-            print('Use `tst commit` to save changes to the repository.')
-    else:
-        print('Activity is up-to-date with the server.')
+            print("    `tst commit` to send your changes to the server")
 
-
+    elif     changes and     missed_updates:
+        print("This activity is locally changed and has been updated on the server.")
+        print("Use:")
+        print("    `tst status --changes` to list local changes")
+        print("    `tst checkout --overwrite` to update and overwrite local changes")
+        print("    `tst checkout --merge` to update and merge local changes")
+    
 
 # main
 if __name__ == "__main__":
@@ -143,13 +172,9 @@ if __name__ == "__main__":
         print("show the status of the current activity")
         sys.exit()
 
-    check_server = False
-    if len(sys.argv) > 1 and sys.argv[1] == '--check-server':
-        check_server = True
-
-    if len(sys.argv) > 1 and sys.argv[-1] == '-D':
-        tst.DEBUG = True
-        sys.argv.pop()
-
+    print_report = False
+    if any(arg == '--changes' for arg in sys.argv):
+        print_report = True
+        
     config = tst.read_config(exit=True)
     main()
