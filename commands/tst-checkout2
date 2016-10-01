@@ -52,9 +52,9 @@ def main(text_in_file):
         activity, unknown = tst.read_activity(tstjson)
         changes = tst.activity_changes(activity, tstjson)
         if not overwrite and changes and set(changes.keys()) - set(['unknown']):
-            print("Sorry, this activity has local changes. Use:")
-            print("  - `tst status` to see changes")
-            print("  - `tst checkout --overwrite` to discarding changes")
+            print("This activity has local changes. Use:")
+            print("  `tst status` to list local changes")
+            print("  `tst checkout --overwrite` to discarding changes")
             sys.exit()
         
         directory = '.'
