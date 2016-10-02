@@ -26,7 +26,7 @@ import tstlib as tst
 # TST INTERNAL COMMANDS
 DEFAULT_COMMAND = 'test'
 EXTERNALS = ["update", "login", "checkout", "test", "commit", "config"]
-HIDDEN = ['checkout2', 'commit2', 'status', 'new', 'add']
+HIDDEN = ['checkout2', 'commit2', 'status', 'new', 'add', 'install']
 INTERNALS = ["help", "version", "sharing", "add", "ls", "remove"]
 
 def tst_help(args):
@@ -174,8 +174,8 @@ def run_command_script(command, args):
 
 
 def custom_commands():
-    commands = os.environ.get("TST_CUSTOM_COMMANDS")
-    return [] if commands is None else commands.split(":")
+    config = tst.read_config()
+    return config.get('custom_commands', []).keys()
 
 
 def identify_and_run_command(args):
