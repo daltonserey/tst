@@ -95,6 +95,8 @@ def main(text_in_file):
     # save using proper save function
     save = tst.get_save_function(kind)
     save(response_json, text_in_file, is_checkout=True)
+    print("Activity successfully checked out.")
+    print("Target directory: %s" % directory)
 
 
 # main
