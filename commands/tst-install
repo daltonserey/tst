@@ -15,9 +15,10 @@ import md5
 import tstlib as tst
 from tstlib import data2json
 
+INTERNALS = ["help", "version", "sharing", "add", "ls", "remove", "uninstall"]
 EXTERNALS = ["update", "login", "checkout", "test", "commit", "config"]
-INTERNALS = ["help", "version", "sharing", "add", "ls", "remove"]
-STANDARD_COMMANDS = EXTERNALS + INTERNALS
+HIDDEN = ['checkout2', 'commit2', 'status', 'new', 'add', 'install']
+STANDARD_COMMANDS = EXTERNALS + INTERNALS + HIDDEN
 
 def matching_gists(gists, command):
     matches = []
