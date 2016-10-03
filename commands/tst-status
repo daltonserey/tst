@@ -133,7 +133,7 @@ def main():
     if last_version['version'] != tstjson['version'] or last_version['version_token'] != tstjson['version_token']:
         missed_updates = True
 
-    if print_report or (changes and not missed_updates):
+    if print_report or ((changes or unknown) and not missed_updates):
         print(report(changes, unknown, activity), end='')
         print('---')
 
