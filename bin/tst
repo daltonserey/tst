@@ -27,7 +27,7 @@ import tstlib as tst
 DEFAULT_COMMAND = 'test'
 EXTERNALS = ["update", "login", "checkout", "test", "commit", "config"]
 HIDDEN = ['checkout2', 'commit2', 'status', 'new', 'add', 'install']
-INTERNALS = ["help", "version", "sharing", "add", "ls", "remove"]
+INTERNALS = ["help", "version", "sharing", "add", "ls", "remove", "uninstall"]
 
 def tst_help(args):
     """short description of commands"""
@@ -43,6 +43,16 @@ def tst_help(args):
         print("\nCustom commands:")
         for cmd in custom_commands():
             print("  %-12s%s" % (cmd, get_one_line_help(cmd)))
+            print("  %-12s%s" % (cmd, get_custom_command_help(cmd)))
+
+
+def get_custom_command_help(cmd):
+    custom_command = globals().get("tst_" + cmd)
+    if custom_command is not None:
+        return custom_command.__doc__
+
+    # assume it is external
+    return get_one_line_help(cmd)
 
 
 def tst_version(args):
@@ -57,7 +67,31 @@ def tst_version(args):
     print(msg)
 
 
+def tst_uninstall(args):
+    """uninstall a custom command"""
+
+    def delete_custom_command(command):
+        path = os.path.expanduser('~/.tst/commands')
+        files = config.get('custom_commands', {}).get(command, [])
+        for fn in files:
+            filename = '%s/%s' % (path, fn)
+            if os.path.exists(filename):
+                os.remove(filename)
+            if os.path.exists(filename + "c"):
+                os.remove(filename + "c")
+
+    command = args[0]
+    config = tst.read_config()
+    if command not in config['custom_commands']:
+        print("Sorry, you cannot uninstall standard commands.")
+        sys.exit()
+    delete_custom_command(command)
+    config['custom_commands'].pop(command, None)
+    tst.save_config(config)
+
+
 def tst_sharing(args):
+    """add or remove collaborators"""
     if len(args) == 1:
         print("usage: tst sharing <add|remove> <username>")
         sys.exit(1)
@@ -98,6 +132,7 @@ def tst_sharing(args):
 
 
 def tst_ls(args):
+    """list files in activity"""
     tstjson = tst.read_tstjson()
     files = tstjson.setdefault('files', {})
     for fn in sorted(files.keys()):
@@ -106,6 +141,7 @@ def tst_ls(args):
 
 
 def tst_remove(args):
+    """remove files from activity"""
     tstjson = tst.read_tstjson()
     files = tstjson.setdefault('files', {})
     if any(f not in files for f in args):
@@ -123,6 +159,7 @@ def tst_remove(args):
 
 
 def tst_add(args):
+    """add files to activity"""
     tstjson = tst.read_tstjson()
     visibility = args.pop(0) if args[0] in ('public', 'private') else None
     files = tstjson.setdefault('files', {})
@@ -162,7 +199,7 @@ def get_one_line_help(command):
     return stdout.strip().splitlines()[0]
 
 
-def run_command_script(command, args):
+def run_external_command(command, args):
     script_name = os.path.expanduser("~/.tst/commands/tst-%s" % command)
     args.insert(0, script_name)
     try:
@@ -178,6 +215,34 @@ def custom_commands():
     return config.get('custom_commands', []).keys()
 
 
+def is_internal(fn):
+    return fn.startswith('tst_') and fn.endswith('.py')
+
+
+def is_external(fn):
+    return fn.startswith('tst-')
+
+
+def is_custom_internal_command(cmd):
+    if cmd not in custom_commands():
+        return False
+
+    config = tst.read_config()
+    cmd_files = config['custom_commands'][cmd]
+
+    return any(is_internal(fn) for fn in cmd_files)
+
+
+def is_custom_external_command(cmd):
+    if cmd not in custom_commands():
+        return False
+
+    config = tst.read_config()
+    cmd_files = config['custom_commands'][cmd]
+
+    return any(is_external(fn) for fn in cmd_files)
+
+
 def identify_and_run_command(args):
 
     if args and args[0] in INTERNALS:
@@ -185,13 +250,27 @@ def identify_and_run_command(args):
         run_internal_command = globals()["tst_" + command_name]
         run_internal_command(args)
 
-    elif args and (args[0] in EXTERNALS or args[0] in custom_commands() or args[0] in HIDDEN):
+    elif args and is_custom_internal_command(args[0]):
+        command_name = args.pop(0) # discard command name
+        sys.path.insert(0, tst.TSTDIR + '/commands')
+        try:
+            cmd_module = __import__('tst_' + command_name)
+        except ImportError:
+            print("tst: fatal: couldn't import custom command")
+            sys.exit(1)
+        custom_internal_command = getattr(cmd_module, 'tst_' + command_name, None)
+        if custom_internal_command is None:
+            print("tst: fatal: no proper function in custom command module")
+            sys.exit(1)
+        custom_internal_command(args)
+
+    elif args and (args[0] in EXTERNALS or is_custom_external_command(args[0])  or args[0] in HIDDEN):
         command_name = args.pop(0)
-        run_command_script(command_name, args)
+        run_external_command(command_name, args)
 
     else: # neither internal, nor external command!?
         command_name = DEFAULT_COMMAND
-        run_command_script(command_name, args)
+        run_external_command(command_name, args)
 
 
 if __name__ == "__main__":

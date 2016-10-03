@@ -371,11 +371,10 @@ def read_tstjson(exit=False, quit_on_fail=False):
 
     if not os.path.exists(TSTJSON):
         if quit_on_fail:
-            msg = "This is not a tst directory"
+            msg = "This is not a tst directory."
             print(msg, file=sys.stderr)
             sys.exit(1)
-            
-        return {}
+        return None
 
     try:
         with codecs.open(TSTJSON, mode='r', encoding='utf-8') as f:
@@ -392,7 +391,12 @@ def read_tstjson(exit=False, quit_on_fail=False):
     return tstjson
 
 
+__config = None
 def read_config(exit=False):
+    global __config
+
+    if __config is not None:
+        return __config
 
     # create config file if it doesn't exist
     if os.path.exists(TSTCONFIG):
@@ -418,7 +422,8 @@ def read_config(exit=False):
         }
         save_config(config)
 
-    return config
+    __config = config
+    return __config
 
 
 def save_config(config):
