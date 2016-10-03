@@ -158,7 +158,7 @@ def make_patch(activity, tstjson, changes, bump_level):
             'value': {
                 'name': fn,
                 'data': activity['files'][fn]['data'],
-                'category': tstjson['files'][fn]['category']
+                'category': tstjson['files'][fn].get('category', 'secret')
             }
         })
         
