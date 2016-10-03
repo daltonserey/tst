@@ -148,7 +148,9 @@ def parse_filename(fn):
         command = fn[4:]
         cmd_type = 'external'
     else:
-        print("Invalid file name for tst command")
+        print("Invalid file name for tst command. Use:")
+        print("  `tst install <filename>` to install from file")
+        print("  `tst install <username:command>` to install from GitHub")
         sys.exit(1)
 
     return command, cmd_type
@@ -178,7 +180,7 @@ if __name__ == "__main__":
     print("third party software that will actually run in your system.")
     print("People can use this to install and run malware.")
     print("Please, be sure you can trust the user who provides the software.")
-    answer = raw_input("  Are you sure you want to install this command? (y/n) ")
+    answer = raw_input("\nAre you sure you want to install this command? (y/n) ")
     if answer.lower() != 'y':
         print("Installation aborted.")
         sys.exit()
@@ -198,3 +200,6 @@ if __name__ == "__main__":
     install_command(command, files)
     config.setdefault('custom_commands', {})[command] = [f['filename'] for f in files]
     tst.save_config(config)
+    print("---")
+    print("%d file(s) copied" % len(files))
+    print("%s command `%s` successfully installed." % (cmd_type.capitalize(), command))
