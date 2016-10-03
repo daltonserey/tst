@@ -233,6 +233,7 @@ def main():
     activity, unknown = tst.read_activity(tstjson)
 
     # check whether activity is new
+    server = tst.Server()
     if tstjson['state'] == 'new':
         # post new activity
         url = config['url'] + "/api/activity"
@@ -250,7 +251,6 @@ def main():
         sys.exit()
 
     # check for missed updates
-    server = tst.Server()
     url = config['url'] + '/api/activity/%s/version' % tstjson['iid']
     last_version = server.get(url).json()
     missed_updates = False
