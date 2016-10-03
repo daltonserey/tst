@@ -487,6 +487,11 @@ def read_activity(tstjson=None):
     activity['text'] = yamlfile['text']
     activity['tests'] = yamlfile.get('tests', [])
 
+    # add default category to tests
+    for test in activity['tests']:
+        if 'category' not in test:
+            test['category'] = 'secret'
+
     # add activity files
     ignore = ['tst.json', activity['name'] + '.yaml']
     textfile = activity['name'] + '.md' if tstjson.get('text_in_file') else None
