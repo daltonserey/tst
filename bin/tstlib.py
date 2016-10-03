@@ -491,6 +491,8 @@ def read_activity(tstjson=None):
     for test in activity['tests']:
         if 'category' not in test:
             test['category'] = 'secret'
+        if 'type' not in test:
+            test['type'] = 'io'
 
     # add activity files
     ignore = ['tst.json', activity['name'] + '.yaml']
