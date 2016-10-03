@@ -512,7 +512,7 @@ def read_activity(tstjson=None):
             with codecs.open(filename, mode='r', encoding='utf-8') as f:
                 activity['files'][filename] = {
                     'data': f.read(),
-                    'category': tstjson['files'][filename]['category']
+                    'category': tstjson['files'][filename].get('category', 'secret')
                 }
 
         except UnicodeError as e:
