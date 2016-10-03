@@ -665,7 +665,12 @@ def main():
 
     # read tstjson
     config = tst.read_config(exit=True)
-    tstjson = tst.read_tstjson(quit_on_fail=True)
+    tstjson = tst.read_tstjson(quit_on_fail=False)
+    if tstjson is None:
+        print("This is not a tst directory.")
+        print("And `%s` is not a tst command." % sys.argv[1])
+        sys.exit(1)
+        
 
     # parse command line data
     filenames, timeout, output = parse_cli()
