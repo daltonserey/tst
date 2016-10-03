@@ -594,6 +594,14 @@ def save_activity(data, text_in_file, is_checkout=True):
     tstyaml['type'] = data['type']
     tstyaml['label'] = data['label']
     tstyaml['tests'] = data['new_tests'][-1]
+
+    # add default category to tests
+    for test in tstyaml['tests']:
+        if 'category' not in test:
+            test['category'] = 'secret'
+        if 'type' not in test:
+            test['type'] = 'io'
+
     if not text_in_file:
         tstyaml['text'] = data['text']
 
