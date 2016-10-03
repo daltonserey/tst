@@ -216,7 +216,7 @@ def run_external_command(command, args):
 
 def custom_commands():
     config = tst.read_config()
-    return config.get('custom_commands', []).keys()
+    return config.get('custom_commands', {}).keys()
 
 
 def is_internal(fn):
