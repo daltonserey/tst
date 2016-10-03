@@ -82,12 +82,16 @@ def tst_uninstall(args):
 
     command = args[0]
     config = tst.read_config()
-    if command not in config['custom_commands']:
+    if command in INTERNALS or command in EXTERNALS or command in HIDDEN:
         print("Sorry, you cannot uninstall standard commands.")
+        sys.exit()
+    if command not in config['custom_commands']:
+        print("No custom command `%s` is installed." % command)
         sys.exit()
     delete_custom_command(command)
     config['custom_commands'].pop(command, None)
     tst.save_config(config)
+    print("Command successfully uninstalled.")
 
 
 def tst_sharing(args):
