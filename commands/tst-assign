@@ -58,10 +58,10 @@ if __name__ == '__main__':
 
     # parser command line options
     sys.argv.pop(0)
-    activity = pop_option(sys.argv, 'activity') or activity
     group = pop_option(sys.argv, 'group')
     unit = pop_option(sys.argv, 'unit')
     user = pop_argument(sys.argv)
+    activity = pop_argument(sys.argv) or activity
 
     # assertions
     if user is None:
@@ -88,6 +88,7 @@ if __name__ == '__main__':
     print("# Assignment created")
     print("user: %s" % assignment['user'])
     print("mode: %s" % assignment['mode'])
+    print("unit: %s" % assignment['unit'])
     print("activity: %s" % assignment['activity'])
     print("activity revision: %s" % assignment['activity_revision'])
     print("state: %s" % assignment['state'])
