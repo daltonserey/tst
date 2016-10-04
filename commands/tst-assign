@@ -85,13 +85,9 @@ if __name__ == '__main__':
         user = user + '@' + config['domain']
         
     assignment = create_assignment(activity, group, user, unit)
-    print("# Assignment created")
-    print("user: %s" % assignment['user'])
-    print("mode: %s" % assignment['mode'])
-    print("unit: %s" % assignment['unit'])
-    print("activity: %s" % assignment['activity'])
-    print("activity revision: %s" % assignment['activity_revision'])
-    print("state: %s" % assignment['state'])
-    print("creator: %s" % assignment['creator'])
-    print("created at: %s" % assignment['create_datetime'])
-    print("assignment id: %s" % assignment['iid'])
+    print("Assignment successfully created.")
+    print("  - user: %s" % assignment['user'])
+    print("  - activity: %s (%s)" % (assignment['activity'], assignment['activity_revision'])
+    if assignment['mode']:
+        print("  - mode: %s" % assignment['mode'])
+    print("  - unit: %s" % assignment['unit'])
