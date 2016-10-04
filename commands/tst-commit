@@ -14,7 +14,10 @@ import md5
 import time
 import json
 
-import tstlib
+import tstlib as tst
+
+RED = ""
+RESET = ""
 
 def get_results(program_md5):
 
@@ -28,7 +31,7 @@ def get_results(program_md5):
 
     time.sleep(1)
     token = config['access_token']
-    tstonline = tstlib.Server(token)
+    tstonline = tst.Server(token)
     while True:
 
         print("Checking server for results...")
@@ -49,7 +52,7 @@ def get_results(program_md5):
                 # store summary and feedback in tstjson
                 tstjson[program_md5]['summary'] = summary
                 tstjson[program_md5]['feedback'] = feedback
-                tstlib.save_tstjson(tstjson)
+                tst.save_tstjson(tstjson)
 
                 # return report
                 return summary, feedback
@@ -111,7 +114,7 @@ def main():
     if not os.path.exists(filename):
         print("tst: no file name identified", file=sys.stderr)
         sys.exit(0)
-    code = tstlib.to_unicode(open(filename, "r").read())
+    code = tst.to_unicode(open(filename, "r").read())
     program_md5 = md5.md5(code.encode('utf-8')).hexdigest()
 
     # is the code the same submitted in the last commit?
@@ -146,7 +149,7 @@ def main():
         # send program to the server
         print("Uploading file '%s' (key: %s)... " % (filename, key))
         token = config['access_token']
-        tstonline = tstlib.Server(token)
+        tstonline = tst.Server(token)
         response = tstonline.patch(assignment_url(assignment_key), payload)
 
         # was there an error?
@@ -156,7 +159,7 @@ def main():
             except:
                 msg = "no message from server"
 
-            msg and print("tst: %s" % tst.RED + msg + tst.RESET, file=sys.stderr)
+            msg and print("tst: %s" % RED + msg + RESET, file=sys.stderr)
             print("tst: status code: %d" % response.status_code)
             sys.exit()
 
@@ -186,7 +189,7 @@ def main():
             'timestamp': timestamp
         }
         tstjson['key'] = key
-        tstlib.save_tstjson(tstjson)
+        tst.save_tstjson(tstjson)
 
     # poll server for results
     summary, feedback = get_results(program_md5)
@@ -200,9 +203,9 @@ if __name__ == "__main__":
         print("send solution to server")
         sys.exit()
 
-    config = tstlib.read_config(exit=True)
+    config = tst.read_config(exit=True)
     headers = {'Authorization': 'Bearer ' + config['access_token']}
-    tstjson = tstlib.read_tstjson(quit_on_fail=True)
+    tstjson = tst.read_tstjson(quit_on_fail=True)
     assignment_key = get_key()
     key = "%X" % int(assignment_key)
     main()
