@@ -84,7 +84,8 @@ def main(text_in_file):
 
     # inspect response
     if config['user'] != response_json['owner'] and config['user'] not in response_json['collaborators']:
-        print("tst: fatal: you have no permission to checkout this activity")
+        print("This activity is not shared with you.")
+        print("Operation aborted.")
         sys.exit(1)
 
     # change to activity directory
