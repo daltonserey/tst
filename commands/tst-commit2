@@ -130,6 +130,7 @@ def get_bump_level(changes):
 def make_patch(activity, tstjson, changes, bump_level):
     if not changes:
         return None
+
     # add patch to bump the version number
     bump_function = globals()['bump_' + bump_level]
     patches = [{
@@ -139,7 +140,17 @@ def make_patch(activity, tstjson, changes, bump_level):
     }]
 
     # add a patch for each textual field
-    changed_paths = changes['changed_fields']
+    changed_paths = changes.get('changed_fields')
+    if not changed_paths:
+        # only removed files
+        for fn in changes['removed_files']:
+            patches.append({
+                'op': 'remove',
+                'path': '/files/' + fn
+            })
+        
+        return patches
+
     textual_fields = [f for f in changed_paths if '\n' not in f]
     for field in ['name', 'type', 'label', 'text']:
         if field in textual_fields:
@@ -268,8 +279,8 @@ def main():
                                                'Use `tst status` for more details.')
     url = activity_url(tstjson['iid'])
     bump_level = get_bump_level(changes)
-    payload = make_patch(activity, tstjson, changes, bump_level)
-    response = server.patch(url, payload)
+    patches = make_patch(activity, tstjson, changes, bump_level)
+    response = server.patch(url, patches)
     sync_activity(response, tstjson)
     print("Commmit finished.")
     print("%s" % response.json()['version'])

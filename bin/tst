@@ -216,6 +216,19 @@ def tst_add(args):
         print('added: %s %s' % (files[f].get('category', 'private'), f))
 
 
+def tst_remove(args):
+    """remove files from activity"""
+    tstjson = tst.read_tstjson()
+    for f in args:
+        if tstjson['files'].pop(f, None) is None:
+            print("File `%s` not found in activity" % f)
+            print("Operation aborted.")
+            sys.exit(1)
+
+    tst.save_tstjson(tstjson)
+    print('Files successfully removed.')
+
+
 def get_one_line_help(command):
 
     script = os.path.expanduser("~/.tst/commands/tst-%s" % command)

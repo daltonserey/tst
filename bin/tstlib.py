@@ -660,12 +660,13 @@ def activity_changes(activity, tstjson):
     diff = {
         'changed_fields': spot_changes(activity_hash, checkout_hash),
         'tests_diff': tests_differ(activity_hash['tests'], checkout_hash['tests']),
-        'missing_files': [f for f in tstjson['files'].keys() if f not in activity['files'].keys()]
+        'missing_files': [f for f in tstjson['files'].keys() if f not in activity['files'].keys()],
+        'removed_files': [f for f in tstjson['checkout']['files'] if f not in tstjson['files']]
     }
 
     files_changed = any(f.split("/")[1:3] for f in diff['changed_fields'] if f.startswith('files'))
 
-    if files_changed or diff['tests_diff']:
+    if files_changed or diff['tests_diff'] or diff['removed_files']:
         diff['bump_required'] = True
 
     return {k:diff[k] for k in diff if diff[k]}

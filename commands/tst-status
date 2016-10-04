@@ -81,10 +81,12 @@ def report(changes, unknown_files, activity):
         
     # files changed
     files_changed = [f.split("/")[1:3] for f in changed_fields if f.startswith('files')]
-    if files_changed:
+    if files_changed or 'removed_files' in changes:
         text.write("# Files changed\n\n")
         for fn, field in files_changed:
             text.write('    %s (%s)\n' % (fn, field))
+        for fn in changes.get('removed_files', []):
+            text.write('    %s (removed)\n' % fn)
         text.write('\n')
 
     # unknown files
@@ -137,15 +139,15 @@ def main():
         print(report(changes, unknown, activity), end='')
         print('---')
 
-    if   not changes and not missed_updates:
+    if not changes and not missed_updates:
         print("Activity is up-to-date.")
         print("No action required.")
 
-    elif not changes and     missed_updates:
+    elif not changes and missed_updates:
         print("This activity has been updated on the server.")
         print("Use `tst checkout` to update the activity.")
 
-    elif     changes and not missed_updates:
+    elif changes and not missed_updates:
         print("This activity has been locally changed.")
         print("Use:")
         print("    `tst checkout --overwrite` to discard your local changes.")
