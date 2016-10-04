@@ -95,21 +95,34 @@ def tst_uninstall(args):
 
 
 def tst_share(args):
-    """add or remove collaborators"""
+    """list, add or remove collaborators"""
+
+    def help():
+        print("Use `tst share add <email>` to add a collaborator or")
+        print("    `tst share remove <email>` to remove one")
+
+    # wrong number of arguments
     if len(args) == 1:
-        print("usage: tst share <add|remove> <username>")
-        sys.exit(1)
-        
-    tstjson = tst.read_tstjson()
+        help()
+        return
+
+    tstjson = tst.read_tstjson(quit_on_fail=True)
     if len(args) == 0:
         # list all collaborators
-        collaborators =  tstjson['collaborators']
+        collaborators = tstjson['collaborators']
         if collaborators:
-            print("# Collaborators\n")
-            print("  " + tstjson['owner'] + " (owner)")
-            for c in collaborators:
-                print("  " + c)
-            print()
+            print("# Collaborators")
+            users = collaborators[:]
+            if tstjson['owner'] not in collaborators:
+                users.append(tstjson['owner'])
+            users.sort()
+            for c in users:
+                if c != tstjson['owner']:
+                    print("  - " + c)
+                else:
+                    print("  - " + tstjson['owner'] + " (owner)")
+            print("---")
+            help()
         sys.exit()
         
     # add collaborators
