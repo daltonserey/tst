@@ -1,0 +1,96 @@
+#!/usr/bin/env python
+# coding: utf-8
+import requests
+import sys
+import yaml
+import json, cookielib
+
+import tstlib as tst
+
+
+def create_assignment(activity, group, user, unit):
+    server = tst.Server()
+    config = tst.read_config()
+    url = config['url'] + '/api/assignment'
+    data = {
+        "activity": activity,
+        "group": group,
+        "user": user,
+        "unit": unit
+    }
+    response = server.post(url, data)
+    if response.status_code != 201:
+        print("tst: fatal: server response")
+        print(response.stdout)
+        sys.exit(1)
+
+    return response.json()
+
+
+def pop_argument(args, index=0):
+    if index >= len(args):
+        return None
+    
+    return args.pop(0)
+
+
+def pop_option(args, option):
+    opt_select = '--' + option
+    index = next((i for i in xrange(len(args)) if args[i] == opt_select), None)
+    if index is None or index == len(args) - 1:
+        return None
+
+    value = args.pop(index + 1)
+    selector = args.pop(index)
+    
+    return value
+
+
+if __name__ == '__main__':
+    
+    # read tstjson and set activity
+    tstjson = tst.read_tstjson()
+    if tstjson is None:
+        tstjson = {}
+
+    activity = tstjson.get('name')
+    activity_id = tstjson.get('iid')
+
+    # parser command line options
+    sys.argv.pop(0)
+    activity = pop_option(sys.argv, 'activity') or activity
+    group = pop_option(sys.argv, 'group')
+    unit = pop_option(sys.argv, 'unit')
+    user = pop_argument(sys.argv)
+
+    # assertions
+    if user is None:
+        print("Cannot identify user in command line.")
+        print("Operation aborted.")
+        sys.exit()
+
+    if sys.argv != []:
+        print("Cannot parse some of the arguments.")
+        print("Operation aborted.")
+        sys.exit()
+
+    if activity is None:
+        print("This is not an activity directory.")
+        print("Use --activity <name>")
+        sys.exit()
+
+    # add default domain, if any
+    config = tst.read_config()
+    if not '@' in user and 'domain' in config:
+        user = user + '@' + config['domain']
+        
+    assignment = create_assignment(activity, group, user, unit)
+    print("# Assignment created")
+    print("user: %s" % assignment['user'])
+    print("mode: %s" % assignment['mode'])
+    print("activity: %s" % assignment['activity'])
+    print("activity revision: %s" % assignment['activity_revision'])
+    print("state: %s" % assignment['state'])
+    print("creator: %s" % assignment['creator'])
+    print("created at: %s" % assignment['create_datetime'])
+    print("assignment id: %s" % assignment['iid'])

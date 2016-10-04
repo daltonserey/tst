@@ -26,7 +26,7 @@ import tstlib as tst
 # TST INTERNAL COMMANDS
 DEFAULT_COMMAND = 'test'
 INTERNALS = ["help", "version", "sharing", "add", "ls", "remove", "uninstall"]
-EXTERNALS = ["update", "login", "checkout", "test", "commit", "config"]
+EXTERNALS = ["update", "login", "checkout", "test", "commit", "config", "assign"]
 HIDDEN = ['checkout2', 'commit2', 'status', 'new', 'add', 'install']
 
 def tst_help(args):
