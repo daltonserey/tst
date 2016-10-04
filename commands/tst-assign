@@ -87,7 +87,7 @@ if __name__ == '__main__':
     assignment = create_assignment(activity, group, user, unit)
     print("Assignment successfully created.")
     print("  - user: %s" % assignment['user'])
-    print("  - activity: %s (%s)" % (assignment['activity'], assignment['activity_revision'])
+    print("  - activity: %s (%s)" % (assignment['activity'], assignment['activity_revision']))
     if assignment['mode']:
         print("  - mode: %s" % assignment['mode'])
     print("  - unit: %s" % assignment['unit'])
