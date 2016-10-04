@@ -25,7 +25,7 @@ import tstlib as tst
 
 # TST INTERNAL COMMANDS
 DEFAULT_COMMAND = 'test'
-INTERNALS = ["help", "version", "sharing", "add", "ls", "remove", "uninstall"]
+INTERNALS = ["help", "version", "share", "add", "ls", "remove", "uninstall"]
 EXTERNALS = ["update", "login", "checkout", "test", "commit", "config", "assign"]
 HIDDEN = ['checkout2', 'commit2', 'status', 'new', 'add', 'install']
 
@@ -94,10 +94,10 @@ def tst_uninstall(args):
     print("Command successfully uninstalled.")
 
 
-def tst_sharing(args):
+def tst_share(args):
     """add or remove collaborators"""
     if len(args) == 1:
-        print("usage: tst sharing <add|remove> <username>")
+        print("usage: tst share <add|remove> <username>")
         sys.exit(1)
         
     tstjson = tst.read_tstjson()
@@ -115,7 +115,7 @@ def tst_sharing(args):
     # add collaborators
     action = args[0]
     if action != 'add':
-        print("tst: fatal: unknown sharing action")
+        print("tst: fatal: unknown share action")
         sys.exit(1)
 
     config = tst.read_config()
