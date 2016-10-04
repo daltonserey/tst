@@ -111,7 +111,7 @@ def tst_share(args):
         # list all collaborators
         collaborators = tstjson['collaborators']
         if collaborators:
-            print("# Collaborators")
+            print("# Shared with")
             users = collaborators[:]
             if tstjson['owner'] not in collaborators:
                 users.append(tstjson['owner'])
