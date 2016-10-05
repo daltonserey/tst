@@ -110,11 +110,11 @@ def tst_share(args):
     if len(args) == 0:
         # list all collaborators
         collaborators = tstjson['collaborators']
-        if collaborators:
+        users = collaborators[:]
+        if tstjson['owner'] not in collaborators:
+            users.append(tstjson['owner'])
+        if users:
             print("# Shared with")
-            users = collaborators[:]
-            if tstjson['owner'] not in collaborators:
-                users.append(tstjson['owner'])
             users.sort()
             for c in users:
                 if c != tstjson['owner']:

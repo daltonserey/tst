@@ -87,6 +87,25 @@ def to_unicode(obj, encoding='utf-8'):
     assert False, "tst: non-recognized encoding"
 
 
+def pop_argument(args, index=0):
+    if index >= len(args):
+        return None
+    
+    return args.pop(0)
+
+
+def pop_option(args, option):
+    opt_select = '--' + option
+    index = next((i for i in xrange(len(args)) if args[i] == opt_select), None)
+    if index is None or index == len(args) - 1:
+        return None
+
+    value = args.pop(index + 1)
+    selector = args.pop(index)
+    
+    return value
+
+
 class CorruptedConfigFile(Exception): pass
 class ConnectionFail(Exception): pass
 

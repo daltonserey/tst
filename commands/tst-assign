@@ -6,7 +6,7 @@ import yaml
 import json, cookielib
 
 import tstlib as tst
-
+from tstlib import pop_option, pop_argument
 
 def create_assignment(activity, group, user, unit):
     server = tst.Server()
@@ -25,25 +25,6 @@ def create_assignment(activity, group, user, unit):
         sys.exit(1)
 
     return response.json()
-
-
-def pop_argument(args, index=0):
-    if index >= len(args):
-        return None
-    
-    return args.pop(0)
-
-
-def pop_option(args, option):
-    opt_select = '--' + option
-    index = next((i for i in xrange(len(args)) if args[i] == opt_select), None)
-    if index is None or index == len(args) - 1:
-        return None
-
-    value = args.pop(index + 1)
-    selector = args.pop(index)
-    
-    return value
 
 
 if __name__ == '__main__':
