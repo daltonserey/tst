@@ -157,14 +157,14 @@ def tst_share(args):
         else:
             print("No user was added")
             print("No details were reported by the server.")
-            
-
         sys.exit()
+
     elif response.status_code == 201:
         tstjson['collaborators'].extend(data['added'])
         tst.save_tstjson(tstjson)
         print("Sharing successful.")
         sys.exit()
+
     else:
         print("Something went wrong.")
         # TODO: add a tst.log method to save debug info
