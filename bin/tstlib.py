@@ -44,6 +44,10 @@ WHITE="\033[1;37m"
 LCYAN = '\033[1;36m'
 RESET = '\033[0m'
 
+def cprint(color, msg, file=sys.stdout):
+    print(color + msg + RESET, file=file)
+
+
 def date_handler(obj):
     if hasattr(obj, 'isoformat'):
         return obj.isoformat()
@@ -581,7 +585,10 @@ def save_yaml(yamlfile, data):
                 is_first = True
                 for test_field, field_value in test.items():
                     prefix = '-   ' if is_first else '    '
-                    if '\n' in field_value:
+                    if field_value is None:
+                        y.write(prefix + '%s: null\n' % test_field)
+                        cprint(LRED, "WARNING: '%s' field is null" % test_field, file=sys.stderr)
+                    elif '\n' in field_value:
                         y.write(prefix + '%s: |\n' % test_field)
                         y.write(indent(field_value, 2))
                     else:
