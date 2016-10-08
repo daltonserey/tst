@@ -12,6 +12,7 @@ import sys
 import json
 import codecs
 import signal
+import re
 
 from subprocess import Popen, PIPE, CalledProcessError
 
@@ -492,6 +493,10 @@ def hashify(data):
 
 def read_activity(tstjson=None):
 
+    def abort(msg):
+        msg = "tst: invalid activity\n" + msg
+        _assert(False, msg)
+        
     if tstjson is None:
         tstjson = read_tstjson()
 
@@ -501,21 +506,30 @@ def read_activity(tstjson=None):
     # read activity yaml
     yamlfilename = tstjson['name'] + '.yaml'
     with codecs.open(yamlfilename, mode='r', encoding='utf-8') as y:
-        yamlfile = yaml.load(y.read())
+        try:
+            yamlfile = yaml.load(y.read())
+        except:
+            msg = "tst: failed loading activity yaml\n"
+            msg += "Is your yaml well formed?\n"
+            msg += "Operation aborted."
+            _assert(False, msg)
 
     # read name, label, tests and files
-    activity['name'] = yamlfile['name']
-    activity['label'] = yamlfile['label']
-    activity['type'] = yamlfile['type']
-    activity['text'] = yamlfile['text']
+    activity['name'] = yamlfile.get('name')
+    activity['label'] = yamlfile.get('label')
+    activity['type'] = yamlfile.get('type')
+    activity['text'] = yamlfile.get('text')
     activity['tests'] = yamlfile.get('tests', [])
 
     # add default category to tests
-    for test in activity['tests']:
+    for test in activity.get('tests', []):
         if 'category' not in test:
             test['category'] = 'secret'
         if 'type' not in test:
             test['type'] = 'io'
+
+    # validate activity or abort
+    validate_activity(activity)
 
     # add activity files
     ignore = ['tst.json', activity['name'] + '.yaml']
@@ -554,6 +568,59 @@ def read_activity(tstjson=None):
     return activity, unknown_files
 
 
+def _assert(condition, msg):
+    if condition:
+        return
+
+    cprint(LRED, msg)
+    sys.exit(1)
+
+    
+def validate_activity(activity):
+
+    # generic message base
+    msg = 'tst: invalid activity\n'
+
+    # check name
+    _assert(activity.get('name'), msg + "missing 'name' field")
+    _assert(re.findall(r'[^a-z0-9._\-]', activity['name']) == [], msg + "name chars must be in [a-z0-9._-]")
+    _assert(activity['name'][0] not in '.-', msg + "name cannot start with [.-]")
+
+    # check label
+    _assert(activity.get('label'), msg + "missing 'label' field")
+    _assert(isinstance(activity['label'], basestring), 'label must be string')
+    _assert('\n' not in activity['label'], "label cannot have '\\n'")
+
+    # check type: no requirement wrt activity type
+    # check author: no requirement wrt activity author
+
+    # check text
+    _assert(activity.get('text'), msg + "missing 'text' field")
+    _assert(isinstance(activity['text'], basestring), msg + 'text must be string')
+    _assert(activity['text'][-1] == '\n', msg + "text must end in '\\n' (POSIX)")
+
+    # it activity has tests...
+    for i in xrange(len(activity.get('tests', []))):
+        test = activity['tests'][i]
+        if test['type'] == 'io':
+
+            # require input in every io test
+            _assert('input' in test, msg + "missing 'input' field in io test#%d" % i)
+            _assert(isinstance(test['input'], basestring), msg + 'input must be text (test#%d)' % i)
+            _assert(test['input'] and test['input'][-1] == '\n', msg + "input must end in '\\n' (test#%d)" % i)
+
+            # require output in every io test
+            _assert('output' in test, msg + "missing 'output' field in io test#%d" % i)
+            _assert(isinstance(test['output'], basestring), msg + 'output must be text (test#%d)' % i)
+            _assert(test['output'] and test['output'][-1] == '\n', msg + "output must end in '\\n' (test#%d)" % i)
+
+
+        elif test['type'] == 'script':
+
+            # require script in every script test
+            _assert('script' in test, msg + "missing 'script' field in script test")
+
+
 def get_save_function(kind):
     return globals()["save_" + kind]
 
@@ -587,7 +654,7 @@ def save_yaml(yamlfile, data):
                     prefix = '-   ' if is_first else '    '
                     if field_value is None:
                         y.write(prefix + '%s: null\n' % test_field)
-                        cprint(LRED, "WARNING: '%s' field is null" % test_field, file=sys.stderr)
+                        cprint(LYELLOW, "WARNING: '%s' field is null" % test_field, file=sys.stderr)
                     elif '\n' in field_value:
                         y.write(prefix + '%s: |\n' % test_field)
                         y.write(indent(field_value, 2))
