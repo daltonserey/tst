@@ -536,7 +536,7 @@ def read_activity(tstjson=None):
     textfile = activity['name'] + '.md' if tstjson.get('text_in_file') else None
     if textfile:
         ignore.append(textfile)
-    activity_files = [f for f in os.listdir('.') if f not in ignore and os.path.isfile(f)]
+    activity_files = [f for f in os.listdir('.') if f not in ignore and f[0] != '.' and os.path.isfile(f)]
 
     # identify unknown files
     unknown_files = [f for f in activity_files if f not in tstjson.get('files', [])]
@@ -634,6 +634,10 @@ def indent(text, level=1):
 def save_yaml(yamlfile, data):
 
     with codecs.open(yamlfile, mode='w', encoding='utf-8') as y:
+        
+        # save comment
+        y.write("# This file is automatically created at each checkout.\n")
+        y.write("# Any comments and unkwnown properties will be discarded.\n\n")
 
         # save name, type and label
         y.write("name: %s\n" % data['name'])
