@@ -375,7 +375,6 @@ def main():
     # identify local object
     tstjson = tst.read_tstjson(quit_on_fail=True)
     kind = tstjson['kind']
-    iid = tstjson['iid']
 
     # do commit
     commit = get_commit_function(kind)
