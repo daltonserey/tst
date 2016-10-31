@@ -60,7 +60,7 @@ read -r -d '' TSTJSON <<- EOM
     "kind": "activity",
     "name": "$activity",
     "state": "new",
-    "iid": None
+    "iid": null
 }
 EOM
 echo "$YAMLFILE" >> $activity.yaml
