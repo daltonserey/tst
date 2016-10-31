@@ -1,211 +1,393 @@
 #!/usr/bin/env python
 # coding: utf-8
-# TST-Online Command Line Login
-# (C) 2012-2014 Dalton Serey / UFCG
-#
-# TST Commit -- Permite salvar uma nova versão do programa.
+# TST-Online Checkout
+# (C) 2016 Dalton Serey / UFCG
 
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import json
+import yaml
 import os
 import sys
+import codecs
 import md5
-import time
-import json
+import difflib
 
 import tstlib as tst
+from tstlib import show
 
-RED = ""
-RESET = ""
+try:
+    from cStringIO import StringIO
+except:
+    from StringIO import StringIO
 
-def get_results(program_md5):
+TEXT_FIELDS = ['name', 'label', 'type', 'text']
 
-    # poll server for results
-    program_data = tstjson.get(program_md5)
-    if not program_data:
-        tstjson[program_md5] = {}
-    timestamp = tstjson[program_md5].get('timestamp')
-    sleep_time = 2
-    retries = 0
-
-    time.sleep(1)
-    token = config['access_token']
-    tstonline = tst.Server(token)
-    while True:
-
-        print("Checking server for results...")
-        response = tstonline.get(results_url(assignment_key))
-
-        if response.status_code == 200:
-            results = json.loads(response.text)
-            if timestamp in results and results[timestamp]:
-
-                # determine summary and feedback
-                if type(results[timestamp]) == type(""):
-                    summary = results[timestamp]
-                    feedback = ""
-                elif type(results[timestamp]) == type({}):
-                    summary = results[timestamp]['summary']
-                    feedback = results[timestamp].get('feedback', "")
-
-                # store summary and feedback in tstjson
-                tstjson[program_md5]['summary'] = summary
-                tstjson[program_md5]['feedback'] = feedback
-                tst.save_tstjson(tstjson)
-
-                # return report
-                return summary, feedback
-            
-        retries += 1
-        if retries > 8:
-            print("The test worker seems to be down, please try again later.")
-            sys.exit()
-
-        print("Will check again in %d seconds." % sleep_time)
-        time.sleep(sleep_time)
-
-        sleep_time = 2 * sleep_time if sleep_time < 32 else 60
+def help():
+    print("usage: tst-commit [name]")
+    sys.exit(1)
 
 
-def get_filename():
+def activity_url(iid):
+    activities_endpoint = "/api/activity"
+    return "%s/%s" % (activities_endpoint, str(iid))
 
-    # was filename provided in command line?
-    if len(sys.argv) > 1:
-        return sys.argv[-1]
 
-    # get filename from 'tst.json'
-    filename = tstjson.get('filename')
+def bump_patch(version):
+    major, minor, patch = map(int, version.split("."))
+    patch += 1
+    return "%d.%d.%d" % (major, minor, patch)
+
+
+def bump_minor(version):
+    major, minor, patch = map(int, version.split("."))
+    minor += 1
+    patch = 0
+    return "%d.%d.%d" % (major, minor, patch)
+
+
+def bump_major(version):
+    major, minor, patch = map(int, version.split("."))
+    major += 1
+    minor = 0
+    patch = 0
+    return "%d.%d.%d" % (major, minor, patch)
+
+
+def report(changes, name):
+    if not changes:
+        return ""
+
+    text = StringIO()
+    text.write("# Activity %s\n\n" % name)
+
+    # add textual contents changes
+    if any(e in changes.keys() for e in TEXT_FIELDS):
+        text.write("## Textual fields changed\n\n")
+        for f in TEXT_FIELDS:
+            if f in changes.keys():
+                text.write("  - %s\n" % f)
+        text.write('\n')
+
+    # add removed tests
+    removed = [i for i in xrange(len(changes.get('tests', []))) if changes['tests'][i][0] == '-']
+    if removed:
+        text.write("## Tests removed\n\n")
+        for i in removed:
+            text.write('  - test #%d: %s\n' % (changes['tests'][i][2], changes['tests'][i][1]))
+        text.write('\n')
+        
+    # add added tests
+    added = [i for i in xrange(len(changes.get('tests', []))) if changes['tests'][i][0] == '+']
+    if added:
+        text.write("## Tests added\n\n")
+        for i in added:
+            text.write('  - test #%d: %s\n' % (changes['tests'][i][2], changes['tests'][i][1]))
+        text.write('\n')
+        
+    # add files changed
+    if 'files' in changes:
+        text.write("## Files changed/added\n\n")
+        for filename in changes['files']:
+            text.write('- %s\n' % filename)
+        text.write('\n')
+
+    # add unknown files
+    if 'unknown' in changes:
+        text.write("## Unknown files\n\n")
+        for fn in changes['unknown']:
+            text.write('  - %s\n' % fn)
+        text.write("\n  Use `tst add <file>` to add file to the activity.\n")
+        text.write("  Or type `tst clean` to remove all unknown files.\n\n")
+
+    text.write('---\n')
+    return text.getvalue()
+
+
+def bump_patch(version):
+    major, minor, patch = map(int, version.split("."))
+    patch += 1
+    return "%d.%d.%d" % (major, minor, patch)
+
+
+def make_patch(activity, tstjson, changes, bump_level):
+    if not changes:
+        return None
+
+    # add patch to bump the version number
+    bump_function = globals()['bump_' + bump_level]
+    patches = [{
+        'op': 'replace',
+        'path': '/version',
+        'value': bump_function(tstjson['version'])
+    }]
+
+    # add a patch for each textual field
+    changed_paths = changes.get('changed_fields')
+    if not changed_paths:
+        # only removed files
+        for fn in changes['removed_files']:
+            patches.append({
+                'op': 'remove',
+                'path': '/files/' + fn
+            })
+        
+        return patches
+
+    textual_fields = [f for f in changed_paths if '\n' not in f]
+    for field in ['name', 'type', 'label', 'text']:
+        if field in textual_fields:
+            patches.append({
+                'op': 'replace',
+                'path': '/' + field,
+                'value': activity[field]
+            })
+        
+    # add a patch for each file changed or created
+    files_changed = [path.split("/")[1:3] for path in changed_paths if path.startswith('files')]
+    for fn, change in files_changed:
+        patches.append({
+            'op': 'replace',
+            'path': '/files/' + fn,
+            'value': {
+                'name': fn,
+                'data': activity['files'][fn]['data'],
+                'category': tstjson['files'][fn].get('category', 'secret')
+            }
+        })
+        
+    if 'tests' in changed_paths:
+        hashed_tests = tst.hashify(activity['tests'])
+        for op, test, index in changes['tests_diff']:
+            if op == '+':
+                patches.append({
+                    'op': 'add',
+                    'path': '/tests/%d' % index,
+                    'value': activity['tests'][hashed_tests.index(test)]
+                })
+            elif op == '-':
+                patches.append({
+                    'op': 'remove',
+                    'path': '/tests/%d' % index
+                })
+
+    return patches
+
+
+def patch_tstjson(tstjson, activity, changes, server_version):
     
-    if not filename:
-        print("syntax: tst commit [filename]", file=sys.stderr)
+    # update version data
+    tstjson['version'] = server_version['version']
+    tstjson['version_token'] = server_version['version_token']
+    tstjson['last_update_user'] = server_version['commit_author']
+    tstjson['last_update_datetime'] = server_version['committed_at']
+    
+    # update textual contents data
+    textual_fields = []
+    for field in TEXT_FIELDS:
+        if field in changes:
+            if field == 'text':
+                tstjson[field] = md5.md5(activity['text:contents']).hexdigest()
+            else:
+                tstjson[field] = activity[field]
+
+    # update files data
+    for filename in changes.get('files', []):
+        if filename in changes['files']:
+            tstjson['files'][filename] = activity['files'][filename]
+
+    # update tests data
+    for test in changes.get('tests', []):
+        if testname in changes['tests']:
+            tstjson['tests'][filename] = activity['tests'][filename]
+
+    return tstjson
+
+
+def _assert(condition, msg='assertion failed'):
+    if not condition:
+        tst.cprint(tst.LRED, msg, file=sys.stderr)
         sys.exit(1)
 
-    return filename
+
+def sync_activity(response, tstjson):
+    # check response was positive
+    json_response = response.json()
+    _assert(response.exit_status == 0, 'tst: fatal: curl command failed\n')
+    _assert('error' not in json_response, 'tst: fatal: server reported error:\n' + str(json_response.get('messages', 'no server messages')))
+
+    # post/patch worked: save using proper save function
+    save = tst.get_save_function('activity')
+    save(json_response, is_checkout=False)
 
 
-def get_key():
+def commit_activity(tstjson, args):
 
-    # try reading key from 'tst.json'
-    key = tstjson.get('key')
+    # parse command line
+    tst.pop_argument(args)
+    major = tst.pop_flag(args, 'major', short='M')
+    minor = tst.pop_flag(args, 'minor', short='m')
+    patch = tst.pop_flag(args, 'patch', short='p')
+    user_bump = 'major' if major else 'minor' if minor else 'patch' if patch else None
 
-    if not key:
-        print("tst: couldn't read key from tst.json", file=sys.stderr)
-        sys.exit(1)
+    # read activity
+    activity, unknown = tst.read_activity(tstjson)
 
-    # return hexadecimal key converted to decimal
-    key = str(int(key, 16))
+    # check whether activity is new
+    server = tst.Server()
+    if tstjson['state'] == 'new':
+        # post new activity
+        url = "/api/activity"
+        response = server.post(url, payload=activity, exit_on_fail=True)
+        sync_activity(response, tstjson)
+        print("First version successfully saved to the server")
+        print("%s" % response.json()['version'])
+        sys.exit()
 
-    return key
+    # read local directory and identify changes
+    changes = tst.activity_changes(activity, tstjson)
+    if not changes:
+        tst.cprint(tst.LCYAN, "Nothing to commit")
+        sys.exit()
+
+    # check for missed updates
+    url = '/api/activity/%s/version' % tstjson['iid']
+    last_version = server.get(url).json()
+    missed_updates = False
+    if last_version['version'] != tstjson['version'] or last_version['version_token'] != tstjson['version_token']:
+        # missed updates
+        print("This activity has been updated on the server.")
+        print("Use:")
+        print("    `tst checkout --overwrite` to update and overwrite local changes")
+        print("    `tst checkout --merge` to update and merge local changes")
+        sys.exit()
 
 
-def assignment_url(key):
-    return config['url'] + "/api/assignment/" + key 
+    # Check for missing files
+    _assert(not 'missing_files' in changes, 'Acitivity cannot be commited due to missing files.\n' +\
+                                               'Use `tst status` for more details.')
+    url = activity_url(tstjson['iid'])
+
+    # default bump level is patch
+    bump_level = 'patch'
+    if 'bump_required' in changes:
+        _assert(user_bump is not None, 'Use --major, --minor or --patch')
+        bump_level = user_bump
+    else:
+        bump_level = user_bump or 'patch'
+
+    patches = make_patch(activity, tstjson, changes, bump_level)
+    response = server.patch(url, patches)
+    sync_activity(response, tstjson)
+    print("Commmit finished.")
+    print("%s" % response.json()['version'])
 
 
-def results_url(key):
-    return config['url'] + "/api/results/" + key 
+def commit_event(tstjson, args):
+    print("commit event...")
+    print("tbd")
+
+
+def commit_group(tstjson, args):
+    print("commit group...")
+    print("tbd")
+
+
+def commit_assignment(tstjson, args):
+
+    # parse command line arguments
+    tst.pop_argument(args)
+    user_filename = tst.pop_argument(args)
+
+    # read assignemnt
+    assignment = tst.read_assignment(tstjson)
+
+    # identify answer file
+    files = tstjson['files']
+    current_answer_file = next((fn for fn in files if files[fn]['category'] == 'answer'), None)
+    filename = user_filename or current_answer_file
+    if filename is None and len(assignment['unknown_files']) == 1:
+        # take unique unknown file as answer, add to tstjson and notify user
+        filename = assignment['unknown_files'].pop(0)
+        tst.cprint(tst.LCYAN, "Assuming `%s` as answer file" % filename)
+    
+    _assert(filename, "No answer file was identified")
+
+    if not os.path.exists(filename):
+        tst.cprint(tst.LRED, "Answer file not found: '%s'" % filename)
+        print("---")
+        print("Use `tst commit <filename>` to change and commit the answer file")
+        print("Or bring back the file and run `tst commit` again")
+        sys.exit()
+
+    # read current answer
+    with codecs.open(filename, mode='r', encoding='utf-8') as f:
+        contents = f.read()
+    checksum = md5.md5(contents).hexdigest()
+    if filename == current_answer_file and checksum == tstjson['last_commit']:
+        tst.cprint(tst.LCYAN, 'No changes to commit')
+        sys.exit()
+
+    # send answer to server
+    server = tst.Server()
+    url = '/api/assignment/%s' % tstjson['iid']
+    payload = [{
+        "op": "add",
+        "path": "/answers",
+        "value": {
+            "__code": contents,
+            "__filename": filename,
+            "__activity_revision": tstjson['activity_revision']
+        }
+    }]
+    result = server.patch(url, payload=payload, exit_on_fail=True).json()
+    if result['server_activity_revision'] != result['client_activity_revision']:
+        pass
+
+    # update tstjson contents
+    tstjson.pop(current_answer_file, None)
+    tstjson['files'][filename] = {
+        'name': filename,
+        'category': 'answer',
+        'data': contents
+    }
+    tstjson['last_commit'] = checksum
+    tst.save_tstjson(tstjson)
+        
+    tst.cprint(tst.LCYAN, "Assignment successfully saved")
+    print("---")
+    print("Use `tst test --server` to add answer to the acceptance tests queue")
+        
+    # notify user if there still are unkwnown files
+    if assignment['unknown_files']:
+        tst.cprint(tst.LCYAN, "Unknown files (not sent to the server)")
+        for filename in assignment['unknown_files']:
+            print("  %s" % filename)
+
+
+def get_commit_function(kind):
+    return globals()["commit_" + kind]
 
 
 def main():
 
-    # read submission code
-    filename = get_filename()
-    if not os.path.exists(filename):
-        print("tst: no file name identified", file=sys.stderr)
-        sys.exit(0)
-    code = tst.to_unicode(open(filename, "r").read())
-    program_md5 = md5.md5(code.encode('utf-8')).hexdigest()
+    # identify local object
+    tstjson = tst.read_tstjson(quit_on_fail=True)
+    kind = tstjson['kind']
+    iid = tstjson['iid']
 
-    # is the code the same submitted in the last commit?
-    if tstjson.get('last_commit') == program_md5:
-        print("WARNING: no changes in '%s' since last commit!" % filename)
-        print("WARNING: No commit performed.")
-        program_data = tstjson.get(program_md5)
-        if program_data:
-            summary = program_data.get('summary')
-            feedback = program_data.get('feedback')
-            if summary:
-                print("Previous results: [%s] %s" % (filename, summary))
-                if feedback:
-                    print(feedback)
-                sys.exit()
-
-        print("No previous results.")
-
-    else:
-        # the code has not been sent to the server yet
-        local_revision = tstjson.get('activity_revision', "1.0.0")
-        payload = [{
-            "op": "add",
-            "path": "/answers",
-            "value": {
-                "__code": code,
-                "__filename": filename,
-                "__activity_revision": local_revision
-            }
-        }]
-
-        # send program to the server
-        print("Uploading file '%s' (key: %s)... " % (filename, key))
-        token = config['access_token']
-        tstonline = tst.Server(token)
-        response = tstonline.patch(assignment_url(assignment_key), payload)
-
-        # was there an error?
-        if response.status_code != 200:
-            try:
-                msg = response.json()['messages'][0]
-            except:
-                msg = "no message from server"
-
-            msg and print("tst: %s" % RED + msg + RESET, file=sys.stderr)
-            print("tst: status code: %d" % response.status_code)
-            sys.exit()
-
-        # get some data from the server response
-        assignment = json.loads(response.text)
-        timestamp = assignment['answers'][-1]['__timestamp']
-        activity_revision = assignment.get('activity_revision')
-
-        # was the activity updated?
-        if activity_revision and activity_revision != local_revision:
-            if activity_revision.split(".")[0] != local_revision.split(".")[0]:
-                # major is different
-                print("WARNING: A MAJOR revision of this activity has been issued.")
-            else:
-                # either minor or patch is different
-                print("WARNING: A MINOR revision of this activity has been issued.")
-            print("WARNING: You SHOULD renew your copy and update your files.")
-            print("WARNING: - local revision: %s" % local_revision)
-            print("WARNING: - online revision: %s" % activity_revision)
-
-        # report everything is ok
-        print("Upload completed at '%s' (UTC)" % timestamp)
-
-        # update tst.json with commit data
-        tstjson['last_commit'] = program_md5
-        tstjson[program_md5] = {
-            'timestamp': timestamp
-        }
-        tstjson['key'] = key
-        tst.save_tstjson(tstjson)
-
-    # poll server for results
-    summary, feedback = get_results(program_md5)
-    print("[%s] %s" % (filename, summary))
-    if feedback:
-        print(feedback)
+    # do commit
+    commit = get_commit_function(kind)
+    commit(tstjson, sys.argv)
+    sys.exit()
 
 
+# main
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == '--one-line-help':
-        print("send solution to server")
+        print("save object to the server")
         sys.exit()
 
-    config = tst.read_config(exit=True)
-    headers = {'Authorization': 'Bearer ' + config['access_token']}
-    tstjson = tst.read_tstjson(quit_on_fail=True)
-    assignment_key = get_key()
-    key = "%X" % int(assignment_key)
+    config = tst.Config()
     main()

@@ -20,46 +20,18 @@ read -r -d '' YAMLFILE << EOM
 # TST Activity Template.
 # (c) 2016 Dalton Serey, UFCG
 #
-# An actual activity yaml will be automatically generated from
-# the activity whenever it is checked out from the server. This
-# file is just a template for you to start a new activity. After
-# you finish editing this file, use \`tst commit\` to save it to
-# the server.
-#
-# Observe that all comments in this file are completely ignored
-# by tst. You may keep them, delete them or add your own comments
-# at will. However, keep in mind that tst will simply ignore them
-# all. In particular, they are not saved to the server.
+# Read the activity yaml how-to:
+# - https://github.com/daltonserey/tst/wiki/Activity-yaml-how-to
 
-# The file system (POSIX) compatible name.
 name: $activity
-
-# Short screen, readable name.
 label: Unnamed
-
-# Activity type: lesson, problem, quiz.
-type: lesson
-
-# The textual description of the activity itself. It must contain
-# all reading material and instructions necessary for any student
-# to whom the activity is assigned. Remember an activity cannot
-# contain images, but it can contain linked images that will be
-# rendered within the activity text. The text must be written in
-# markdown. Everything indented below the line immediately below
-# this comment is part of the text. Observe that because it is a
-# multiline string, yaml comments do not work within it. Because
-# the text is markdown, anything begining with a \`#\` will be
-# considered a header. Learn markdown.
+type: problem
 text: |
     # Unnamed
     Markdown contents: 
     - http://www.markdowntutorial.com/
     - https://daringfireball.net/projects/markdown/
 
-# Tests section. If your activity has no tests just delete the
-# entire section begining below. To add tests, copy one of the
-# test entries. Once again, it may be useful to understand how
-# multiline scalars work in yaml to write proper complex tests.
 tests:
 -    category: public
      name: test_name
@@ -71,24 +43,25 @@ tests:
          output line1
          output line2
 
--    category: public
-     name: test_name
+-    name: test_name
      input: |
          input line1
-         input line2
 
      output: |
          output line1
-         output line2
 EOM
 
 # create json file
 read -r -d '' TSTJSON <<- EOM
 {
+    "files": {
+        "$activity.yaml": {}
+    },
     "kind": "activity",
     "name": "$activity",
     "state": "new"
 }
 EOM
 echo "$YAMLFILE" >> $activity.yaml
-echo "$TSTJSON" >> tst.json
+mkdir .tst
+echo "$TSTJSON" >> .tst/tst.json

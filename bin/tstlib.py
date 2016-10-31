@@ -36,7 +36,7 @@ except ImportError:
 TSTDIR = os.path.expanduser("~/.tst/")
 TSTCONFIG = os.path.expanduser(TSTDIR + "config.json")
 TSTRELEASE = os.path.expanduser(TSTDIR + "release.json")
-TSTJSON = os.path.expanduser("./tst.json")
+TSTJSON = os.path.expanduser("./.tst/tst.json")
 
 LRED = '\033[1;31m'
 LGREEN = '\033[1;32m'
@@ -45,6 +45,14 @@ WHITE="\033[1;37m"
 LCYAN = '\033[1;36m'
 RESET = '\033[0m'
 
+def _assert(condition, msg):
+    if condition:
+        return
+
+    cprint(LRED, msg)
+    sys.exit(1)
+
+    
 def cprint(color, msg, file=sys.stdout):
     print(color + msg + RESET, file=file)
 
@@ -56,11 +64,6 @@ def date_handler(obj):
         return obj.email()
 
     return obj
-
-
-def get_release():
-    config = read_config()
-    return config.get('release', 'unknown')
 
 
 def data2json(data):
@@ -99,57 +102,170 @@ def pop_argument(args, index=0):
     return args.pop(0)
 
 
-def pop_option(args, option):
-    opt_select = '--' + option
-    index = next((i for i in xrange(len(args)) if args[i] == opt_select), None)
+def pop_option(args, option, short=None, default=None, type=str):
+    selectors = ['--' + option]
+    if short is not None:
+        selectors.append('-' + short)
+
+    index = next((i for i in xrange(len(args)) if args[i] in selectors), None)
     if index is None or index == len(args) - 1:
-        return None
+        return default
 
     value = args.pop(index + 1)
     selector = args.pop(index)
     
-    return value
+    return type(value)
 
 
-class CorruptedConfigFile(Exception): pass
+def pop_flag(args, flag, short=None):
+    selectors = ['--' + flag]
+    if short is not None:
+        selectors.append('-' + short)
+
+    index = next((i for i in xrange(len(args)) if args[i] in selectors), None)
+    if index is None:
+        return False
+
+    args.pop(index)
+    return True
+
+
+class CorruptedFile(Exception): pass
 class ConnectionFail(Exception): pass
 
 
-class Server:
+def load_required(method):
+    def load(self, *args, **kwargs):
+        if self.data is None:
+            self.load()
+
+        method(self, *args, **kwargs)
+
+    return load
+
+
+class Config(object):
+
+    __instance = None
+
+    def __new__(cls):
+        if Config.__instance is not None:
+            return Config.__instance
+
+        Config.__instance = object.__new__(cls)
+        self = Config.__instance
+
+        # initialization
+        self.data = None
+        return self
+
+    def __setitem__(self, key, value):
+        if self.data is None:
+            self.load()
+
+        self.data[key] = value
+
+
+    def __getitem__(self, key):
+        if self.data is None:
+            self.load()
+
+        return self.data[key]
+
+    def __contains__(self, key):
+        if self.data is None:
+            self.load()
+
+        return key in self.data
+
+
+    def load(self, exit_on_fail=False):
+        if not os.path.exists(TSTCONFIG):
+            self.data = {'url': 'http://tst-online.appspot.com', 'cookies': {}}
+            return
+
+        # actually read from file system
+        try:
+            with codecs.open(TSTCONFIG, mode='r', encoding='utf-8') as f:
+                self.data = json.loads(to_unicode(f.read()))
+                return
+
+        except ValueError:
+            msg = "tst: %s is corrupted" % TSTCONFIG
+            if exit_on_fail:
+                print(msg, file=sys.stderr)
+                sys.exit()
+
+            raise CorruptedFile(msg)
+
+
+    def save(self):
+        save_config(self.data)
+
+
+    def get(self, key, default=None):
+        if self.data is None:
+            self.load()
+
+        return self.data.get(key, default)
+
     
-    def __init__(self, token=None):
-        if token == None:
-            config = read_config() 
-            if 'access_token' not in config:
-                print("You are not logged in.")
-                print("Use `tst login` to log in to the server.")
-                sys.exit(1)
-
-            token = config['access_token']
-
-        self.token = token
-
+class Server(object):
+    
+    __instance = None
 
     class Response:
 
-        def __init__(self):
-            self._json = None
-
         def json(self):
-            if not self._json:
-                self._json = json.loads(self.text)
+            if '_json' not in dir(self):
+                try:
+                    self._json = json.loads(self.body)
+                except:
+                    self._json = None
 
             return self._json
 
 
-    def get(self, url, headers={}):
-        curl_command = ['curl', '-v', '-sL']
-        headers['Authorization'] = 'Bearer %s' % self.token
+    def __new__(cls):
+
+        # instantiation
+        if Server.__instance is not None:
+            return Server.__instance
+
+        Server.__instance = object.__new__(cls)
+        self = Server.__instance
+
+        # initialization
+        self.config = Config()
+        self.user = self.config.get('user')
+        self.token = self.config.get('access_token')
+
+        return self
+
+
+    def request(self, method, path, headers={}, payload=None, exit_on_fail=False):
+        curl_command = [
+            'curl',
+            '-q', # don't use ~/.curlrc (must be first arg)
+            '-X', method.upper(), # http verb
+            '-v', # be verbose: print report to stderr
+            '-s', # don't print progress meter
+            '-L'  # follow redirects
+        ]
+
+        headers['TST-CLI-Release'] = self.config.get('release', 'unknown')
+        if 'Authorization' not in headers:
+            headers['Authorization'] = 'Bearer %s' % self.token
         for hname, hvalue in headers.items():
             curl_command.append('-H')
             curl_command.append('%s: %s' % (hname, hvalue))
 
+        url = self.config['url'] + path
         curl_command.append(url)
+        if payload is not None:
+            curl_command.append('-d')
+            data = "%s" % json.dumps(payload)
+            curl_command.append(data)
 
         signal.alarm(20000) # timeout in seconds
         process = Popen(curl_command, stdout=PIPE, stderr=PIPE) 
@@ -180,9 +296,14 @@ class Server:
         response.headers = "\n".join(lines)
 
         if not response.headers:
+            if exit_on_fail:
+                msg = "tst: can't connect to server"
+                print(" ".join(curl_command))
+                _assert(False, msg)
+                
             raise ConnectionFail("can't connect to tst online")
 
-        # text
+        # body
         response_lines = response.headers.splitlines()
         response.status_code = None
         for i in xrange(len(response_lines)-1, -1, -1):
@@ -191,78 +312,28 @@ class Server:
                 response.status_code = int(status_line.split()[1])
                 break
             
-        response.text = stdout if response.status_code else None
+        # exit_on_fail
+        if exit_on_fail and response.status_code != 200:
+            msg = 'tst: request to server failed'
+            msg += ('\n' + response.stderr)
+            msg += ('\n' + response.stdout)
+            _assert(False, msg)
+        
+        response.body = stdout if response.status_code else None
         
         return response
 
 
-    def post(self, url, payload):
-        return self.request('post', url, payload)
+    def get(self, path, headers={}, exit_on_fail=False):
+        return self.request('get', path, headers, exit_on_fail=exit_on_fail)
 
 
-    def patch(self, url, payload):
-        return self.request('patch', url, payload)
+    def post(self, path, headers={}, payload='', exit_on_fail=False):
+        return self.request('post', path, headers=headers, payload=payload, exit_on_fail=exit_on_fail)
 
 
-    def request(self, method, url, payload):
-        assert method in ('post', 'patch')
-        
-        curl_command = ['curl', '-X', method.upper(), '-v', '-s']
-        headers = {}
-        headers['Authorization'] = 'Bearer %s' % self.token
-        headers['TST-CLI-Release'] = get_release()
-        for hname, hvalue in headers.items():
-            curl_command.append('-H')
-            curl_command.append('%s: %s' % (hname, hvalue))
-
-        curl_command.append(url)
-        curl_command.append('-d')
-        data = "%s" % json.dumps(payload)
-        curl_command.append(data)
-
-        signal.alarm(20000) # timeout in seconds
-        process = Popen(curl_command, stdout=PIPE, stderr=PIPE) 
-        try:
-            stdout, stderr = map(to_unicode, process.communicate())
-            signal.alarm(0) # reset alarm for future use...
-            process.wait()
-        except CutTimeOut: # timeout!!!
-            process.terminate()
-            raise ConnectionFail()
-
-        # raw data
-        response = self.Response()
-        response.stderr = stderr
-        response.stdout = stdout
-        response.exit_status = process.returncode
-
-        # curl messages
-        lines = [l[2:] for l in stderr.splitlines() if l and l[0] == '*']
-        response.curl_messages = "\n".join(lines)
-
-        # request headers
-        lines = [l[2:] for l in stderr.splitlines() if l and l[0] == '>']
-        response.request_headers = "\n".join(lines)
-
-        # response headers
-        lines = [l[2:] for l in stderr.splitlines() if l and l[0] == '<']
-        response.headers = "\n".join(lines)
-
-        if not response.headers:
-            raise ConnectionFail("can't connect to tst online")
-
-        # text
-        response_lines = response.headers.splitlines()
-        response.status_code = None
-        for i in xrange(len(response_lines)-1, -1, -1):
-            if response_lines[i].startswith("HTTP"):
-                status_line = response_lines[i]
-                response.status_code = int(status_line.split()[1])
-                break
-            
-        response.text = stdout if response.status_code else None
-        
-        return response
+    def patch(self, path, payload, headers={}, exit_on_fail=False):
+        return self.request('patch', path, headers=headers, payload=payload, exit_on_fail=exit_on_fail)
 
 
 
@@ -391,9 +462,9 @@ class GitHub:
         return response
 
 
-def read_tstjson(exit=False, quit_on_fail=False):
+def read_tstjson(file=TSTJSON, exit=False, quit_on_fail=False):
 
-    if not os.path.exists(TSTJSON):
+    if not os.path.exists(file):
         if quit_on_fail:
             msg = "This is not a tst directory."
             print(msg, file=sys.stderr)
@@ -401,22 +472,22 @@ def read_tstjson(exit=False, quit_on_fail=False):
         return None
 
     try:
-        with codecs.open(TSTJSON, mode='r', encoding='utf-8') as f:
+        with codecs.open(file, mode='r', encoding='utf-8') as f:
             tstjson = json.loads(to_unicode(f.read()))
 
     except ValueError:
-        msg = "tst: %s is corrupted" % TSTJSON
+        msg = "tst: %s is corrupted" % file
         if exit or quit_on_fail:
             print(msg, file=sys.stderr)
             sys.exit(1)
 
-        raise CorruptedConfigFile(msg)
+        raise CorruptedFile(msg)
 
     return tstjson
 
 
-__config = None
-def read_config(exit=False):
+__config = None # deprecated global variable
+def deprecated_read_config(exit=False):
     global __config
 
     if __config is not None:
@@ -434,7 +505,7 @@ def read_config(exit=False):
                 print(msg, file=sys.stderr)
                 sys.exit()
 
-            raise CorruptedConfigFile(msg)
+            raise CorruptedFile(msg)
 
     else:
         if not os.path.exists(TSTDIR):
@@ -460,6 +531,10 @@ def save_config(config):
 
 
 def save_tstjson(tstjson):
+    dirname = os.path.dirname(TSTJSON)
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
+
     with codecs.open(TSTJSON, mode="w", encoding='utf-8') as f:
         f.write(json.dumps(
             tstjson,
@@ -489,6 +564,54 @@ def hashify(data):
 
     # hashify works only with strings, objects and lists of objects
     raise ValueError('tst: invalid data to hashify')
+
+
+def read_assignment(tstjson):
+
+    def abort(msg):
+        msg = "tst: invalid assignment\n" + msg
+        _assert(False, msg)
+        
+    # gather assignment data
+    assignment = {}
+    
+    # read files
+    files = {}
+    unknown_files = []
+    for filename in os.listdir("."):
+        if filename == 'tst.json':
+            # tests file
+            continue
+
+        if filename[0] == '.':
+            # hidden file
+            continue
+
+        if os.path.isdir(filename):
+            # directory
+            continue
+
+        if filename not in tstjson['files'].keys():
+            # unknown file
+            unknown_files.append(filename)
+            continue
+
+        with codecs.open(filename, mode='r', encoding='utf-8') as f:
+            contents = f.read()
+            files[filename] = {
+                'data': contents,
+                'category': tstjson['files'][filename].get('category', 'secret')
+            }
+            if files[filename]['category'] == 'answer':
+                assignment['checksum'] = md5.md5(contents).hexdigest()
+
+    assignment['checksum'] = md5.md5(contents).hexdigest()
+    assignment['files'] = files
+    assignment['unknown_files'] = unknown_files
+        
+    return assignment
+
+
 
 
 def read_activity(tstjson=None):
@@ -568,14 +691,6 @@ def read_activity(tstjson=None):
     return activity, unknown_files
 
 
-def _assert(condition, msg):
-    if condition:
-        return
-
-    cprint(LRED, msg)
-    sys.exit(1)
-
-    
 def validate_activity(activity):
 
     # generic message base
@@ -683,7 +798,7 @@ def save_yaml(yamlfile, data):
                     is_first = False
 
 
-def save_activity(data, text_in_file, is_checkout=True):
+def save_activity(data, is_checkout=True):
 
     # save yaml with editable fields
     tstyaml = {}
@@ -699,17 +814,10 @@ def save_activity(data, text_in_file, is_checkout=True):
         if 'type' not in test:
             test['type'] = 'io'
 
-    if not text_in_file:
-        tstyaml['text'] = data['text']
+    tstyaml['text'] = data['text']
 
     if is_checkout:
         save_yaml(data['name'] + '.yaml', tstyaml)
-
-    # save text in file
-    if is_checkout and text_in_file:
-        textfile = tstjson['name'] + '.md'
-        with codecs.open(textfile, mode='w', encoding='utf-8') as f:
-            f.write(data['text'])
 
     # save files
     if is_checkout:
@@ -744,7 +852,6 @@ def save_activity(data, text_in_file, is_checkout=True):
     tstjson['last_update_user'] = data['last_update_user']
     tstjson['last_update_datetime'] = data['last_update_datetime']
     tstjson['owner'] = data['owner']
-    tstjson['text_in_file'] = text_in_file
     tstjson['state'] = data['state']
 
     # save it

@@ -235,21 +235,23 @@ def sync_activity(response, tstjson):
 
     # post/patch worked: save using proper save function
     save = tst.get_save_function('activity')
-    save(json_response, tstjson.get('text_in_file'), is_checkout=False)
+    save(json_response, is_checkout=False)
+
 
 def main():
 
     # read tst.json and activity
     tstjson = tst.read_tstjson(quit_on_fail=True)
+    print(tstjson)
+    sys.exit()
     activity, unknown = tst.read_activity(tstjson)
 
     # check whether activity is new
     server = tst.Server()
     if tstjson['state'] == 'new':
         # post new activity
-        url = config['url'] + "/api/activity"
-        payload = activity
-        response = server.post(url, activity)
+        url = "/api/activity"
+        response = server.post(url, payload=activity, exit_on_fail=True)
         sync_activity(response, tstjson)
         print("First version successfully saved to the server.")
         print("%s" % response.json()['version'])
@@ -288,10 +290,6 @@ def main():
 
 # main
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == '--one-line-help':
-        print("save local activity to the repository")
-        sys.exit()
-
-    config = tst.read_config(exit=True)
+    config = tst.Config()
     server = tst.Server()
     main()

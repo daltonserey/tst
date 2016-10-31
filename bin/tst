@@ -27,7 +27,7 @@ import tstlib as tst
 DEFAULT_COMMAND = 'test'
 INTERNALS = ["help", "version", "share", "add", "ls", "remove", "uninstall"]
 EXTERNALS = ["update", "login", "checkout", "test", "commit", "config", "assign"]
-HIDDEN = ['checkout2', 'commit2', 'status', 'new', 'add', 'install']
+HIDDEN = ['commit2', 'status', 'new', 'add', 'install']
 
 def tst_help(args):
     """short description of commands"""
@@ -81,7 +81,7 @@ def tst_uninstall(args):
                 os.remove(filename + "c")
 
     command = args[0]
-    config = tst.read_config()
+    config = tst.Config()
     if command in INTERNALS or command in EXTERNALS or command in HIDDEN:
         print("Sorry, you cannot uninstall standard commands.")
         sys.exit()
@@ -131,7 +131,7 @@ def tst_share(args):
         print("tst: fatal: unknown (or non implemented yet) share action")
         sys.exit(1)
 
-    config = tst.read_config()
+    config = tst.Config()
     domain = config.get('domain', '')
     usernames = []
     for i in xrange(1, len(args)):
@@ -264,7 +264,7 @@ def run_external_command(command, args):
 
 
 def custom_commands():
-    config = tst.read_config()
+    config = tst.Config()
     return config.get('custom_commands', {}).keys()
 
 
@@ -280,7 +280,7 @@ def is_custom_internal_command(cmd):
     if cmd not in custom_commands():
         return False
 
-    config = tst.read_config()
+    config = tst.Config()
     cmd_files = config['custom_commands'][cmd]
 
     return any(is_internal(fn) for fn in cmd_files)
@@ -290,14 +290,13 @@ def is_custom_external_command(cmd):
     if cmd not in custom_commands():
         return False
 
-    config = tst.read_config()
+    config = tst.Config()
     cmd_files = config['custom_commands'][cmd]
 
     return any(is_external(fn) for fn in cmd_files)
 
 
 def identify_and_run_command(args):
-
     if args and args[0] in INTERNALS:
         command_name = args.pop(0) # discard command name
         run_internal_command = globals()["tst_" + command_name]

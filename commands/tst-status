@@ -116,6 +116,10 @@ def main():
 
     # read tst.json
     tstjson = tst.read_tstjson(quit_on_fail=True)
+    if tstjson['kind'] != 'activity':
+        tst.cprint(tst.LRED, "Not implemented yet")
+        print("Command `tst status` works only with activities.")
+        sys.exit()
 
     # check whether activity is new
     if tstjson['state'] == 'new':
@@ -129,7 +133,7 @@ def main():
 
     # check for missed updates
     server = tst.Server()
-    url = config['url'] + '/api/activity/%s/version' % tstjson['iid']
+    url = '/api/activity/%s/version' % tstjson['iid']
     last_version = server.get(url).json()
     missed_updates = False
     if last_version['version'] != tstjson['version'] or last_version['version_token'] != tstjson['version_token']:
@@ -178,5 +182,5 @@ if __name__ == "__main__":
     if any(arg == '--changes' for arg in sys.argv):
         print_report = True
         
-    config = tst.read_config(exit=True)
+    config = tst.Config()
     main()

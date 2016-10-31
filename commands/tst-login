@@ -12,47 +12,46 @@ import sys
 import os
 import webbrowser
 
-import tstlib
-
-# optionally import yaml
-try:
-    import requests
-except ImportError:
-    print("tst: login: Sorry, you don't have requests module installed")
-    sys.exit()
-    
+import tstlib as tst
 
 def main(token):
 
+    config = tst.Config()
     if not token:
         webbrowser.open(config['url'] + "/token/get")
         print("Copy and paste the token here:")
         token = raw_input().strip()
 
-    user = raw_input("User email: ")
+    if 'user' not in config:
+        user = raw_input("User email: ")
+    else:
+        user = config.get('user')
 
     # request login authentication at google
     headers = {'Authorization': 'Bearer ' + token}
-    url = config['url'] + '/token/validate/%s' % user
+    path = '/token/validate/%s' % user
 
     print("Validating the token...")
+    server = tst.Server()
     try:
-        response = requests.get(url, headers=headers)
-    except Exception as e:
-        print("tst: sorry, no internet connection?", file=sys.stderr)
-        exit()
+        response = server.get(path, headers=headers)
+    except tst.ConnectionFail as e:
+        print("tst: connection to server failed", file=sys.stderr)
+        sys.exit()
 
-    validation_msg = response.text.splitlines()[0]
+    validation_msg = response.body.splitlines()[0]
     if validation_msg != "Valid token.":
-        print("ERRO: '%s'" % response.text)
+        print("ERRO: '%s'" % response.body)
         sys.exit()
 
     config['access_token'] = token
     config['user'] = user
-    with open(os.path.expanduser("~/.curlrc"), "a") as curlrc:
+
+    # save to ~/.tst/curlrc
+    with open(os.path.expanduser("~/.tst/curlrc"), "a") as curlrc:
         curlrc.write('-H "Authorization: Bearer %s"' % token)
         
-    tstlib.save_config(config)
+    config.save()
     print("Token validated.")
     print("You are now logged in as: %s" % user)
 
@@ -62,6 +61,5 @@ if __name__ == "__main__":
         print("log into TST Server")
         sys.exit()
 
-    config = tstlib.read_config(exit=True)
     token = sys.argv[1] if len(sys.argv) > 1 else None
     main(token)
