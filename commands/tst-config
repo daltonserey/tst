@@ -22,7 +22,7 @@ RESET = '\033[0m'
 FIELDS = ['user', 'group', 'url', 'output', 'domain']
 
 # read config
-config = tst.read_config()
+config = tst.Config()
 
 # one-line-help
 if len(sys.argv) > 1 and sys.argv[1] == '--one-line-help':
