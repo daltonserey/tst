@@ -80,4 +80,4 @@ else:
             sys.exit(1)
 
         config[prop] = value
-        tst.save_config(config)
+        config.save()

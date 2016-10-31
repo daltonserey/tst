@@ -241,7 +241,7 @@ def commit_activity(tstjson, args):
         url = "/api/activity"
         response = server.post(url, payload=activity, exit_on_fail=True)
         sync_activity(response, tstjson)
-        print("First version successfully saved to the server")
+        print("Activity successfully created on the server")
         print("%s" % response.json()['version'])
         sys.exit()
 
