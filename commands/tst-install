@@ -175,7 +175,7 @@ if __name__ == "__main__":
         sys.exit()
 
     # notify user about risks 
-    config = tst.read_config()
+    config = tst.Config()
     print("# DISCLAIMER")
     print("Beware that installing custom commands on tst means installing")
     print("third party software that will actually run in your system.")
