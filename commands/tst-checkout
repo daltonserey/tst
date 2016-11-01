@@ -238,4 +238,10 @@ if __name__ == "__main__":
         sys.exit()
 
     config = tst.Config()
+    if 'user' not in config:
+        tst.cprint(tst.LRED, "No user logged in.")
+        print("---")
+        print("Use `tst login <email>` to log in to the server")
+        sys.exit(1)
+
     main(sys.argv)

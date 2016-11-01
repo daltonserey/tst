@@ -298,7 +298,6 @@ class Server(object):
         if not response.headers:
             if exit_on_fail:
                 msg = "tst: can't connect to server"
-                print(" ".join(curl_command))
                 _assert(False, msg)
                 
             raise ConnectionFail("can't connect to tst online")
@@ -314,10 +313,18 @@ class Server(object):
             
         # exit_on_fail
         if exit_on_fail and response.status_code != 200:
-            msg = 'tst: request to server failed'
-            msg += ('\n' + response.stderr)
-            msg += ('\n' + response.stdout)
-            _assert(False, msg)
+            msg = 'Request to server failed'
+            try:
+                data = json.loads(response.stdout)
+                msg = 'Server message: ' + data['messages'][0]
+            except:
+                msg += ('\n' + "Couldn't parse response")
+                pass
+            cprint(LRED, msg)
+            if data['messages'][0] == 'invalid token':
+                print("---")
+                print("Use `tst login` to log in to the server")
+            sys.exit(1)
         
         response.body = stdout if response.status_code else None
         
