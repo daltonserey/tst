@@ -19,7 +19,7 @@ WHITE="\033[1;37m"
 LCYAN = '\033[1;36m'
 RESET = '\033[0m'
 
-FIELDS = ['user', 'group', 'url', 'output', 'domain']
+FIELDS = ['user', 'group', 'url', 'output', 'domain', 'debug']
 
 # read config
 config = tst.Config()
@@ -67,8 +67,8 @@ else:
             sys.exit(1)
 
         if prop in config:
-            del config[prop]
-            tst.save_config(config)
+            config.pop(prop)
+            config.save()
         
     else:
         prop, value = sys.argv[0], sys.argv[1]
@@ -81,3 +81,5 @@ else:
 
         config[prop] = value
         config.save()
+        msg = "%s: %s%s" % (prop, LGREEN, config[prop]) + RESET
+        print(msg)
