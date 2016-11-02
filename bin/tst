@@ -26,7 +26,7 @@ import tstlib as tst
 # TST INTERNAL COMMANDS
 DEFAULT_COMMAND = 'test'
 INTERNALS = ["help", "version", "share", "add", "ls", "remove", "uninstall"]
-EXTERNALS = ["update", "login", "checkout", "test", "commit", "config", "status", "new"]
+EXTERNALS = ["update", "login", "checkout", "test", "commit", "config", "status", "new", "release"]
 HIDDEN = ['install']
 
 def tst_help(args):
@@ -90,7 +90,7 @@ def tst_uninstall(args):
         sys.exit()
     delete_custom_command(command)
     config['custom_commands'].pop(command, None)
-    tst.save_config(config)
+    config.save()
     print("Command successfully uninstalled.")
 
 
