@@ -144,9 +144,17 @@ def load_required(method):
     return load
 
 
+def boolean(value):
+    if value in [True, 'True', 'true', 'yes', 'on']:
+        return True
+    else:
+        return False
+
+
 class Config(object):
 
     __instance = None
+    FLAGS = ['debug']
 
     def __new__(cls):
         if Config.__instance is not None:
@@ -163,6 +171,9 @@ class Config(object):
         if self.data is None:
             self.load()
 
+        if key in Config.FLAGS:
+            value = boolean(value)
+        
         self.data[key] = value
 
 
@@ -179,6 +190,13 @@ class Config(object):
         return key in self.data
 
 
+    def pop(self, key):
+        if self.data is None:
+            self.load()
+
+        self.data.pop(key, None)
+
+
     def load(self, exit_on_fail=False):
         if not os.path.exists(TSTCONFIG):
             self.data = {'url': 'http://tst-online.appspot.com', 'cookies': {}}
@@ -188,7 +206,6 @@ class Config(object):
         try:
             with codecs.open(TSTCONFIG, mode='r', encoding='utf-8') as f:
                 self.data = json.loads(to_unicode(f.read()))
-                return
 
         except ValueError:
             msg = "tst: %s is corrupted" % TSTCONFIG
@@ -200,7 +217,15 @@ class Config(object):
 
 
     def save(self):
-        save_config(self.data)
+        if self.data is None:
+            return
+
+        with codecs.open(TSTCONFIG, mode="w", encoding='utf-8') as f:
+            f.write(json.dumps(
+                self.data,
+                indent=2,
+                separators=(',', ': ')
+            ))
 
 
     def get(self, key, default=None):
@@ -312,18 +337,21 @@ class Server(object):
                 break
             
         # exit_on_fail
-        if exit_on_fail and response.status_code != 200:
+        if exit_on_fail and not (200 <= response.status_code < 300):
             msg = 'Request to server failed'
             try:
                 data = json.loads(response.stdout)
-                msg = 'Server message: ' + data['messages'][0]
+                if 'messages' in data and type(data['messages'] == list):
+                    msg += "\nServer message: " + str(data['messages'][0])
             except:
-                msg += ('\n' + "Couldn't parse response")
-                pass
+                data = {}
+                msg += ('\n' + "Couldn't parse server response")
+
             cprint(LRED, msg)
-            if data['messages'][0] == 'invalid token':
+            if 'messages' in data and data['messages'][0] == 'invalid token':
                 print("---")
                 print("Use `tst login` to log in to the server")
+
             sys.exit(1)
         
         response.body = stdout if response.status_code else None
@@ -493,50 +521,6 @@ def read_tstjson(file=TSTJSON, exit=False, quit_on_fail=False):
     return tstjson
 
 
-__config = None # deprecated global variable
-def deprecated_read_config(exit=False):
-    global __config
-
-    if __config is not None:
-        return __config
-
-    # create config file if it doesn't exist
-    if os.path.exists(TSTCONFIG):
-        try:
-            with codecs.open(TSTCONFIG, mode='r', encoding='utf-8') as f:
-                config = json.loads(to_unicode(f.read()))
-
-        except ValueError:
-            msg = "tst: %s is corrupted" % TSTCONFIG
-            if exit:
-                print(msg, file=sys.stderr)
-                sys.exit()
-
-            raise CorruptedFile(msg)
-
-    else:
-        if not os.path.exists(TSTDIR):
-            os.mkdir(TSTDIR)
-
-        config = {
-            'url': 'http://tst-online.appspot.com',
-            'cookies': {}
-        }
-        save_config(config)
-
-    __config = config
-    return __config
-
-
-def save_config(config):
-    with codecs.open(TSTCONFIG, mode="w", encoding='utf-8') as f:
-        f.write(json.dumps(
-            config,
-            indent=2,
-            separators=(',', ': ')
-        ))
-
-
 def save_tstjson(tstjson):
     dirname = os.path.dirname(TSTJSON)
     if not os.path.exists(dirname):
@@ -610,7 +594,7 @@ def read_assignment(tstjson):
                 'category': tstjson['files'][filename].get('category', 'secret')
             }
             if files[filename]['category'] == 'answer':
-                assignment['checksum'] = md5.md5(contents).hexdigest()
+                assignment['checksum'] = md5.md5(contents.encode('utf-8')).hexdigest()
 
     assignment['checksum'] = md5.md5(contents).hexdigest()
     assignment['files'] = files
