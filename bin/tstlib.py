@@ -371,6 +371,10 @@ class Server(object):
         return self.request('patch', path, headers=headers, payload=payload, exit_on_fail=exit_on_fail)
 
 
+    def delete(self, path, payload='', headers={}, exit_on_fail=False):
+        return self.request('delete', path, headers=headers, payload=payload, exit_on_fail=exit_on_fail)
+
+
 
 
 class GitHub:
@@ -605,13 +609,35 @@ def read_assignment(tstjson):
 
 def sync_activity(response, tstjson):
     # check response was positive
+    import pdb; pdb.set_trace()
     json_response = response.json()
+    # TODO: why the following line is here?!
     _assert(response.exit_status == 0, 'tst: fatal: curl command failed\n')
-    _assert('error' not in json_response, 'tst: fatal: server reported error:\n' + str(json_response.get('messages', 'no server messages')))
 
-    # post/patch worked: save using proper save function
-    save = get_save_function('activity')
-    save(json_response, is_checkout=False)
+    if json_response is None:
+        tstjson['state'] = 'deleted'
+        fields2delete = [
+            'version_token',
+            'last_update_datetime',
+            'checkout',
+            'create_datetime',
+            'collaborators',
+            'iid',
+            'version',
+            'owner',
+            'type',
+            'last_update_user'
+        ]
+        for field in fields2delete:
+            tstjson.pop(field, None)
+        save_tstjson(tstjson)
+    else:
+        _assert('error' not in json_response, 'tst: fatal: server reported error:\n' + str(json_response.get('messages', 'no server messages')))
+
+        # post/patch worked: save using proper save function
+        save = get_save_function('activity')
+        save(json_response, is_checkout=False)
+        
 
 
 def read_activity(tstjson=None):

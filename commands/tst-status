@@ -127,6 +127,12 @@ def main():
         print("Use `tst commit` to save it.")
         sys.exit()
 
+    # check whether activity is deleted
+    if tstjson['state'] == 'deleted':
+        print("This activity was deleted. It can be used as new, however.")
+        print("Use `tst commit` to save it.")
+        sys.exit()
+
     # read local directory and identify changes
     activity, unknown = tst.read_activity(tstjson)
     changes = tst.activity_changes(activity, tstjson)
