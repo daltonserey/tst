@@ -324,8 +324,8 @@ def commit_assignment(tstjson, args):
     # read current answer
     with codecs.open(filename, mode='r', encoding='utf-8') as f:
         contents = f.read()
-    checksum = md5.md5(contents).hexdigest()
-    if filename == current_answer_file and checksum == tstjson['last_commit']:
+    checksum = md5.md5(contents.encode('utf-8')).hexdigest()
+    if filename == current_answer_file and checksum == tstjson.get('last_commit'):
         tst.cprint(tst.LCYAN, 'No changes to commit')
         sys.exit()
 
