@@ -211,17 +211,6 @@ def _assert(condition, msg='assertion failed'):
         sys.exit(1)
 
 
-def sync_activity(response, tstjson):
-    # check response was positive
-    json_response = response.json()
-    _assert(response.exit_status == 0, 'tst: fatal: curl command failed\n')
-    _assert('error' not in json_response, 'tst: fatal: server reported error:\n' + str(json_response.get('messages', 'no server messages')))
-
-    # post/patch worked: save using proper save function
-    save = tst.get_save_function('activity')
-    save(json_response, is_checkout=False)
-
-
 def commit_activity(tstjson, args):
 
     # parse command line
@@ -240,7 +229,7 @@ def commit_activity(tstjson, args):
         # post new activity
         url = "/api/activity"
         response = server.post(url, payload=activity, exit_on_fail=True)
-        sync_activity(response, tstjson)
+        tst.sync_activity(response, tstjson)
         print("Activity successfully created on the server")
         print("%s" % response.json()['version'])
         sys.exit()
@@ -279,7 +268,7 @@ def commit_activity(tstjson, args):
 
     patches = make_patch(activity, tstjson, changes, bump_level)
     response = server.patch(url, patches)
-    sync_activity(response, tstjson)
+    tst.sync_activity(response, tstjson)
     print("Commmit finished.")
     print("%s" % response.json()['version'])
 

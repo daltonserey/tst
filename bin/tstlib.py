@@ -603,6 +603,15 @@ def read_assignment(tstjson):
     return assignment
 
 
+def sync_activity(response, tstjson):
+    # check response was positive
+    json_response = response.json()
+    _assert(response.exit_status == 0, 'tst: fatal: curl command failed\n')
+    _assert('error' not in json_response, 'tst: fatal: server reported error:\n' + str(json_response.get('messages', 'no server messages')))
+
+    # post/patch worked: save using proper save function
+    save = get_save_function('activity')
+    save(json_response, is_checkout=False)
 
 
 def read_activity(tstjson=None):
