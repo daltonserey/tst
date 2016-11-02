@@ -65,8 +65,7 @@ LCYAN = '\033[1;36m'
 RESET = '\033[0m'
 
 def abort(msg, code=1):
-    msg = 'tst: ' + msg
-    print(msg.encode('utf-8'), file=sys.stderr)
+    tst.cprint(tst.LRED, msg.encode('utf-8'), file=sys.stderr)
     sys.exit(code)
 
 
@@ -682,46 +681,58 @@ def debug(msg=''):
     print(line.encode('utf-8'), file=sys.stderr)
 
 
-def main():
+def request_server_tests(tstjson):
+    server = tst.Server()
+    url = '/api/assignment/%s/tests' % tstjson['iid']
+    response = server.post(url, payload="", exit_on_fail=True)
+    print("Acceptance tests requested")
+    print(response.stdout)
 
-    # read config
-    config = tst.Config()
-    tstjson = tst.read_tstjson(quit_on_fail=True)
+
+def main():
 
     # parse command line data
     filenames, timeout, output, server = parse_cli()
 
+    # identify activity files
+    tstjson = tst.read_tstjson(quit_on_fail=False)
+    activity_files = []
+    if tstjson:
+        files = tstjson['files']
+        activity_files = [f['name'] for f in files.values() if f['category'] != 'answer']
+
     # dispatch server tests if required
     if server:
         tst._assert(tstjson['kind'] == 'assignment', "The --server option only apply to assignments")
-        print("request server tests... tbd")
+        request_server_tests(tstjson)
         sys.exit()
             
     # read local tests
-    testsjson = tst.read_tstjson(file='tst.json')
-    if testsjson is None:
+    tests = tst.read_tstjson(file='tst.json')
+    if tests is None:
         tst.cprint(tst.LRED, "No tests found: tst.json")
         sys.exit(1)
 
     # set default output to user's preference if any
+    config = tst.Config()
     output = output or config.get('output') or 'debug'
 
-    # skip files mentioned in tst.json
-    files_to_remove = [f for f in testsjson.get('files', {})]
-    files_to_remove.append('tst.json')
+    # discard files mentioned in tst.json, if any
+    assignment_files = [f['name'] for f in tests.get('files', [])]
+    assignment_files.append('tst.json')
     for i in xrange(len(filenames)-1, -1, -1):
-        if filenames[i] in files_to_remove:
+        if filenames[i] in assignment_files or filenames[i] in activity_files:
             filenames.pop(i)
 
     if not filenames:
-        abort('nothing to test')
+        abort('Nothing to test')
     
     # read subjects
     subjects = [TestSubject(fn) for fn in filenames]
     #subjects.sort(key=lambda t: t.filename)
     
     # read testcases
-    testcases = read_tests(testsjson)
+    testcases = read_tests(tests)
     if not testcases:
         abort('no tests found')
 
