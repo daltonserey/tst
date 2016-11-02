@@ -200,7 +200,7 @@ if __name__ == "__main__":
     uninstall_command(command)
     install_command(command, files)
     config.setdefault('custom_commands', {})[command] = [f['filename'] for f in files]
-    tst.save_config(config)
+    config.save()
     print("---")
     print("%d file(s) copied" % len(files))
     print("%s command `%s` successfully installed." % (cmd_type.capitalize(), command))
