@@ -6,290 +6,31 @@
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import json
-import yaml
-import os
 import sys
-import codecs
-import md5
-import difflib
 
 import tstlib as tst
-from tstlib import show
-
-try:
-    from cStringIO import StringIO
-except:
-    from StringIO import StringIO
-
-TEXT_FIELDS = ['name', 'label', 'type', 'text']
-
-def help():
-    print("usage: tst-commit [name]")
-    sys.exit(1)
-
-
-def activity_url(iid):
-    activities_endpoint = config['url'] + "/api/activity"
-    return "%s/%s" % (activities_endpoint, str(iid))
-
-
-def bump_patch(version):
-    major, minor, patch = map(int, version.split("."))
-    patch += 1
-    return "%d.%d.%d" % (major, minor, patch)
-
-
-def bump_minor(version):
-    major, minor, patch = map(int, version.split("."))
-    minor += 1
-    patch = 0
-    return "%d.%d.%d" % (major, minor, patch)
-
-
-def bump_major(version):
-    major, minor, patch = map(int, version.split("."))
-    major += 1
-    minor = 0
-    patch = 0
-    return "%d.%d.%d" % (major, minor, patch)
-
-
-def report(changes, name):
-    if not changes:
-        return ""
-
-    text = StringIO()
-    text.write("# Activity %s\n\n" % name)
-
-    # add textual contents changes
-    if any(e in changes.keys() for e in TEXT_FIELDS):
-        text.write("## Textual fields changed\n\n")
-        for f in TEXT_FIELDS:
-            if f in changes.keys():
-                text.write("  - %s\n" % f)
-        text.write('\n')
-
-    # add removed tests
-    removed = [i for i in xrange(len(changes.get('tests', []))) if changes['tests'][i][0] == '-']
-    if removed:
-        text.write("## Tests removed\n\n")
-        for i in removed:
-            text.write('  - test #%d: %s\n' % (changes['tests'][i][2], changes['tests'][i][1]))
-        text.write('\n')
-        
-    # add added tests
-    added = [i for i in xrange(len(changes.get('tests', []))) if changes['tests'][i][0] == '+']
-    if added:
-        text.write("## Tests added\n\n")
-        for i in added:
-            text.write('  - test #%d: %s\n' % (changes['tests'][i][2], changes['tests'][i][1]))
-        text.write('\n')
-        
-    # add files changed
-    if 'files' in changes:
-        text.write("## Files changed/added\n\n")
-        for filename in changes['files']:
-            text.write('- %s\n' % filename)
-        text.write('\n')
-
-    # add unknown files
-    if 'unknown' in changes:
-        text.write("## Unknown files\n\n")
-        for fn in changes['unknown']:
-            text.write('  - %s\n' % fn)
-        text.write("\n  Use `tst add <file>` to add file to the activity.\n")
-        text.write("  Or type `tst clean` to remove all unknown files.\n\n")
-
-    text.write('---\n')
-    return text.getvalue()
-
-
-def bump_patch(version):
-    major, minor, patch = map(int, version.split("."))
-    patch += 1
-    return "%d.%d.%d" % (major, minor, patch)
-
-
-
-def get_bump_level(changes):
-
-    # find --bump option in command line
-    i = next((i for i in xrange(len(sys.argv)) if sys.argv[i] == '--bump'), -1)
-    _assert(i < len(sys.argv), 1, 'Option --bump <level> incomplete.')
-    user_required_level = sys.argv[i + 1] if i > 0 else None
-    if not 'bump_required' in changes:
-        return user_required_level or 'patch'
-
-    # bump is required
-    _assert(user_required_level is not None, 1, '\nOption --bump <level> is required for this commit.')
-    _assert(user_required_level in ('major', 'minor', 'patch'), 1, 'Invalid bump level. Use major, minor or patch.')
-    return user_required_level
-
-
-def make_patch(activity, tstjson, changes, bump_level):
-    if not changes:
-        return None
-
-    # add patch to bump the version number
-    bump_function = globals()['bump_' + bump_level]
-    patches = [{
-        'op': 'replace',
-        'path': '/version',
-        'value': bump_function(tstjson['version'])
-    }]
-
-    # add a patch for each textual field
-    changed_paths = changes.get('changed_fields')
-    if not changed_paths:
-        # only removed files
-        for fn in changes['removed_files']:
-            patches.append({
-                'op': 'remove',
-                'path': '/files/' + fn
-            })
-        
-        return patches
-
-    textual_fields = [f for f in changed_paths if '\n' not in f]
-    for field in ['name', 'type', 'label', 'text']:
-        if field in textual_fields:
-            patches.append({
-                'op': 'replace',
-                'path': '/' + field,
-                'value': activity[field]
-            })
-        
-    # add a patch for each file changed or created
-    files_changed = [path.split("/")[1:3] for path in changed_paths if path.startswith('files')]
-    for fn, change in files_changed:
-        patches.append({
-            'op': 'replace',
-            'path': '/files/' + fn,
-            'value': {
-                'name': fn,
-                'data': activity['files'][fn]['data'],
-                'category': tstjson['files'][fn].get('category', 'secret')
-            }
-        })
-        
-    if 'tests' in changed_paths:
-        hashed_tests = tst.hashify(activity['tests'])
-        for op, test, index in changes['tests_diff']:
-            if op == '+':
-                patches.append({
-                    'op': 'add',
-                    'path': '/tests/%d' % index,
-                    'value': activity['tests'][hashed_tests.index(test)]
-                })
-            elif op == '-':
-                patches.append({
-                    'op': 'remove',
-                    'path': '/tests/%d' % index
-                })
-
-    return patches
-
-
-def patch_tstjson(tstjson, activity, changes, server_version):
-    
-    # update version data
-    tstjson['version'] = server_version['version']
-    tstjson['version_token'] = server_version['version_token']
-    tstjson['last_update_user'] = server_version['commit_author']
-    tstjson['last_update_datetime'] = server_version['committed_at']
-    
-    # update textual contents data
-    textual_fields = []
-    for field in TEXT_FIELDS:
-        if field in changes:
-            if field == 'text':
-                tstjson[field] = md5.md5(activity['text:contents']).hexdigest()
-            else:
-                tstjson[field] = activity[field]
-
-    # update files data
-    for filename in changes.get('files', []):
-        if filename in changes['files']:
-            tstjson['files'][filename] = activity['files'][filename]
-
-    # update tests data
-    for test in changes.get('tests', []):
-        if testname in changes['tests']:
-            tstjson['tests'][filename] = activity['tests'][filename]
-
-    return tstjson
-
-
-def _assert(condition, code=1, msg='assertion failed'):
-    if not condition:
-        print(msg, file=sys.stderr)
-        sys.exit(code)
-
-
-def sync_activity(response, tstjson):
-    # check response was positive
-    json_response = response.json()
-    _assert(response.exit_status == 0, 1, 'tst: fatal: curl command failed\n')
-    _assert('error' not in json_response, 1, 'tst: fatal: server reported error:\n' + str(json_response.get('messages', 'no server messages')))
-
-    # post/patch worked: save using proper save function
-    save = tst.get_save_function('activity')
-    save(json_response, is_checkout=False)
-
 
 def main():
 
     # read tst.json and activity
     tstjson = tst.read_tstjson(quit_on_fail=True)
-    print(tstjson)
-    sys.exit()
-    activity, unknown = tst.read_activity(tstjson)
+    kind = tstjson['kind']
+    if kind != 'activity':
+        tst.cprint(tst.LRED, "This command does not apply to %ss" % kind)
+        sys.exit()
 
-    # check whether activity is new
     server = tst.Server()
-    if tstjson['state'] == 'new':
-        # post new activity
-        url = "/api/activity"
-        response = server.post(url, payload=activity, exit_on_fail=True)
-        sync_activity(response, tstjson)
-        print("First version successfully saved to the server.")
-        print("%s" % response.json()['version'])
-        sys.exit()
-
-    # read local directory and identify changes
-    changes = tst.activity_changes(activity, tstjson)
-    if not changes:
-        print("nothing to commit")
-        sys.exit()
-
-    # check for missed updates
-    url = config['url'] + '/api/activity/%s/version' % tstjson['iid']
-    last_version = server.get(url).json()
-    missed_updates = False
-    if last_version['version'] != tstjson['version'] or last_version['version_token'] != tstjson['version_token']:
-        # missed updates
-        print("This activity has been updated on the server.")
-        print("Use:")
-        print("    `tst checkout --overwrite` to update and overwrite local changes")
-        print("    `tst checkout --merge` to update and merge local changes")
-        sys.exit()
-
-
-    # Check for missing files
-    _assert(not 'missing_files' in changes, 1, 'Acitivity cannot be commited due to missing files.\n' +\
-                                               'Use `tst status` for more details.')
-    url = activity_url(tstjson['iid'])
-    bump_level = get_bump_level(changes)
-    patches = make_patch(activity, tstjson, changes, bump_level)
-    response = server.patch(url, patches)
-    sync_activity(response, tstjson)
-    print("Commmit finished.")
-    print("%s" % response.json()['version'])
+    url = '/api/activity/%d' % tstjson['iid']
+    patch = [{
+        'op': 'replace',
+        'path': '/state',
+        'value': 'enabled'
+    }]
+    response = server.patch(url, payload=patch, exit_on_fail=True).json()
+    print(response)
 
 
 # main
 if __name__ == "__main__":
     config = tst.Config()
-    server = tst.Server()
     main()
