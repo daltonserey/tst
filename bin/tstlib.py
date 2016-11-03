@@ -677,7 +677,7 @@ def read_activity(tstjson=None):
     activity['tests'] = yamlfile.get('tests', [])
 
     # add default category to tests
-    for test in activity.get('tests', []):
+    for test in activity.get('tests') or []:
         if 'category' not in test:
             test['category'] = 'secret'
         if 'type' not in test:
@@ -747,7 +747,7 @@ def validate_activity(activity):
     _assert(activity['text'][-1] == '\n', msg + "text must end in '\\n' (POSIX)")
 
     # it activity has tests...
-    for i in xrange(len(activity.get('tests', []))):
+    for i in xrange(len(activity.get('tests') or [])):
         test = activity['tests'][i]
         if test['type'] == 'io':
 
