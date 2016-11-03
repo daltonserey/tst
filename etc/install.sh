@@ -184,6 +184,12 @@ echo "{\"tag_name\": \"$tag_name\"}" > $TST_DIR/release.json
 rm -rf $INSTALL_DIR
 print "Finished $mode\n" $IMPORTANT
 
+# remove old abolished commands
+rm -f $TST_DIR/commands/tst-commit2
+rm -f $TST_DIR/commands/tst-checkout2
+rm -f $TST_DIR/commands/tst-assign
+rm -f $TST_DIR/commands/*~
+
 # end script if this is an update
 [[ "$mode" == "update" ]] && exit 0
 

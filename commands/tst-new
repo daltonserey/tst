@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# TST new
+# (C) 2016 Dalton Serey / UFCG
+
+if [[ $# != 2 ]] || [[ $1 != "activity" ]]; then
+    echo "usage: tst new activity <name>"
+    echo "  - use only [a-zA-Z0-9] and [.-_] in name"
+    echo "  - initial character must be letter"
+    exit 1
+fi
+
+activity=$2
+if [[ -e $activity ]]; then
+    echo "file/directory already exists: $activity"
+    exit 1
+fi
+
+mkdir $activity
+cd $activity
+
+# create yaml file
+read -r -d '' YAMLFILE << EOM
+# TST Activity Template.
+# (c) 2016 Dalton Serey, UFCG
+#
+# Read the activity yaml how-to:
+# - https://github.com/daltonserey/tst/wiki/Activity-yaml-how-to
+
+name: $activity
+label: Unnamed
+type: problem
+text: |
+    # Unnamed
+    Markdown contents: 
+    - http://www.markdowntutorial.com/
+    - https://daringfireball.net/projects/markdown/
+
+tests:
+-    category: public
+     name: test_name
+     input: |
+         input line1
+         input line2
+
+     output: |
+         output line1
+         output line2
+
+-    name: test_name
+     input: |
+         input line1
+
+     output: |
+         output line1
+EOM
+
+# create json file
+read -r -d '' TSTJSON <<- EOM
+{
+    "files": {
+        "$activity.yaml": {}
+    },
+    "kind": "activity",
+    "name": "$activity",
+    "state": "new",
+    "iid": null
+}
+EOM
+echo "$YAMLFILE" >> $activity.yaml
+mkdir .tst
+echo "$TSTJSON" >> .tst/tst.json

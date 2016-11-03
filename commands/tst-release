@@ -1,0 +1,45 @@
+#!/usr/bin/env python
+# coding: utf-8
+# TST release
+# (C) 2016 Dalton Serey / UFCG
+
+from __future__ import print_function
+from __future__ import unicode_literals
+
+import sys
+
+import tstlib as tst
+
+def main():
+
+    # read tst.json and activity
+    tstjson = tst.read_tstjson(quit_on_fail=True)
+    kind = tstjson['kind']
+    if kind != 'activity':
+        tst.cprint(tst.LRED, "This command does not apply to %ss" % kind)
+        sys.exit()
+
+    # parse command line
+    tst.pop_argument(sys.argv)
+    disable = tst.pop_flag(sys.argv, 'disable', short='d')
+    value = 'disabled' if disable else 'enabled'
+
+    # dispatch request
+    server = tst.Server()
+    url = '/api/activity/%d' % tstjson['iid']
+    patch = [{
+        'op': 'replace',
+        'path': '/state',
+        'value': value
+    }]
+    response = server.patch(url, payload=patch, exit_on_fail=True)
+    tst.sync_activity(response, tstjson)
+    if value == 'enabled':
+        tst.cprint(tst.LCYAN, "Activity successfully released")
+    else:
+        tst.cprint(tst.LCYAN, "Activity successfully disabled")
+
+
+# main
+if __name__ == "__main__":
+    main()

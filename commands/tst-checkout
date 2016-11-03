@@ -1,132 +1,247 @@
 #!/usr/bin/env python
 # coding: utf-8
-# TST-Online Command Line Login
-# (C) 2012-2014 Dalton Serey / UFCG
-#
-# TST Checkout -- Permite baixar a última versão do programa.
-# Sobreescreve a versão local.
-#
-# CHANGELOG:
-#
-# - tst_logout.py dá mensagem adequada, quando o usuário não
-#   está logado (ou quando o cookie venceu);
-
-# TODO:
-#
-# - se existir um tst.json no diretório corrente, deveria
-#   dispensar o uso de key; se o usuário usar um key, havendo
-#   um tst.json no diretório, deve-se indicar erro; isso evitará
-#   que o usuário venha a sobrepor o tst.json de outro problema;
-# - deveria criar o diretório com base no name da activity (?)
-# - deveria usar o name da activity como chave de download (?)
+# TST checkout
+# (C) 2016 Dalton Serey / UFCG
 
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import json
 import os
 import sys
 import codecs
-import json
+import md5
 
-import tstlib
+import tstlib as tst
+from tstlib import data2json
+from tstlib import _assert
 
+TSTJSON = './.tst/tst.json'
+KINDS = ['assignment', 'activity', 'event', 'group']
 
-def get_key():
-
-    # try from command line
-    if len(sys.argv) > 1:
-        try:
-            integer_id = int(sys.argv[1], 16)
-        except:
-            print("tst: invalid key", file=sys.stderr)
-        return str(integer_id)
-
-    # otherwise, try reading from the tstjson file
-    key = tstjson.get('key')
-    if key:
-        return str(int(key, 16))
-
-    print("tst: what key should be used?", file=sys.stderr)
+def help():
+    print("usage: tst-checkout [name]")
     sys.exit(1)
 
 
-def checkout_url(key):
-    return config['url'] + "/api/assignment/" + key 
+def mkdirs(dirname):
+    try: 
+        os.makedirs(dirname)
+        return True
+    except OSError:
+        if not os.path.isdir(dirname):
+            raise
 
 
-def main():
-    assignment_key = get_key()
-    token = config['access_token']
-    tstonline = tstlib.TSTOnline(token)
-    url = checkout_url(assignment_key) + '?checkout=true'
+def activity_url(iid):
+    activities_endpoint = config['url'] + "/api/activity"
+    return "%s/%s" % (activities_endpoint, str(iid))
+
+
+def checkout_activity(data, dirname, overwrite=False):
+
+    # read local tst.json
+    tstjson = tst.read_tstjson()
+    if tstjson:
+        update_activity(data, dirname, overwrite=overwrite)
+        return
+
+    # get data from server
+    server = tst.Server()
+    url = '/api/activity/%s' % data['iid']
+    activity = server.get(url, exit_on_fail=True).json()
+
+
+    # change to target directory
+    if not os.path.exists(dirname):
+        mkdirs(dirname)
+    os.chdir(dirname)
+
+    # save activity
+    tst.save_activity(activity, is_checkout=True)
+    tst.cprint(tst.LCYAN, "Activity successfully checked out")
+    print("Target directory: %s" % dirname)
     
-    # perform request
-    print("Downloading files.")
-    response = tstonline.get(url)
 
-    if 400 <= response.status_code < 500:
-        msg = response.json()['messages'][0]
-        print("tst: %s" % msg, file=sys.stderr)
-        print("tst: response status code: %d" % response.status_code)
+def update_activity(data, dirname, overwrite=True):
+
+    tstjson = tst.read_tstjson(quit_on_fail=True)
+    name = tstjson['name']
+
+    # calculate delta bewteen directory and checked out version
+    activity, unknown = tst.read_activity(tstjson)
+    changes = tst.activity_changes(activity, tstjson)
+    if not overwrite and changes and set(changes.keys()) - set(['unknown']):
+        print("This activity has local changes. Use:")
+        print("  `tst status` to list local changes")
+        print("  `tst checkout --overwrite` to discarding changes")
         sys.exit()
+        
+    directory = '.'
 
-    if response.status_code != 200:
-        print("tst: it seems you're not logged in", file=sys.stderr)
-        print("tst: response status code: %d" % response.status_code)
-        sys.exit()
+    # request activity data
+    server = tst.Server()
+    url = '/api/activity/%s' % data['iid']
+    activity = server.get(url, exit_on_fail=True).json()
 
-    # process response
-    data = response.json()
-    activity_revision = data.get('activity_revision')
-    files = data.get('files', [])
-    if '__code' in data:
-        files.append({
-            "name":data['__code']['__filename'],
-            "data":data['__code']['__code']
-        })
+    # inspect response
+    if config['user'] != activity['owner'] and config['user'] not in activity['collaborators']:
+        print("This activity is not shared with you.")
+        print("Operation aborted.")
+        sys.exit(1)
 
-    print("Revision %s of the activity has been checked out." % activity_revision)
-    print("Saving downloaded files.")
+    # change to activity directory
+    if not os.path.exists(directory):
+        mkdirs(directory)
+    os.chdir(directory)
 
-    # save/overwrite files
-    filename = None
-    for file in files:
-        filename = file["name"]
-        filedata = file["data"]
-        if os.path.exists(filename):
-            while True:
-                confirm = raw_input("tst: overwrite '%s'? (Y/n) " % filename)
-                if confirm.lower() in "ny": break
-
-            if confirm == "n":
-                continue
-
-        program_file = open(filename, "w")
-        filedata = filedata.encode('utf-8')
-        program_file.write(filedata)
-        print("- %s (%d bytes)" % (filename, len(filedata)))
-
-    # save/update tst.json
-    tstjson['key'] = "%X" % int(assignment_key)
-    tstjson['activity_revision'] = activity_revision
-    tstjson['tests'] = data['tests']
-    if data.get('files'):
-        tstjson['tst_files'] = [file['name'] for file in data.get('files')]
-    if filename:
-        tstjson['filename'] = filename
-        tstjson['tst_files'].remove(filename)
-    tstlib.save_tstjson(tstjson)
-    print("- tst.json")
+    # save using proper save function
+    tst.save_activity(activity, is_checkout=True)
+    print("Activity successfully checked out")
+    print("Target directory: %s" % directory)
 
 
+def save_assignment(assignment, is_checkout=True):
+    # save tst.json
+    tstjson = {
+        'kind': 'assignment',
+        'files': assignment['files'],
+        'iid': assignment['iid'],
+        'activity_revision': assignment['activity_revision'],
+        'name': assignment.get('name')
+    }
+    tst.save_tstjson(tstjson)
+    
+    # read local tests, if any
+    filename = 'tst.json'
+    local_tests = []
+    if os.path.exists(filename):
+        with codecs.open(filename, mode='r', encoding='utf-8') as f:
+            local_tests = json.load(f)['tests']
+
+    # add activity tests to local tests
+    tests = assignment['tests']
+    for test in local_tests:
+        if test in tests:
+            continue
+        tests.append(test)
+
+    # save visible tst.json
+    with codecs.open(filename, mode='w', encoding='utf-8') as f:
+        f.write(data2json({'tests': tests}))
+    
+    # save files (server includes last answer as a file)
+    for filename in assignment['files']:
+        contents = assignment['files'][filename]['data']
+        with codecs.open(filename, mode='w', encoding='utf-8') as f:
+            f.write(contents)
+    
+
+
+def checkout_assignment(data, dirname, overwrite=False):
+
+    # request activity data
+    server = tst.Server()
+    url = '/api/assignment/%s?checkout=true' % data['iid']
+    assignment = server.get(url, exit_on_fail=True).json()
+
+    # change to target directory
+    if not os.path.exists(dirname):
+        mkdirs(dirname)
+    os.chdir(dirname)
+
+    save_assignment(assignment)
+    tst.cprint(tst.LCYAN, "Assignment successfully checked out")
+    print("Target directory: %s" % dirname)
+
+
+def get_checkout_function(kind):
+    return globals()["checkout_" + kind]
+
+
+def main(args):
+
+    # parse command line
+    command = tst.pop_argument(args)
+    overwrite = tst.pop_flag(args, 'overwrite', short='o')
+    index = tst.pop_option(args, 'index', short='i', type=int)
+    name = tst.pop_argument(args)
+    dirname = tst.pop_argument(args) or name
+    _assert(args == [], "tst: fatal: too many arguments")
+
+    # check whether this is a tst directory
+    tstjson = tst.read_tstjson()
+    if tstjson and name and name != tstjson['name']:
+        tst.cprint(tst.LRED, "Cannot checkout an object inside another")
+        print("---")
+        print("Use `tst status` to display info about this tst directory")
+        print("Use `tst checkout` to update the object in this directory")
+        print("Or change directory and repeat the command")
+        sys.exit(1)
+
+    elif not tstjson and not name:
+        tst.cprint(tst.LRED, "Not a tst directory and no object specified")
+        print("---")
+        print("Use `tst checkout <name>` to checkout object <name> in its directory")
+        print("Use `tst checkout <name> <dir>` to checkout object <name> in <dir>")
+        print("Use `tst ls` to list all objects available")
+        print("You can use either a <name> or an integer identifier")
+        sys.exit(1)
+        
+    elif tstjson and not name:
+        name = tstjson.get('name') or tstjson.get('iid')
+        dirname = "."
+
+    # identify kind of object requested
+    server = tst.Server()
+    url = "/api/object/%s" % name
+    objects = server.get(url, exit_on_fail=True).json()
+    _assert(type(objects) is list, "tst: fatal: invalid data received from server")
+
+    # dispatch to proper checkout function
+    if len(objects) == 1 or len(objects) > 1 and 0 <= index < len(objects):
+        obj = objects[index or 0]
+        checkout = get_checkout_function(obj['kind'])
+        checkout(obj, dirname, overwrite=overwrite)
+        sys.exit(0)
+
+    # set failure message
+    if objects == []:
+        message = "No object named `%s`" % name
+    elif len(objects) > 1 and index is None:
+        message = "Multiple objects named `%s`" % name
+    elif len(objects) > 1 and not (0 <= index < len(objects)):
+        message = "Invalid index: %s" % str(index)
+    tst.cprint(tst.LRED, message)
+
+    # print possible subsequent commands
+    print("---")
+    if objects == []:
+        print("Use `tst checkout <user>:<name>` to add and checkout shared object")
+        print("Use `tst ls` to list all available objects")
+    else:
+        for i in xrange(len(objects)):
+            obj = objects[i]
+            print("Use `tst checkout %s --index %d` to checkout" % (name, i))
+            if obj['kind'] == 'activity':
+                print("   activity `%s` of %s" % (obj['name'], obj['owner']))
+            elif obj['kind'] == 'assignment':
+                print("   assignment `%s`" % obj['iid'])
+            print()
+
+
+# main
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == '--one-line-help':
-        print("download assignment files")
+
+    if sys.argv[-1] == '--one-line-help':
+        print("save changes to the server")
         sys.exit()
 
-    config = tstlib.read_config(exit=True)
-    tstjson = tstlib.read_tstjson(quit_on_fail=False)
-    logfile = os.path.expanduser("~/.tst/logs")
-    log = codecs.open(logfile, mode="a", encoding='utf-8')
-    headers = {'Authorization': 'Bearer ' + config['access_token']}
-    main()
+    config = tst.Config()
+    if 'user' not in config:
+        tst.cprint(tst.LRED, "No user logged in.")
+        print("---")
+        print("Use `tst login <email>` to log in to the server")
+        sys.exit(1)
+
+    main(sys.argv)

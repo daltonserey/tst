@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
-# TST-Online Command Line Login
+# TST config
 # (C) 2012-2014 Dalton Serey / UFCG
 #
 # TST Commit -- Permite salvar uma nova versão do programa.
@@ -19,10 +19,10 @@ WHITE="\033[1;37m"
 LCYAN = '\033[1;36m'
 RESET = '\033[0m'
 
-FIELDS = ['user', 'group', 'url', 'output']
+FIELDS = ['user', 'group', 'url', 'output', 'domain', 'debug']
 
 # read config
-config = tst.read_config()
+config = tst.Config()
 
 # one-line-help
 if len(sys.argv) > 1 and sys.argv[1] == '--one-line-help':
@@ -61,14 +61,14 @@ else:
         prop = sys.argv[1]
 
         # check property
-        if not prop in FIELDS:
+        if prop not in FIELDS:
             msg = LRED + "tst: cannot configure '%s'" % prop + RESET
             print(msg, file=sys.stderr)
             sys.exit(1)
 
         if prop in config:
-            del config[prop]
-            tst.save_config(config)
+            config.pop(prop)
+            config.save()
         
     else:
         prop, value = sys.argv[0], sys.argv[1]
@@ -80,4 +80,6 @@ else:
             sys.exit(1)
 
         config[prop] = value
-        tst.save_config(config)
+        config.save()
+        msg = "%s: %s%s" % (prop, LGREEN, config[prop]) + RESET
+        print(msg)
