@@ -143,8 +143,8 @@ def tst_share(args):
 
     server = tst.Server()
     activity = tstjson['iid']
-    url = config['url'] + '/api/activity/%s/collaborators' % activity
-    response = server.post(url, usernames)
+    url = '/api/activity/%s/collaborators' % activity
+    response = server.post(url, payload=usernames)
     data = response.json()
     if response.status_code == 400:
         if 'unknown_users' in data:
@@ -167,6 +167,10 @@ def tst_share(args):
 
     else:
         print("Something went wrong.")
+        print("Does this activity really exist in the server?")
+        if config['debug']:
+            print(response.stderr)
+            print(response.stdout)
         # TODO: add a tst.log method to save debug info
         sys.exit(1)
 

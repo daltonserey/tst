@@ -33,11 +33,6 @@ def mkdirs(dirname):
             raise
 
 
-def activity_url(iid):
-    activities_endpoint = config['url'] + "/api/activity"
-    return "%s/%s" % (activities_endpoint, str(iid))
-
-
 def checkout_activity(data, dirname, overwrite=False):
 
     # read local tst.json
