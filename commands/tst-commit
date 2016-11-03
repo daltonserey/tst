@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
-# TST-Online Checkout
+# TST commit
 # (C) 2016 Dalton Serey / UFCG
 
 from __future__ import print_function

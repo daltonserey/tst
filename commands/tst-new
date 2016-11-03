@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# TST new
+# (C) 2016 Dalton Serey / UFCG
+
 if [[ $# != 2 ]] || [[ $1 != "activity" ]]; then
     echo "usage: tst new activity <name>"
     echo "  - use only [a-zA-Z0-9] and [.-_] in name"
