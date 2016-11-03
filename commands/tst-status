@@ -28,11 +28,6 @@ def help():
     sys.exit(1)
 
 
-def activity_url(iid):
-    activities_endpoint = config['url'] + "/api/activity"
-    return "%s/%s" % (activities_endpoint, str(iid))
-
-
 def bump_patch(version):
     major, minor, patch = map(int, version.split("."))
     patch += 1

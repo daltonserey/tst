@@ -199,7 +199,13 @@ class Config(object):
 
     def load(self, exit_on_fail=False):
         if not os.path.exists(TSTCONFIG):
-            self.data = {'url': 'http://tst-online.appspot.com', 'cookies': {}}
+            self.data = {
+                'url': 'http://tst-online.appspot.com',
+                'cookies': {},
+                'run': {
+                    'py': 'python2.7'
+                }
+            }
             return
 
         # actually read from file system
@@ -512,6 +518,7 @@ def read_tstjson(file=TSTJSON, exit=False, quit_on_fail=False):
 
     try:
         with codecs.open(file, mode='r', encoding='utf-8') as f:
+            print(file)
             tstjson = json.loads(to_unicode(f.read()))
 
     except ValueError:
@@ -798,7 +805,7 @@ def save_yaml(yamlfile, data):
                     prefix = '-   ' if is_first else '    '
                     if field_value is None:
                         y.write(prefix + '%s: null\n' % test_field)
-                        cprint(LYELLOW, "WARNING: '%s' field is null" % test_field, file=sys.stderr)
+                        cprint(LGREEN, "WARNING: '%s' field is null" % test_field, file=sys.stderr)
                     elif '\n' in field_value:
                         y.write(prefix + '%s: |\n' % test_field)
                         y.write(indent(field_value, 2))
