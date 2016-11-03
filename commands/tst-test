@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
-# (c) 2011-2014 Dalton Serey, UFCG
+# TST test
+# (c) 2012-2016 Dalton Serey, UFCG
 
 from __future__ import print_function
 from __future__ import unicode_literals
@@ -13,6 +14,7 @@ import glob
 import shlex
 import signal
 import string
+import codecs
 import unicodedata
 import argparse
 import difflib
@@ -64,8 +66,7 @@ LCYAN = '\033[1;36m'
 RESET = '\033[0m'
 
 def abort(msg, code=1):
-    msg = 'tst: ' + msg
-    print(msg.encode('utf-8'), file=sys.stderr)
+    tst.cprint(tst.LRED, msg.encode('utf-8'), file=sys.stderr)
     sys.exit(code)
 
 
@@ -150,6 +151,7 @@ class TestRun:
         except CutTimeOut: # program didn't stop within expected time
             process.terminate()
             self.result['status'] = 'Timeout'
+            self.result['summary'] = 't'
             return
 
         # collect test data
@@ -186,7 +188,19 @@ class TestRun:
     def run_iotest(self, timeout=TIMEOUT_DEFAULT):
 
         # define command
-        cmd_str = '%s %s' % (PYTHON, self.subject.filename)
+        config = tst.Config()
+        if config.get('run'):
+            # use run option
+            run = config['run']
+            extensions = run.keys()
+            ext = self.subject.filename.split('.')[-1]
+            tst._assert(ext in extensions, "\nfatal: missing command for extension %s" % ext)
+            command = config['run'][ext]
+            cmd_str = "%s %s" % (command, self.subject.filename)
+        else:
+            # default is running through python
+            cmd_str = '%s %s' % (PYTHON, self.subject.filename)
+
         command = shlex.split(cmd_str.encode('utf-8'))
 
         # encode test input data
@@ -492,12 +506,12 @@ def to_unicode(obj, encoding='utf-8'):
 
 def read_tests(tstjson):
 
-    # read the JSON file
-    tests = tstjson.get('tests', [])
-    ignore = tstjson.get('ignore')
+    # read tests from tstjson
+    tests = tstjson['tests']
 
     # copy default ignore options to testcases without ignore
     # TODO: the test should look up the default ignore clause
+    ignore = tstjson.get('ignore')
     if ignore:
         for test in tests:
             if 'ignore' not in test:
@@ -619,7 +633,7 @@ def report_results(subjects, output):
         data = [{
             'subject': subject.filename,
             'tests': subject.results(),
-            'summary': "".join(subject.summaries(True)),
+            'summary': "".join(subject.summaries(join_io=True)),
             'verdict': subject.verdict()
         } for subject in subjects]
 
@@ -638,21 +652,28 @@ def parse_cli():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('-t', '--timeout', type=int, default=5, help='stop execution at TIMEOUT seconds')
     parser.add_argument('-o', '--output', choices=['raw', 'debug', 'json', 'summary'], help='set output type')
+    parser.add_argument('-s', '--server', action='store_const', const=True, help='run server acceptance tests on last answer')
     parser.add_argument('filename', nargs='*', default=[''])
     args = parser.parse_args()
+
+    config = tst.Config()
+    valid_extensions = [".py"]
+    if 'run' in config:
+        valid_extensions = config['run'].keys()
 
     # determine filenames
     if len(args.filename) == 1 and os.path.exists(args.filename[0]):
         filenames = [args.filename[0]]
 
     elif len(args.filename) == 1:
-        fn_pattern = '*%s*.py' % args.filename[0]
+        fn_pattern = '*%s*' % args.filename[0]
         filenames = glob.glob(fn_pattern)
+        filenames = [fn for fn in filenames if any(fn.endswith(e) for e in valid_extensions)]
 
     else:
         filenames = args.filename
 
-    return filenames, args.timeout, args.output
+    return filenames, args.timeout, args.output, args.server
 
 
 def debug(msg=''):
@@ -661,34 +682,58 @@ def debug(msg=''):
     print(line.encode('utf-8'), file=sys.stderr)
 
 
+def request_server_tests(tstjson):
+    server = tst.Server()
+    url = '/api/assignment/%s/tests' % tstjson['iid']
+    response = server.post(url, payload="", exit_on_fail=True)
+    print("Acceptance tests requested")
+    print(response.stdout)
+
+
 def main():
 
-    # read tstjson
-    config = tst.read_config(exit=True)
-    tstjson = tst.read_tstjson(quit_on_fail=True)
-
     # parse command line data
-    filenames, timeout, output = parse_cli()
+    filenames, timeout, output, server = parse_cli()
+
+    # identify activity files
+    tstjson = tst.read_tstjson(quit_on_fail=False)
+    activity_files = []
+    if tstjson:
+        files = tstjson['files']
+        activity_files = [f['name'] for f in files.values() if f['category'] != 'answer']
+
+    # dispatch server tests if required
+    if server:
+        tst._assert(tstjson['kind'] == 'assignment', "The --server option only apply to assignments")
+        request_server_tests(tstjson)
+        sys.exit()
+            
+    # read local tests
+    tests = tst.read_tstjson(file='tst.json')
+    if tests is None:
+        tst.cprint(tst.LRED, "No tests found: tst.json")
+        sys.exit(1)
 
     # set default output to user's preference if any
+    config = tst.Config()
     output = output or config.get('output') or 'debug'
 
-    # remove files that belong to the test 
-    files_to_remove = [f['name'] for f in tstjson.get('files', [])]
-    files_to_remove.append('tst.json')
+    # discard files mentioned in tst.json, if any
+    assignment_files = [f['name'] for f in tests.get('files', [])]
+    assignment_files.append('tst.json')
     for i in xrange(len(filenames)-1, -1, -1):
-        if filenames[i] in files_to_remove:
+        if filenames[i] in assignment_files or filenames[i] in activity_files:
             filenames.pop(i)
 
     if not filenames:
-        abort('nothing to test')
+        abort('Nothing to test')
     
     # read subjects
     subjects = [TestSubject(fn) for fn in filenames]
     #subjects.sort(key=lambda t: t.filename)
     
     # read testcases
-    testcases = read_tests(tstjson)
+    testcases = read_tests(tests)
     if not testcases:
         abort('no tests found')
 
@@ -709,7 +754,7 @@ def main():
             tests_performed += 1
 
         if output == 'raw':
-            summary = ''.join(subject.summaries(True))
+            summary = ''.join(subject.summaries(join_io=True))
             line = '%s %s' % (summary, subject.filename)
             print(line.encode('utf-8'), file=sys.stderr)
 

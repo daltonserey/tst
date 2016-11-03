@@ -1,0 +1,206 @@
+#!/usr/bin/env python
+# coding: utf-8
+# TST install
+# (C) 2016 Dalton Serey / UFCG
+
+from __future__ import print_function
+from __future__ import unicode_literals
+
+import json
+import os
+import sys
+import codecs
+import md5
+
+import tstlib as tst
+from tstlib import data2json
+
+INTERNALS = ["help", "version", "sharing", "add", "ls", "remove", "uninstall"]
+EXTERNALS = ["update", "login", "checkout", "test", "commit", "config"]
+HIDDEN = ['checkout2', 'commit2', 'status', 'new', 'add', 'install']
+STANDARD_COMMANDS = EXTERNALS + INTERNALS + HIDDEN
+
+def matching_gists(gists, command):
+    matches = []
+    ifn = internal_fn(command)
+    efn = external_fn(command)
+    for gist in gists:
+        filenames =  gist['files'].keys()
+        if ifn in filenames or efn in filenames:
+            matches.append(gist)
+        
+    return matches
+
+
+def is_command(fn):
+    return is_internal(fn) or is_external(fn)
+
+
+def is_internal(fn):
+    return fn.startswith('tst_') and fn.endswith('.py')
+
+
+def is_external(fn):
+    return fn.startswith('tst-')
+
+
+def get_gist_files(user, command):
+
+    # download gists
+    url = "https://api.github.com/users/%s/gists" % user
+    server = tst.GitHub()
+    response = server.get(url)
+    gists = response.json()
+    
+    # choose matching gists
+    gists = matching_gists(gists, command)
+    if len(gists) == 0:
+        print("No gist matches given command name.")
+        print("Installation aborted.")
+        sys.exit(1)
+    elif len(gists) > 1:
+        print("More than one gist matches the given command name.")
+        print("Choosing the first in GitHub's list.")
+    gist = gists[0]
+
+    # identify command files in gist
+    command_files = [fn for fn in gist['files'].keys() if is_command(fn)]
+    if len(command_files) > 1:
+        print("This gist contains more than one command file.")
+        print("A valid tst command gist must contain a single command file.")
+        print("Installation aborted.")
+        sys.exit(1)
+
+    # identify command type
+    cmd_type = 'external' if any(is_external(f) for f in command_files) else 'internal'
+
+    # read files
+    files = []
+    for fn in gist['files']:
+        response2 = server.get(gist['files'][fn]['raw_url'])
+        files.append({
+            'filename': fn,
+            'data': response2.stdout,
+            'mode': 0755 if cmd_type == 'external' else 0644
+        })
+
+    return cmd_type, files
+
+
+def get_command_files(command, cmd_type, filenames):
+    if cmd_type is None:
+        if os.path.exists(internal_fn(command)):
+            cmd_type = 'internal'
+        elif os.path.exists(external_fn(command)):
+            cmd_type = 'external'
+
+    filename = internal_fn(command) if cmd_type == 'internal' else external_fn(command)
+    filenames.append(filename)
+
+    path = os.path.expanduser('~/.tst/commands')
+    files = []
+    for fn in filenames:
+        filename = '%s/%s' % (path, fn)
+        with codecs.open(fn, mode='r', encoding='utf-8') as f:
+            data = f.read()
+        with codecs.open(filename, mode='w', encoding='utf-8') as f:
+            f.write(data)
+        files.append({
+            'filename': fn,
+            'data': data,
+            'mode': 0755 if cmd_type == 'external' else 0644
+        })
+
+        
+    return files
+
+
+def internal_fn(command):
+    return "tst_%s.py" % command
+
+
+def external_fn(command):
+    return "tst-%s" % command
+
+
+def uninstall_command(command):
+    path = os.path.expanduser('~/.tst/commands')
+    files = config.get('custom_commands', {}).get(command, [])
+    for fn in files:
+        filename = '%s/%s' % (path, fn)
+        if os.path.exists(filename):
+            os.remove(filename)
+
+
+def install_command(command, files):
+    path = os.path.expanduser('~/.tst/commands')
+    for fdata in files:
+        filename = path + '/' + fdata['filename']
+        with codecs.open(filename, mode='w', encoding='utf-8') as f:
+            f.write(fdata['data'])
+        os.chmod(filename, fdata['mode'])
+
+
+def parse_filename(fn):
+    if fn.startswith('tst_') and fn.endswith('.py'):
+        command = fn[4:-3]
+        cmd_type = 'internal'
+    elif fn.startswith('tst-'):
+        command = fn[4:]
+        cmd_type = 'external'
+    else:
+        print("Invalid file name for tst command. Use:")
+        print("  `tst install <filename>` to install from file")
+        print("  `tst install <username:command>` to install from GitHub")
+        sys.exit(1)
+
+    return command, cmd_type
+
+
+if __name__ == "__main__":
+
+    # identify command name, type and source
+    if ':' in sys.argv[1]:
+        source = 'gist'
+        cmd_type = None
+        user, command = sys.argv[1].split(':')
+    else:
+        source = 'file'
+        filename = sys.argv[1]
+        command, cmd_type = parse_filename(filename)
+
+    # notify user if trying to install standard command
+    if command in STANDARD_COMMANDS:
+        print("You cannot overwrite standard tst commands.")
+        sys.exit()
+
+    # notify user about risks 
+    config = tst.Config()
+    print("# DISCLAIMER")
+    print("Beware that installing custom commands on tst means installing")
+    print("third party software that will actually run in your system.")
+    print("People can use this to install and run malware.")
+    print("Please, be sure you can trust the user who provides the software.")
+    answer = raw_input("\nAre you sure you want to install this command? (y/n) ")
+    if answer.lower() != 'y':
+        print("Installation aborted.")
+        sys.exit()
+    
+    if source == 'gist':
+        cmd_type, files = get_gist_files(user, command)
+
+    else: # source == 'file'
+        filenames = sys.argv[2:] if len(sys.argv) > 2 else []
+        files = get_command_files(command, cmd_type, filenames)
+
+    if files is None:
+        print("tst: fatal: couldn't locate command source")
+        sys.exit()
+
+    uninstall_command(command)
+    install_command(command, files)
+    config.setdefault('custom_commands', {})[command] = [f['filename'] for f in files]
+    config.save()
+    print("---")
+    print("%d file(s) copied" % len(files))
+    print("%s command `%s` successfully installed." % (cmd_type.capitalize(), command))
