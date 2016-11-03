@@ -46,9 +46,9 @@ To install the latest stable release, run the following command.
 
     $ bash -c "$(curl -q -sSL http://bit.ly/tst-install)"
 
-To install the latest development pre-release, install `tst` with 
-the command above and update to the latest pre-release (see
-below)
+To install the latest development pre-release, first install
+`tst` using the command above and update to the latest
+pre-release (see below)
 
 ### Update
 
