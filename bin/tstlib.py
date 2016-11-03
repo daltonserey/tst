@@ -677,7 +677,7 @@ def read_activity(tstjson=None):
     activity['tests'] = yamlfile.get('tests', [])
 
     # add default category to tests
-    for test in activity.get('tests', []):
+    for test in activity.get('tests') or []:
         if 'category' not in test:
             test['category'] = 'secret'
         if 'type' not in test:
