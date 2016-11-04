@@ -55,7 +55,7 @@ def checkout_activity(data, dirname, overwrite=False):
     # save activity
     tst.save_activity(activity, is_checkout=True)
     tst.cprint(tst.LCYAN, "Activity successfully checked out")
-    print("Target directory: %s" % dirname)
+    tst.cprint(tst.RESET, "Target directory: %s%s" % (tst.LGREEN, dirname))
     
 
 def update_activity(data, dirname, overwrite=True):
@@ -161,8 +161,16 @@ def main(args):
     overwrite = tst.pop_flag(args, 'overwrite', short='o')
     index = tst.pop_option(args, 'index', short='i', type=int)
     name = tst.pop_argument(args)
-    dirname = tst.pop_argument(args) or name
+    dirname = tst.pop_argument(args)
     _assert(args == [], "tst: fatal: too many arguments")
+
+    # parse object name
+    if ':' in name:
+        user, name = name.split(':', 1)
+    else:
+        user = None
+
+    dirname = dirname or name
 
     # check whether this is a tst directory
     tstjson = tst.read_tstjson()
@@ -189,7 +197,10 @@ def main(args):
 
     # identify kind of object requested
     server = tst.Server()
-    url = "/api/object/%s" % name
+    if user:
+        url = "/api/object/%s?user=%s" % (name, user)
+    else:
+        url = "/api/object/%s" % name
     objects = server.get(url, exit_on_fail=True).json()
     _assert(type(objects) is list, "tst: fatal: invalid data received from server")
 
@@ -202,7 +213,10 @@ def main(args):
 
     # set failure message
     if objects == []:
-        message = "No object named `%s`" % name
+        if user:
+            message = "No object `%s` for user `%s`" % (name, user)
+        else:
+            message = "No object `%s`" % name
     elif len(objects) > 1 and index is None:
         message = "Multiple objects named `%s`" % name
     elif len(objects) > 1 and not (0 <= index < len(objects)):
@@ -212,7 +226,7 @@ def main(args):
     # print possible subsequent commands
     print("---")
     if objects == []:
-        print("Use `tst checkout <user>:<name>` to add and checkout shared object")
+        print("Use `tst checkout <user>:<name>` to accept and checkout shared object")
         print("Use `tst ls` to list all available objects")
     else:
         for i in xrange(len(objects)):
