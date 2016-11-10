@@ -11,6 +11,7 @@ import re
 import sys
 import json
 import glob
+import time
 import shlex
 import signal
 import string
@@ -682,12 +683,60 @@ def debug(msg=''):
     print(line.encode('utf-8'), file=sys.stderr)
 
 
+def tests_report(summary):
+    num_tests = len(summary)
+    successes = sum(1 for c in summary if c == '.')
+    fails = sum(1 for c in summary if c in '*F')
+    errors = num_tests - successes - fails
+
+    return num_tests, successes, fails, errors
+
+
 def request_server_tests(tstjson):
+
+    # basic data
     server = tst.Server()
-    url = '/api/assignment/%s/tests' % tstjson['iid']
-    response = server.post(url, payload="", exit_on_fail=True)
-    print("Acceptance tests requested")
-    print(response.stdout)
+    url = '/api/assignment/%s/validation' % tstjson['iid']
+
+    while True:
+
+        # request last validation results
+        response = server.post(url, exit_on_fail=True)
+        status = response.json()['status']
+
+        if status == 'no validation requested':
+            # request last answer validation
+            tst.cprint(tst.LGREEN, "Requesting validation...")
+            response = server.post(url, payload="", exit_on_fail=True)
+
+        elif status == 'waiting worker response':
+            # wait a few seconds
+            tst.cprint(tst.LCYAN, "Waiting for the worker...")
+            time.sleep(3)
+
+        elif status == 'tests finished':
+            break
+
+        else:
+            print(response.stdout)
+            _assert(False, "fatal: please contact developers")
+
+    summary = response.json()['summary']
+    num_tests, successes, fails, errors = tests_report(summary)
+
+    # add num tests to msg
+    msg = "%d tests run, %d errors, %d fails." % (num_tests, errors, fails)
+
+    if all(c == '.' for c in summary):
+        tst.cprint(tst.LCYAN, summary)
+    else:
+        tst.cprint(tst.LRED, summary)
+    print(msg)
+    if not fails and not errors:
+        tst.cprint(tst.LGREEN, "Answer accepted")
+    else:
+        tst.cprint(tst.LGREEN, "Answer rejected")
+    
 
 
 def main():

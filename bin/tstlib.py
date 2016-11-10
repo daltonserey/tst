@@ -99,11 +99,15 @@ def pop_argument(args, index=0):
     if index >= len(args):
         return None
     
-    return args.pop(0)
+    return args.pop(index)
 
 
-def pop_option(args, option, short=None, default=None, type=str):
-    selectors = ['--' + option]
+def pop_option(args, option, short=None, default=None, vtype=str):
+    if type(option) == list:
+        selectors = ['--' + opt for opt in option]
+    else:
+        selectors = ['--' + option]
+
     if short is not None:
         selectors.append('-' + short)
 
@@ -114,7 +118,7 @@ def pop_option(args, option, short=None, default=None, type=str):
     value = args.pop(index + 1)
     selector = args.pop(index)
     
-    return type(value)
+    return vtype(value)
 
 
 def pop_flag(args, flag, short=None):
@@ -518,7 +522,6 @@ def read_tstjson(file=TSTJSON, exit=False, quit_on_fail=False):
 
     try:
         with codecs.open(file, mode='r', encoding='utf-8') as f:
-            print(file)
             tstjson = json.loads(to_unicode(f.read()))
 
     except ValueError:
@@ -607,7 +610,6 @@ def read_assignment(tstjson):
             if files[filename]['category'] == 'answer':
                 assignment['checksum'] = md5.md5(contents.encode('utf-8')).hexdigest()
 
-    assignment['checksum'] = md5.md5(contents).hexdigest()
     assignment['files'] = files
     assignment['unknown_files'] = unknown_files
         

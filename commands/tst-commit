@@ -300,21 +300,20 @@ def commit_assignment(tstjson, args):
         # take unique unknown file as answer, add to tstjson and notify user
         filename = assignment['unknown_files'].pop(0)
         tst.cprint(tst.LCYAN, "Assuming `%s` as answer file" % filename)
-    
     _assert(filename, "No answer file was identified")
 
+    # read current answer
     if not os.path.exists(filename):
         tst.cprint(tst.LRED, "Answer file not found: '%s'" % filename)
         print("---")
         print("Use `tst commit <filename>` to change and commit the answer file")
         print("Or bring back the file and run `tst commit` again")
         sys.exit()
-
-    # read current answer
     with codecs.open(filename, mode='r', encoding='utf-8') as f:
         contents = f.read()
+
     checksum = md5.md5(contents.encode('utf-8')).hexdigest()
-    if filename == current_answer_file and checksum == tstjson.get('last_commit'):
+    if filename == current_answer_file and checksum == tstjson.get('checksum'):
         tst.cprint(tst.LCYAN, 'No changes to commit')
         sys.exit()
 
@@ -341,7 +340,7 @@ def commit_assignment(tstjson, args):
         'category': 'answer',
         'data': contents
     }
-    tstjson['last_commit'] = checksum
+    tstjson['checksum'] = checksum
     tst.save_tstjson(tstjson)
         
     tst.cprint(tst.LCYAN, "Assignment successfully saved")
