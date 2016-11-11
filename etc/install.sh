@@ -15,7 +15,11 @@
 #       evolution messages, it doesn't ask whether or not to
 #       overwrite previous installations, it doesn't configure
 #       the enviroment and doesn't delete old installations of
-#       tst.  This mode is used by the tst update command.
+#       tst. This mode is used by the tst update command.
+#
+# --non-interactive
+#       Install tst in non-interactive mode, configure the
+#       environment and delete old installations of tst.
 #
 # --installation-dir <dir>
 #       Install the new version into <dir>.
@@ -50,6 +54,11 @@ function print {
 
 # read either 'y' or 'n' from keyboard
 function get_yes_or_no {
+    if [[ "$interactive" == "false" ]]; then
+        answer="y"
+        return
+    fi
+
     while true; do 
         read -s -n 1 answer
         [[ "$answer" == "y" ]] && break
@@ -82,6 +91,7 @@ require_command unzip
 # process options
 mode="installation"
 verbose="true"
+interactive="true"
 while (( $# > 0 )); do
     case "$1" in
         --pre-release)
@@ -89,6 +99,10 @@ while (( $# > 0 )); do
             ;;
         --update)
             mode="update"
+            verbose="false"
+            ;;
+        --non-interactive)
+            interactive="false"
             verbose="false"
             ;;
         --*)
