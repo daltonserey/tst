@@ -749,7 +749,7 @@ def main():
     activity_files = []
     if tstjson:
         files = tstjson['files']
-        activity_files = [f['name'] for f in files.values() if f['category'] != 'answer']
+        activity_files = [fn for fn in files if files[fn]['category'] != 'answer']
 
     # dispatch server tests if required
     if server:
@@ -765,7 +765,7 @@ def main():
 
     # set default output to user's preference if any
     config = tst.Config()
-    output = output or config.get('output') or 'debug'
+    output = output or config.get('output') or 'raw'
 
     # discard files mentioned in tst.json, if any
     assignment_files = [f['name'] for f in tests.get('files', [])]
