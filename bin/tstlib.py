@@ -207,7 +207,8 @@ class Config(object):
                 'url': 'http://tst-online.appspot.com',
                 'cookies': {},
                 'run': {
-                    'py': 'python2.7'
+                    'py': 'python2.7',
+                    'java': 'runjava'
                 }
             }
             return

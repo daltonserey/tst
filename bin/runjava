@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+classe=$(grep class $1 | cut -f 2 -d ' ')
+javac -encoding utf-8 -nowarn  $1 > /dev/null
+if [[ $? == 0 ]]; then
+    java $classe
+fi
+rm *class
