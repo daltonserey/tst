@@ -165,7 +165,7 @@ def main(args):
     _assert(args == [], "tst: fatal: too many arguments")
 
     # parse object name
-    if ':' in name:
+    if name and ':' in name:
         user, name = name.split(':', 1)
     else:
         user = None
