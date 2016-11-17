@@ -21,6 +21,9 @@
 #       Install tst in non-interactive mode, configure the
 #       environment and delete old installations of tst.
 #
+# --root
+#       Force installation as root user.
+#
 # --installation-dir <dir>
 #       Install the new version into <dir>.
 
@@ -79,7 +82,7 @@ function require_command {
 }
 
 # MAIN
-if [[ "$EUID" == "0" ]]; then
+if [[ "$EUID" == "0" ]] && [[ "$root" != "true" ]]; then
    print "This script cannot be run as root\n" $WARNING
    exit 1
 fi
@@ -96,6 +99,10 @@ while (( $# > 0 )); do
     case "$1" in
         --pre-release)
             GET_PRE_RELEASE="true"
+            ;;
+        --root)
+            root="true"
+            verbose="false"
             ;;
         --update)
             mode="update"
