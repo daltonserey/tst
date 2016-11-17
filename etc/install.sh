@@ -116,7 +116,7 @@ while (( $# > 0 )); do
     shift
 done
 
-# should not run as root?
+# shoud run as root?
 if [[ "$EUID" == "0" ]] && [[ "$root" != "true" ]]; then
    print "This script cannot be run as root\n" $WARNING
    exit 1
