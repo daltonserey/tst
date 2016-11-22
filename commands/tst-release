@@ -9,35 +9,94 @@ from __future__ import unicode_literals
 import sys
 
 import tstlib as tst
+from tstlib import _assert
+from tstlib import data2json
+from tstlib import pop_argument, pop_option, pop_flag
+
+def parse_cli(args):
+
+    # release data
+    r = {}
+
+    # get rid of command name
+    pop_argument(args)
+
+    # identify key options/flags
+    status = len(args) == 0
+    user = pop_option(args, ['user', 'to'], short='t')
+    disable = pop_flag(args, 'disable', short='d')
+    enable = pop_flag(args, 'enable', short='e')
+
+    if status:
+        print("A")
+        # status mode
+        r['mode'] = "status"
+
+    elif user:
+        print("B")
+        # pre-release mode
+        r['mode'] = "pre-release"
+        r['user'] = user
+        r['unit'] = pop_option(args, 'unit', short='u') or "*"
+
+    elif enable or disable:
+        print("C")
+        # post-release mode
+        r['mode'] = "post-release"
+        r['state'] = 'disabled' if disable else 'enabled'
+        _assert(not enable or not disable, "Inconsistent arguments")
+
+    else:
+        print("D")
+        # public release mode
+        r['mode'] = "release"
+        r['unit'] = pop_option(args, 'unit', short='u')
+        r['group'] = pop_option(args, 'group', short='g')
+        _assert(r['unit'], "Option --unit is mandatory in public mode")
+
+    _assert(args == [], "Unrecognized or too many arguments")
+
+    return r
+
 
 def main():
 
     # read tst.json and activity
     tstjson = tst.read_tstjson(quit_on_fail=True)
-    kind = tstjson['kind']
-    if kind != 'activity':
-        tst.cprint(tst.LRED, "This command does not apply to %ss" % kind)
-        sys.exit()
+    _assert(tstjson['kind'] == 'activity', "The release command doesn't apply here")
 
     # parse command line
-    tst.pop_argument(sys.argv)
-    disable = tst.pop_flag(sys.argv, 'disable', short='d')
-    value = 'disabled' if disable else 'enabled'
+    release = parse_cli(sys.argv)
 
-    # dispatch request
+    # check pre-conditions
+    _assert(not release['mode'] == 'pre-release' or tstjson['state'] == 'draft', "Activity released: cannot pre-release to user")
+    _assert(not release['mode'] == 'post-release' or tstjson['state'] in ('enabled', 'disabled'), "Activity is not enabled/disabled")
+
+    # build the payload
+    iid = tstjson['iid']
+
     server = tst.Server()
-    url = '/api/activity/%d' % tstjson['iid']
-    patch = [{
-        'op': 'replace',
-        'path': '/state',
-        'value': value
-    }]
-    response = server.patch(url, payload=patch, exit_on_fail=True)
-    tst.sync_activity(response, tstjson)
-    if value == 'enabled':
-        tst.cprint(tst.LCYAN, "Activity successfully released")
+    url = '/api/activity/%d/release' % tstjson['iid']
+    if release['mode'] == 'status':
+        tst.cprint(tst.LCYAN, '# Release status')
+        status = server.get(url, exit_on_fail=True).json()
+        print("Version: %s" % (tst.LGREEN + status['version'] + tst.RESET))
+        print("State: %s" % (tst.LGREEN + status['state'] + tst.RESET))
+        print("Viewers:")
+        for v in status['viewers']:
+            tst.cprint("  " + tst.LGREEN, v)
+
     else:
-        tst.cprint(tst.LCYAN, "Activity successfully disabled")
+        status = server.post(url, payload=release, exit_on_fail=True).json()
+        print("Released: %s" % (tst.LGREEN + str(status['released']) + tst.RESET))
+        print("Version: %s" % (tst.LGREEN + status['version'] + tst.RESET))
+        print("State: %s" % (tst.LGREEN + status['state'] + tst.RESET))
+        if 'viewers' in status:
+            print("Viewers:")
+            for v in status['viewers']:
+                tst.cprint("  " + tst.LGREEN, v)
+
+        tst.save_tstjson(tstjson)
 
 
 # main
