@@ -1,0 +1,245 @@
+#!/usr/bin/env python
+# coding: utf-8
+# TST checkout
+# (C) 2016 Dalton Serey / UFCG
+
+from __future__ import print_function
+from __future__ import unicode_literals
+
+import json
+import os
+import sys
+import codecs
+import md5
+import glob
+
+import tstlib as tst
+from tstlib import data2json
+from tstlib import _assert
+
+TSTJSON = './.tst/tst.json'
+KINDS = ['assignment', 'activity', 'event', 'group']
+
+def help():
+    print("usage: tst-checkout [name]")
+    sys.exit(1)
+
+
+def mkdirs(dirname):
+    try: 
+        os.makedirs(dirname)
+        return True
+    except OSError:
+        if not os.path.isdir(dirname):
+            raise
+
+
+def checkout_activity(data, dirname, overwrite=False):
+
+    # read local tst.json
+    tstjson = tst.read_tstjson()
+    if tstjson:
+        update_activity(data, dirname, overwrite=overwrite)
+        return
+
+    # get data from server
+    server = tst.Server()
+    url = '/api/activity/%s' % data['iid']
+    activity = server.get(url, exit_on_fail=True).json()
+
+
+    # change to target directory
+    if not os.path.exists(dirname):
+        mkdirs(dirname)
+    os.chdir(dirname)
+
+    # save activity
+    tst.save_activity(activity, is_checkout=True)
+    tst.cprint(tst.LCYAN, "Activity successfully checked out")
+    tst.cprint(tst.RESET, "Target directory: %s%s" % (tst.LGREEN, dirname))
+    
+
+def update_activity(data, dirname, overwrite=True):
+
+    tstjson = tst.read_tstjson(quit_on_fail=True)
+    name = tstjson['name']
+
+    # calculate delta bewteen directory and checked out version
+    activity, unknown = tst.read_activity(tstjson)
+    changes = tst.activity_changes(activity, tstjson)
+    if not overwrite and changes and set(changes.keys()) - set(['unknown']):
+        print("This activity has local changes. Use:")
+        print("  `tst status` to list local changes")
+        print("  `tst checkout --overwrite` to discarding changes")
+        sys.exit()
+        
+    directory = '.'
+
+    # request activity data
+    server = tst.Server()
+    url = '/api/activity/%s' % data['iid']
+    activity = server.get(url, exit_on_fail=True).json()
+
+    # inspect response
+    if config['user'] != activity['owner'] and config['user'] not in activity['collaborators']:
+        print("This activity is not shared with you.")
+        print("Operation aborted.")
+        sys.exit(1)
+
+    # change to activity directory
+    if not os.path.exists(directory):
+        mkdirs(directory)
+    os.chdir(directory)
+
+    # save using proper save function
+    tst.save_activity(activity, is_checkout=True)
+    print("Activity successfully checked out")
+    print("Target directory: %s" % directory)
+
+
+def save_assignment(assignment, is_checkout=True):
+    # save tst.json
+    tstjson = {
+        'kind': 'assignment',
+        'files': assignment['files'],
+        'iid': assignment['iid'],
+        'activity_revision': assignment['activity_revision'],
+        'name': assignment.get('name')
+    }
+    tst.save_tstjson(tstjson)
+    
+    # read local tests, if any
+    filename = 'tst.json'
+    local_tests = []
+    if os.path.exists(filename):
+        with codecs.open(filename, mode='r', encoding='utf-8') as f:
+            local_tests = json.load(f)['tests']
+
+    # add activity tests to local tests
+    tests = assignment['tests']
+    for test in local_tests:
+        if test in tests:
+            continue
+        tests.append(test)
+
+    # save visible tst.json
+    with codecs.open(filename, mode='w', encoding='utf-8') as f:
+        f.write(data2json({'tests': tests}))
+    
+    # save files (server includes last answer as a file)
+    for filename in assignment['files']:
+        contents = assignment['files'][filename]['data']
+        with codecs.open(filename, mode='w', encoding='utf-8') as f:
+            f.write(contents)
+    
+
+
+def checkout_assignment(data, dirname, overwrite=False):
+
+    # request activity data
+    server = tst.Server()
+    url = '/api/assignment/%s?checkout=true' % data['iid']
+    assignment = server.get(url, exit_on_fail=True).json()
+
+    # change to target directory
+    if not os.path.exists(dirname):
+        mkdirs(dirname)
+    os.chdir(dirname)
+
+    save_assignment(assignment)
+    tst.cprint(tst.LCYAN, "Assignment successfully checked out")
+    print("Target directory: %s" % dirname)
+
+
+def get_checkout_function(kind):
+    return globals()["checkout_" + kind]
+
+
+def save_activities_tests(data):
+    server = tst.Server()
+    for a in data['released_activities']:
+        url = '/api/activity/%s' % a
+        dirname = glob.glob('*%s*' % a)
+        _assert(len(dirname) < 2, "tst: fatal: more than one activity directory")
+        _assert(len(dirname) > 0, "tst: fatal: no activity directory")
+        filename = "%s/TESTE" % dirname[0]
+        with codecs.open(filename, mode='w', encoding='utf-8') as f:
+            f.write("ok so far")
+
+
+
+def save_assignments(data):
+
+    # save assignments
+    assignments = data['assignments']
+    for a in assignments:
+        if a['answer'] is None:
+            tst.cprint(tst.LGREEN, "No answer to '%s' from '%s'" % (a['activity'], a['user']))
+            continue
+        username = a['user'].split('@')[0]
+        extension = a['answer']['__filename'].split('.')[-1]
+        unit = a['unit']
+        activity = a['activity']
+        activity_revision = a['activity_revision']
+        major = activity_revision.split('.')[0]
+        dirname = "%s.%s-v%s" % (unit, activity, major)
+        mkdirs(dirname)
+        filename = "%s/%s.%s" % (dirname, username, extension)
+        with codecs.open(filename, mode='w', encoding='utf-8') as f:
+            # save user created content
+            data = a['answer']['__code']
+            f.write(data)
+
+            # add tst data
+            f.write("####\n")
+            f.write("# summary: %s\n" % a['summary'])
+            f.write("# activity: %s\n" % a['activity'])
+            f.write("# user: %s\n" % a['user'])
+            f.write("# iid: %s\n" % a['iid'])
+            f.write("# timestamp: %s\n" % a['answer']['__timestamp'])
+            f.write("# ip: %s\n" % a['answer']['__ip'])
+
+
+def main(args):
+
+    # parse command line
+    command = tst.pop_argument(args)
+    _assert(args == [], "tst: fatal: too many arguments")
+
+    # check whether this is a tst directory
+    tstjson = tst.read_tstjson(quit_on_fail=True)
+    _assert(tstjson['kind'] in ('challenge'), 'Download works only for challenges')
+    name = tstjson['name']
+
+    # download summary
+    server = tst.Server()
+    url = '/api/group/prog1-20162/challenge/%s/summary' % name
+    data = server.get(url, exit_on_fail=True).json()
+    if data == {}:
+        tst.cprint(tst.LRED, 'This challenge is not finished and summarized yet')
+        sys.exit()
+
+    # save assignments
+    save_assignments(data)
+
+    # save activities tests
+    save_activities_tests(data)
+    
+
+
+# main
+if __name__ == "__main__":
+
+    if sys.argv[-1] == '--one-line-help':
+        print("download assignments")
+        sys.exit()
+
+    config = tst.Config()
+    if 'user' not in config:
+        tst.cprint(tst.LRED, "No user logged in.")
+        print("---")
+        print("Use `tst login <email>` to log in to the server")
+        sys.exit(1)
+
+    sys.exit('to be developed')
+    main(sys.argv)

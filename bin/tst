@@ -27,7 +27,7 @@ import tstlib as tst
 DEFAULT_COMMAND = 'test'
 INTERNALS = ["help", "version", "share", "add", "ls", "remove", "uninstall"]
 EXTERNALS = ["update", "login", "checkout", "test", "commit", "config", "status", "new", "release", "delete", "list"]
-HIDDEN = ['install']
+HIDDEN = ['install', 'download']
 
 def tst_help(args):
     """short description of commands"""
