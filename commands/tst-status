@@ -155,15 +155,11 @@ def main():
     elif changes and not missed_updates:
         print("This activity has been locally changed.")
         print("Use:")
-        print("    `tst checkout --overwrite` to discard your local changes.")
+        print("  `tst checkout --overwrite` to discard your local changes")
         if changes.get('bump_required'):
-            print("    `tst commit --bump <level>` to send your changes to the server")
-            print("    - level is `major` if changes invalidate all previous tests")
-            print("    - level is `minor` if changes invalidate succesful tests only")
-            print("    - level is `patch` if changes do not invalidate previous tests")
-
+            print("  `tst commit {--major, --minor, --patch}` to save changes to server")
         else:
-            print("    `tst commit` to send your changes to the server")
+            print("  `tst commit` to save your changes to the server")
 
     elif     changes and     missed_updates:
         print("This activity is locally changed and has been updated on the server.")

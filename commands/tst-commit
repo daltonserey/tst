@@ -230,8 +230,8 @@ def commit_activity(tstjson, args):
         url = "/api/activity"
         response = server.post(url, payload=activity, exit_on_fail=True)
         tst.sync_activity(response, tstjson)
-        print("Activity successfully created on the server")
-        print("%s" % response.json()['version'])
+        tst.cprint(tst.LCYAN, "Activity successfully created (%d)" % response.json()['iid'])
+        print("Version: %s" % response.json()['version'])
         sys.exit()
 
     # read local directory and identify changes
@@ -258,13 +258,18 @@ def commit_activity(tstjson, args):
                                                'Use `tst status` for more details.')
     url = activity_url(tstjson['iid'])
 
-    # default bump level is patch
-    bump_level = 'patch'
-    if 'bump_required' in changes:
-        _assert(user_bump is not None, 'Use --major, --minor or --patch')
-        bump_level = user_bump
-    else:
-        bump_level = user_bump or 'patch'
+    # cannot bump major if activity is draft
+    if tstjson['state'] == 'draft':
+        _assert(not user_bump or user_bump in ('patch', 'minor'), "Cannot bump major number of draft activity")
+
+    # user must specify bump level if activity is not draft and bump is required
+    if tstjson['state'] != 'draft' and 'bump_required' in changes:
+        _assert(user_bump, 'Use --major, --minor or --patch')
+    
+    # define default bump level
+    bump_level = user_bump or 'patch'
+    if tstjson['state'] == 'draft':
+        bump_level = 'minor' if 'bump_required' in changes else bump_level
 
     patches = make_patch(activity, tstjson, changes, bump_level)
     response = server.patch(url, patches)

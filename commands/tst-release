@@ -28,26 +28,22 @@ def parse_cli(args):
     enable = pop_flag(args, 'enable', short='e')
 
     if status:
-        print("A")
         # status mode
         r['mode'] = "status"
 
     elif user:
-        print("B")
         # pre-release mode
         r['mode'] = "pre-release"
         r['user'] = user
         r['unit'] = pop_option(args, 'unit', short='u') or "*"
 
     elif enable or disable:
-        print("C")
         # post-release mode
         r['mode'] = "post-release"
         r['state'] = 'disabled' if disable else 'enabled'
         _assert(not enable or not disable, "Inconsistent arguments")
 
     else:
-        print("D")
         # public release mode
         r['mode'] = "release"
         r['unit'] = pop_option(args, 'unit', short='u')

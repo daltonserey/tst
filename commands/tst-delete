@@ -36,7 +36,13 @@ def main():
     server = tst.Server()
     url = '/api/activity/%d' % tstjson['iid']
     response = server.delete(url, exit_on_fail=True)
-    tst.sync_activity(response, tstjson)
+    tst.save_tstjson({
+        "files": tstjson.get('files', {}),
+        "name": tstjson.get('name', "unknown"),
+        "kind": "activity",
+        "state": "new",
+        "iid": None
+    })
     tst.cprint(tst.LCYAN, "Activity successfully deleted")
 
 
