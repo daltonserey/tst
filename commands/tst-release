@@ -83,7 +83,8 @@ def main():
             tst.cprint("  " + tst.LGREEN, v)
 
     else:
-        status = server.post(url, payload=release, exit_on_fail=True).json()
+        print(tst.data2json(release))
+        status = server.post(url, payload=release, headers={'Content-type':'application/json'}, exit_on_fail=True).json()
         print("Released: %s" % (tst.LGREEN + str(status['released']) + tst.RESET))
         print("Version: %s" % (tst.LGREEN + status['version'] + tst.RESET))
         print("State: %s" % (tst.LGREEN + status['state'] + tst.RESET))
