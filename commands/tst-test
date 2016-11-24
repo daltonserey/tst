@@ -701,8 +701,11 @@ def request_server_tests(tstjson):
     while True:
 
         # request last validation results
-        response = server.get(url, exit_on_fail=True)
-        status = response.json()['status']
+        response = server.get(url)
+        try:
+            status = response.json()['status']
+        except:
+            status = 'no validation requested'
 
         if status == 'no validation requested':
             # request last answer validation
