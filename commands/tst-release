@@ -93,6 +93,8 @@ def main():
             for v in status['viewers']:
                 tst.cprint("  " + tst.LGREEN, v)
 
+        tstjson['state'] = status['state']
+        tstjson['version'] = status['version']
         tst.save_tstjson(tstjson)
 
 
