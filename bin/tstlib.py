@@ -618,10 +618,7 @@ def read_assignment(tstjson):
 
 
 def sync_activity(response, tstjson):
-    # check response was positive
     json_response = response.json()
-    # TODO: why the following line is here?!
-    _assert(response.exit_status == 0, 'tst: fatal: curl command failed\n')
 
     if json_response is None:
         tstjson['state'] = 'deleted'
@@ -655,8 +652,7 @@ def read_activity(tstjson=None):
         msg = "tst: invalid activity\n" + msg
         _assert(False, msg)
         
-    if tstjson is None:
-        tstjson = read_tstjson()
+    tstjson = tstjson or read_tstjson()
 
     # gather activity data
     activity = {}
@@ -679,18 +675,17 @@ def read_activity(tstjson=None):
     activity['text'] = yamlfile.get('text')
     activity['tests'] = yamlfile.get('tests', [])
 
-    # add default category to tests
+    # add default category and type to tests
     for test in activity.get('tests') or []:
-        if 'category' not in test:
-            test['category'] = 'secret'
-        if 'type' not in test:
-            test['type'] = 'io'
+        test.setdefault('category', 'secret')
+        test.setdefault('type', 'io')
 
     # validate activity or abort
     validate_activity(activity)
 
     # add activity files
-    ignore = ['tst.json', activity['name'] + '.yaml']
+    #ignore = ['tst.json', activity['name'] + '.yaml']
+    ignore = ['tst.json']
     textfile = activity['name'] + '.md' if tstjson.get('text_in_file') else None
     if textfile:
         ignore.append(textfile)
