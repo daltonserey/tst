@@ -25,7 +25,7 @@ import tstlib as tst
 
 # TST INTERNAL COMMANDS
 DEFAULT_COMMAND = 'test'
-INTERNALS = ["help", "version", "share", "add", "ls", "remove", "uninstall"]
+INTERNALS = ["help", "version", "share", "file", "ls", "remove", "uninstall"]
 EXTERNALS = ["update", "login", "checkout", "test", "commit", "config", "status", "new", "release", "delete", "list"]
 HIDDEN = ['install', 'download']
 
@@ -202,7 +202,7 @@ def tst_remove(args):
         print('removed: %s %s' % (removed[f].get('category', 'private'), f))
 
 
-def tst_add(args):
+def tst_file(args):
     """add files to activity"""
     tstjson = tst.read_tstjson()
     visibility = args.pop(0) if args[0] in ('public', 'private') else None
