@@ -747,7 +747,7 @@ def request_server_tests(tstjson):
     if fn:
         answer = tstjson['files'][fn]
         with codecs.open(answer['name'], mode="r", encoding="utf-8") as f:
-            answerhash = hashlib.sha1(f.read()).hexdigest()
+            answerhash = hashlib.sha1(f.read().encode('utf-8')).hexdigest()
         if answerhash != report['hash']:
             tst.cprint(tst.LRED, "Warning: server copy differs from local one")
             print('---')
@@ -764,7 +764,7 @@ def main():
     activity_files = []
     if tstjson:
         files = tstjson['files']
-        activity_files = [fn for fn in files if files[fn]['category'] != 'answer']
+        activity_files = [fn for fn in files if files[fn].get('category') != 'answer']
 
     # dispatch server tests if required
     if server:
