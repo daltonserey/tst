@@ -680,9 +680,6 @@ def read_activity(tstjson=None):
         test.setdefault('category', 'secret')
         test.setdefault('type', 'io')
 
-    # validate activity or abort
-    validate_activity(activity)
-
     # add activity files
     #ignore = ['tst.json', activity['name'] + '.yaml']
     ignore = ['tst.json']
@@ -716,8 +713,11 @@ def read_activity(tstjson=None):
         except:
             print("tst: fatal: couldn't read %s" % textfile, file=sys.stderr)
     else:
-        activity['text'] = yamlfile['text']
+        activity['text'] = yamlfile.get('text')
     
+    # validate activity or abort
+    validate_activity(activity)
+
     return activity, unknown_files
 
 
@@ -737,6 +737,15 @@ def validate_activity(activity):
     _assert('\n' not in activity['label'], "label cannot have '\\n'")
 
     # check type: no requirement wrt activity type
+    _assert(activity.get('type'), msg + "missing 'type' field")
+    _assert(isinstance(activity['type'], basestring), msg + "type must be single line string")
+    _assert('\n' not in activity['type'], msg + "type must be single line string")
+
+    # check files
+    _assert(activity.get('files'), msg + "activity has no files property")
+    _assert(type(activity['files']) == dict, msg + "files must be a dictionary")
+    _assert(all(type(f) == dict for f in activity['files'].values()), msg + "every file must be a dictionary")
+
     # check author: no requirement wrt activity author
 
     # check text
@@ -744,26 +753,15 @@ def validate_activity(activity):
     _assert(isinstance(activity['text'], basestring), msg + 'text must be string')
     _assert(activity['text'][-1] == '\n', msg + "text must end in '\\n' (POSIX)")
 
-    # it activity has tests...
-    for i in xrange(len(activity.get('tests') or [])):
-        test = activity['tests'][i]
-        if test['type'] == 'io':
-
-            # require input in every io test
-            _assert('input' in test, msg + "missing 'input' field in io test#%d" % i)
-            _assert(isinstance(test['input'], basestring), msg + 'input must be text (test#%d)' % i)
-            _assert(test['input'] and test['input'][-1] == '\n', msg + "input must end in '\\n' (test#%d)" % i)
-
-            # require output in every io test
-            _assert('output' in test, msg + "missing 'output' field in io test#%d" % i)
-            _assert(isinstance(test['output'], basestring), msg + 'output must be text (test#%d)' % i)
-            _assert(test['output'] and test['output'][-1] == '\n', msg + "output must end in '\\n' (test#%d)" % i)
-
-
-        elif test['type'] == 'script':
-
-            # require script in every script test
-            _assert('script' in test, msg + "missing 'script' field in script test")
+    # check tests
+    if activity.get('tests'):
+        _assert(type(activity['tests']) == list, msg + "tests must be a list of dictionaries")
+        _assert(all(type(t) == dict for t in activity['tests']), msg + "every test must be a dictionary")
+        _assert(all('type' in t for t in activity['tests']), msg + "every test must have a type")
+        _assert(all(t['type'] in ('io', 'script') for t in activity['tests']), msg + "test types must be either io or script")
+        _assert(all(not t['type'] == 'script' or 'script' in t for t in activity['tests']), msg + "every script test must have script")
+        _assert(all(not t['type'] == 'io' or 'output' in t for t in activity['tests']), msg + "every io test must have output")
+        _assert(all(not t['type'] == 'io' or 'input' in t for t in activity['tests']), msg + "every io test must have input")
 
 
 def get_save_function(kind):
@@ -898,7 +896,8 @@ def activity_changes(activity, tstjson):
         'removed_files': [f for f in tstjson['checkout']['files'] if f not in tstjson['files']]
     }
 
-    files_changed = any(f.split("/")[1:3] for f in diff['changed_fields'] if f.startswith('files'))
+    files_changed = [f.split("/")[1] for f in diff['changed_fields'] if f.startswith('files')]
+    files_changed = [f for f in files_changed if f != tstjson['name'] + '.yaml']
 
     if files_changed or diff['tests_diff'] or diff['removed_files']:
         diff['bump_required'] = True

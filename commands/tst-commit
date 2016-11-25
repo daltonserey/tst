@@ -211,6 +211,7 @@ def _assert(condition, msg='assertion failed'):
         sys.exit(1)
 
 
+
 def commit_activity(tstjson, args):
 
     # parse command line
@@ -222,6 +223,10 @@ def commit_activity(tstjson, args):
 
     # read activity
     activity, unknown = tst.read_activity(tstjson)
+
+    # validate activity or abort
+    tst.validate_activity(activity)
+
 
     # check whether activity is new
     server = tst.Server()

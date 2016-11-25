@@ -19,6 +19,7 @@ import codecs
 import unicodedata
 import argparse
 import difflib
+import hashlib
 
 import tstlib as tst
 
@@ -702,10 +703,11 @@ def request_server_tests(tstjson):
 
         # request last validation results
         response = server.get(url)
-        try:
-            status = response.json()['status']
-        except:
-            status = 'no validation requested'
+        report = response.json()
+        if 'error' in report:
+            status = report.get('messages')[0]
+        else:
+            status = report['status']
 
         if status == 'no validation requested':
             # request last answer validation
@@ -724,7 +726,8 @@ def request_server_tests(tstjson):
             print(response.stdout)
             _assert(False, "fatal: please contact developers")
 
-    summary = response.json()['summary']
+    report = response.json()
+    summary = report['summary']
     num_tests, successes, fails, errors = tests_report(summary)
 
     # add num tests to msg
@@ -739,7 +742,16 @@ def request_server_tests(tstjson):
         tst.cprint(tst.LGREEN, "Answer accepted")
     else:
         tst.cprint(tst.LGREEN, "Answer rejected")
-    
+
+    fn = next((f for f in tstjson['files'] if tstjson['files'][f]['category'] == 'answer'), None)
+    if fn:
+        answer = tstjson['files'][fn]
+        with codecs.open(answer['name'], mode="r", encoding="utf-8") as f:
+            answerhash = hashlib.sha1(f.read()).hexdigest()
+        if answerhash != report['hash']:
+            tst.cprint(tst.LRED, "Warning: server copy differs from local one")
+            print('---')
+            print("Use `tst commit` to save latest version to server")
 
 
 def main():
