@@ -870,7 +870,7 @@ def save_activity(data, is_checkout=True):
     tstjson['label'] = data['label']
 
     # activity data exclusively in tstjson
-    tstjson['files'] = {k:{'category': data['files'][k]['category']} for k in data['files']}
+    tstjson['files'] = {k:{'category': data['files'][k].get('category', 'secret')} for k in data['files']}
     tstjson['iid'] = data['iid']
     tstjson['kind'] = 'activity'
     tstjson['version'] = "%s.%s.%s" % (data['major'], data['minor'], data['patch'])
