@@ -655,6 +655,7 @@ def parse_cli():
     parser.add_argument('-t', '--timeout', type=int, default=5, help='stop execution at TIMEOUT seconds')
     parser.add_argument('-o', '--output', choices=['raw', 'debug', 'json', 'summary'], help='set output type')
     parser.add_argument('-s', '--server', action='store_const', const=True, help='run server acceptance tests on last answer')
+    parser.add_argument('-f', '--tests-file', type=str, default='tst.json', help='read tests from file')
     parser.add_argument('filename', nargs='*', default=[''])
     args = parser.parse_args()
 
@@ -675,7 +676,7 @@ def parse_cli():
     else:
         filenames = args.filename
 
-    return filenames, args.timeout, args.output, args.server
+    return filenames, args.timeout, args.output, args.server, args.tests_file
 
 
 def debug(msg=''):
@@ -757,7 +758,7 @@ def request_server_tests(tstjson):
 def main():
 
     # parse command line data
-    filenames, timeout, output, server = parse_cli()
+    filenames, timeout, output, server, tests_file = parse_cli()
 
     # identify activity files
     tstjson = tst.read_tstjson(quit_on_fail=False)
@@ -773,9 +774,9 @@ def main():
         sys.exit()
             
     # read local tests
-    tests = tst.read_tstjson(file='tst.json')
+    tests = tst.read_tstjson(file=tests_file)
     if tests is None:
-        tst.cprint(tst.LRED, "No tests found: tst.json")
+        tst.cprint(tst.LRED, "No tests found: %s" % tests_file)
         sys.exit(1)
 
     # set default output to user's preference if any
