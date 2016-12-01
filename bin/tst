@@ -28,6 +28,25 @@ DEFAULT_COMMAND = 'test'
 INTERNALS = ["help", "version", "share", "file", "ls", "remove", "uninstall"]
 EXTERNALS = ["update", "login", "checkout", "test", "commit", "config", "status", "new", "release", "delete", "list"]
 HIDDEN = ['install', 'download']
+HELP = {
+    "help": "list commands and short description",
+    "version": "print version of tst",
+    "share": "list, add or remove collaborators",
+    "file": "add, remove or tag activity files",
+    "ls": "list activity files",
+    "uninstall": "uninstall custom command",
+    "update": "update tst",
+    "login": "log into TST Server",
+    "checkout": "download most recent version of activity/assignment",
+    "test": "run tests",
+    "commit": "save activity or assignment to server",
+    "config": "configure tst",
+    "status": "show status of current directory",
+    "new": "create activity",
+    "release": "release activity",
+    "delete": "delete activity",
+    "list": "list all activities"
+}
 
 def tst_help(args):
     """short description of commands"""
@@ -36,7 +55,7 @@ def tst_help(args):
     for cmd in INTERNALS:
         print("  %-12s%s" % (cmd, globals()['tst_' + cmd].__doc__))
     for cmd in EXTERNALS:
-        print("  %-12s%s" % (cmd, get_one_line_help(cmd)))
+        print("  %-12s%s" % (cmd, HELP[cmd]))
  
     custom = custom_commands()
     if custom:
