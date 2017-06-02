@@ -159,73 +159,136 @@ def save_activities_tests(data):
     server = tst.Server()
     for a in data['released_activities']:
         url = '/api/activity/%s' % a
-        dirname = glob.glob('*%s*' % a)
-        _assert(len(dirname) < 2, "tst: fatal: more than one activity directory")
-        _assert(len(dirname) > 0, "tst: fatal: no activity directory")
-        filename = "%s/TESTE" % dirname[0]
-        with codecs.open(filename, mode='w', encoding='utf-8') as f:
-            f.write("ok so far")
+        dirnames = glob.glob('*%s-v*' % a)
+        print(dirnames, a)
+        _assert(len(dirnames) > 0, "tst: fatal: no activity directory")
+        if len(dirnames) > 1:
+            print(dirnames)
+            tst.cprint(tst.LGREEN, "More than one activity directory")
+        for i in range(len(dirnames)):
+            dirname = dirnames[i]
+            filename = "%s/tst.json" % dirname
+            with codecs.open(filename, mode='w', encoding='utf-8') as f:
+                f.write('{ "name": "%s", "kind": "activity"}' % a)
 
 
+def save_activity_files(data, dirname):
+    with codecs.open('tst.json', mode='w', encoding='utf-8') as f:
+        f.write(data2json({'tests': data['tests']}))
 
-def save_assignments(data):
+    files = data['files']
+    for fn in files:
+        category = files[fn].get('category', 'private')
+        with codecs.open(fn, mode='w', encoding='utf-8') as f:
+            f.write(files[fn]['data'])
+            f.write(("# %s file" % category).encode('utf-8'))
+
+
+def save_report(data):
+    filename = "results.json"
+    participants = [a['user'] for a in data['assignments']]
+    report = {name:{} for name in participants}
+    for a in data['assignments']:
+        if a.has_key('last_answer'):
+            if a['last_answer'].has_key('__summary'):
+                summary = a['last_answer']['__summary']
+                result = 'success' if summary == len(summary) * '.' else 'fail' 
+                key = "%s.%s" % (a['unit'], a['name'])
+                report[a['user']][key] = result
+
+    with codecs.open(filename, mode='w', encoding='utf-8') as f:
+        f.write(data2json(report))
+
+
+def save_activities(activities):
+    for name in activities:
+        dirs = [d for d in glob.glob("*%s-*" % name) if os.path.isdir(d)]
+        home = os.getcwd()
+        for d in dirs:
+            os.chdir(d)
+            save_activity_files(activities[name], d)
+            os.chdir(home)
+        
+
+def save_assignments(assignments):
 
     # save assignments
-    assignments = data['assignments']
     for a in assignments:
-        if a['answer'] is None:
-            tst.cprint(tst.LGREEN, "No answer to '%s' from '%s'" % (a['activity'], a['user']))
+        if a.get('last_answer') is None:
             continue
-        username = a['user'].split('@')[0]
-        extension = a['answer']['__filename'].split('.')[-1]
+
+        username = a['user'].split('@')[0].replace(".", "_")
+        extension = a['last_answer']['__filename'].split('.')[-1]
         unit = a['unit']
-        activity = a['activity']
-        activity_revision = a['activity_revision']
+        activity = a['name']
+        activity_revision = a['last_answer']['__activity_revision']
         major = activity_revision.split('.')[0]
         dirname = "%s.%s-v%s" % (unit, activity, major)
         mkdirs(dirname)
         filename = "%s/%s.%s" % (dirname, username, extension)
+        ASSIGNMENT_URL = "http://tst-online.appspot.com/#/as"
+        ACTIVITY_URL = "http://tst-online.appspot.com/#/ac"
         with codecs.open(filename, mode='w', encoding='utf-8') as f:
             # save user created content
-            data = a['answer']['__code']
+            data = a['last_answer']['__code']
             f.write(data)
 
             # add tst data
-            f.write("####\n")
-            f.write("# summary: %s\n" % a['summary'])
-            f.write("# activity: %s\n" % a['activity'])
+            f.write("\n####\n")
+            f.write("# activity name: %s\n" % a['name'])
+            f.write("# current state: %s\n" % a['state'])
+            f.write("# summary published: %s\n" % a['last_answer'].get('__summary'))
             f.write("# user: %s\n" % a['user'])
-            f.write("# iid: %s\n" % a['iid'])
-            f.write("# timestamp: %s\n" % a['answer']['__timestamp'])
-            f.write("# ip: %s\n" % a['answer']['__ip'])
+            f.write("# assignment url: %s/%s\n" % (ASSIGNMENT_URL, a['iid']))
+            f.write("# activity url: %s/%s\n" % (ACTIVITY_URL, a['name']))
+            f.write("# submission timestamp: %s\n" % a['last_answer']['__timestamp'])
+            f.write("# submission ip: %s\n" % a['last_answer']['__ip'])
+            f.write("# revision number: %s\n" % a['revision_number'])
 
 
 def main(args):
 
-    # parse command line
-    command = tst.pop_argument(args)
-    _assert(args == [], "tst: fatal: too many arguments")
+    # get rid of command from arguments
+    tst.pop_argument(args)
+    
+    # try read tstjson
+    tstjson = tst.read_tstjson() or {}
+    if tstjson:
+        _assert(tstjson.get('kind') == 'challenge', "tst: download works only for challenges")
+        group = tstjson.get('group', config.get('group'))
+        challenge = tstjson.get('name')
+    else:
+        group = config.get('group')
+        challenge = tst.pop_argument(args)
+        tstjson['name'] = challenge
+        tstjson['kind'] = 'challenge'
+        tstjson['group'] = group
 
-    # check whether this is a tst directory
-    tstjson = tst.read_tstjson(quit_on_fail=True)
-    _assert(tstjson['kind'] in ('challenge'), 'Download works only for challenges')
-    name = tstjson['name']
+    # check for group and challenge
+    _assert(args == [], "tst: fatal: too many arguments")
+    _assert(challenge, "tst: usage: tst download <challenge id>")
+    _assert(group, "tst: no group was identified")
 
     # download summary
     server = tst.Server()
-    url = '/api/group/prog1-20162/challenge/%s/summary' % name
+    url = '/api/group/%s/challenge/%s/download' % (group, challenge)
+    tst.cprint(tst.RESET, 'Downloading files... (%s, %s)' % (tst.LGREEN + group + tst.RESET, tst.LGREEN + challenge + tst.RESET))
     data = server.get(url, exit_on_fail=True).json()
-    if data == {}:
-        tst.cprint(tst.LRED, 'This challenge is not finished and summarized yet')
-        sys.exit()
 
-    # save assignments
-    save_assignments(data)
+    # save data
+    print('Saving assignments')
+    save_assignments(data['assignments'])
 
-    # save activities tests
-    save_activities_tests(data)
-    
+    print('Saving activities')
+    save_activities(data['activities'])
 
+    print('Saving report file')
+    save_report(data)
+
+    # save .tst/tst.json
+    tst.save_tstjson(tstjson)
+
+    tst.cprint(tst.LCYAN, 'Done.')
 
 # main
 if __name__ == "__main__":
@@ -241,5 +304,4 @@ if __name__ == "__main__":
         print("Use `tst login <email>` to log in to the server")
         sys.exit(1)
 
-    sys.exit('to be developed')
     main(sys.argv)

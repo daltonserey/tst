@@ -72,6 +72,7 @@ def data2json(data):
         default=date_handler,
         indent=2,
         separators=(',', ': '),
+        sort_keys=True,
         ensure_ascii=False)
 
 
