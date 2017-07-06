@@ -176,7 +176,7 @@ def save_activity_files(data, dirname):
     with codecs.open('tst.json', mode='w', encoding='utf-8') as f:
         f.write(data2json({'tests': data['tests']}))
 
-    files = data['files']
+    files = data['files'] or []
     for fn in files:
         category = files[fn].get('category', 'private')
         with codecs.open(fn, mode='w', encoding='utf-8') as f:
