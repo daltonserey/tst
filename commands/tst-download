@@ -237,6 +237,10 @@ def save_assignments(assignments):
             f.write("\n####\n")
             f.write("# activity name: %s\n" % a['name'])
             f.write("# current state: %s\n" % a['state'])
+            if 'null' in a:
+                f.write("# anulled: %s\n" % a['null'])
+            if 'promoted' in a:
+                f.write("# promoted: %s\n" % a['promoted'])
             f.write("# summary published: %s\n" % a['last_answer'].get('__summary'))
             f.write("# user: %s\n" % a['user'])
             f.write("# assignment url: %s/%s\n" % (ASSIGNMENT_URL, a['iid']))
