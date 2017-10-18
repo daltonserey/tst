@@ -38,6 +38,7 @@ TSTCONFIG = os.path.expanduser(TSTDIR + "config.json")
 TSTRELEASE = os.path.expanduser(TSTDIR + "release.json")
 TSTJSON = os.path.expanduser("./.tst/tst.json")
 
+YELLOW = '\033[1;33m'
 LRED = '\033[1;31m'
 LGREEN = '\033[1;32m'
 GREEN="\033[9;32m"

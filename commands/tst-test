@@ -32,6 +32,7 @@ if sys.version_info < (2,7):
     sys.exit(1)
 
 REDIRECTED = os.fstat(0) != os.fstat(1)
+IGNORE_FILES_DEFAULT = ["public_tests.py", "acceptance_tests.py"]
 
 STATUS_CODE = {
     # TST test codes
@@ -757,6 +758,9 @@ def request_server_tests(tstjson):
 
 def main():
 
+    # read config
+    config = tst.Config()
+
     # parse command line data
     filenames, timeout, output, server, tests_file = parse_cli()
 
@@ -765,6 +769,7 @@ def main():
     activity_files = []
     if tstjson:
         files = tstjson['files']
+        ignore_files = tstjson.get('ignore_files', config.get('ignore_files', IGNORE_FILES_DEFAULT))
         activity_files = [fn for fn in files if files[fn].get('category') != 'answer']
 
     # dispatch server tests if required
@@ -780,14 +785,14 @@ def main():
         sys.exit(1)
 
     # set default output to user's preference if any
-    config = tst.Config()
     output = output or config.get('output') or 'raw'
 
     # discard files mentioned in tst.json, if any
     assignment_files = [f['name'] for f in tests.get('files', [])]
     assignment_files.append('tst.json')
     for i in xrange(len(filenames)-1, -1, -1):
-        if filenames[i] in assignment_files or filenames[i] in activity_files:
+        if filenames[i] in ignore_files:
+            tst.cprint(tst.YELLOW, 'ignoring file "%s"' % filenames[i])
             filenames.pop(i)
 
     if not filenames:
