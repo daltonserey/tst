@@ -42,11 +42,11 @@ Command | Description
 In this section we will see the process of login, resolve a TST question, test and send to the server.
 
 ### Login
-First you need to login in the the [TST-ONLINE](http://tst-online.appspot.com/). And then login to your account using:
+First you need to login to [TST-ONLINE](http://tst-online.appspot.com/). And then you can login to your account using:
 ```
 $ tst login
 ```
-Will open a new tab in the browser containing the token necessary for the login and the user TST-Online email. Copy the token and past in the terminal. After this, insert the email.
+Will open a new tab in the browser containing the token necessary for the login and the user TST-Online email. Copy the token and past in the terminal.
 
 ### Checkout
 Copy the [TST](http://tst-online.appspot.com/#/) question checkout code and run the following command:
@@ -62,7 +62,7 @@ $ cd <question_code>
 ```
 
 ### Test
-To test your solution, replace `<your_file_here>` with your solution file and run:
+To test your solution, replace `<your_file_here>` with your program file and run:
 
 ```sh
 $ tst test <your_file_here>
@@ -73,16 +73,17 @@ Or you can just run `tst` if there is only one `.py` file in the folder:
 $ tst
 ```
 
-If you received a output containing only points, you passed on public tests and now you can submit to the server.
+If you received a output containing only points(e.g: `.`, `...`), you passed on public tests and now you can submit to the server.
 
 ### Send
 
-Send your file to the server using:
+Send your file to the server:
+
 ```sh
 $ tst commit <your_file_here>
 ```
 
-And then, you can verify if you passed in all tests and your answer was accepted.
+And then, you can verify if you passed in all tests and if your answer was accepted.
 
 ```sh
 $ tst -s
