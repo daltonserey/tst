@@ -26,7 +26,7 @@ To be written.
 ## Commands
 **The command `tst --help` lists all the TST commands and `tst <command> --help` shows more details about an individual command**
 
-Below, is a list with all tst commands and their descriptions.
+Below, is a list with all TST commands and their descriptions.
 
 ### TST commands
 Command | Description
@@ -67,6 +67,12 @@ To test your solution, replace `<your_file_here>` with your solution file and ru
 ```sh
 $ tst test <your_file_here>
 ```
+Or you can just run `tst` if there is only one `.py` file in the folder:
+
+```sh
+$ tst
+```
+
 If you received a output containing only points, you passed on public tests and now you can submit to the server.
 
 ### Send
