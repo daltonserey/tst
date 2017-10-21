@@ -23,6 +23,60 @@ license. Please read the LICENSE file.
 To be written.
 
 
+## Commands
+**The command `tst --help` lists all the TST commands and `tst <command> --help` shows more details about an individual command**
+
+Below, is a list with all tst commands and their description.
+
+### TST commands
+Command | Description
+------- | -----------
+**checkout** | Download a TST question and create a shared object and directory with the question code received as parameter.
+**commit** | Send user response to TST server.
+**login** | Login to a tst-online account using a token and the user email. Will open a page in the browser showing the required user token and email.
+**ls** | list all TST availabe objects
+**test** | validate user answer using public tests.
+**update** | update TST to the latest stable release.
+
+## Example
+In this section we will see the process of login, resolve a TST question, test and send to the server.
+
+### Login
+First you need to login in the the [TST-ONLINE](http://tst-online.appspot.com/). And then login to your account using:
+```
+$ tst login
+```
+Will open a new tab in the browser containing the token necessary for the login and the user TST-Online email. Copy the token and past in the terminal. After this, insert the email.
+
+### Checkout
+Copy the [TST](http://tst-online.appspot.com/#/) question checkout code and run the following command:
+
+```sh
+$ tst checkout <question_code>
+```
+
+### Test
+To test your solution, replace `<your_file_here>` with your solution file and run:
+
+```sh
+$ tst test <your_file_here>
+```
+If you received a output containing only points, you passed on public tests and now you can submit to the server.
+
+### Send
+
+Send your file to the server using:
+```sh
+$ tst commit <your_file_here>
+```
+
+And then, you can verify if you passed in all tests and your answer was accepted.
+
+```sh
+$ tst -s
+```
+
+
 ## Dependencies
 
 These scripts depend on Python 2.7 and on Bash. The scripts were
