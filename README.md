@@ -39,7 +39,7 @@ Command | Description
 **update** | Update TST to the latest stable release.
 
 ## Example
-In this section we will see the process of login, resolve a TST question, test and send to the server.
+In this section we will see the process of login, resolve a TST question, test it and send to the server.
 
 ### Login
 First you need to login to [TST-ONLINE](http://tst-online.appspot.com/). And then you can login to your account using:
