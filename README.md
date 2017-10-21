@@ -55,6 +55,12 @@ Copy the [TST](http://tst-online.appspot.com/#/) question checkout code and run 
 $ tst checkout <question_code>
 ```
 
+After this you can go to the newly created directory that has been named with the question code and start coding your solution:
+
+```sh
+$ cd <question_code>
+```
+
 ### Test
 To test your solution, replace `<your_file_here>` with your solution file and run:
 
