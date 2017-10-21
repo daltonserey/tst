@@ -26,12 +26,12 @@ To be written.
 ## Commands
 **The command `tst --help` lists all the TST commands and `tst <command> --help` shows more details about an individual command**
 
-Below, is a list with all tst commands and their description.
+Below, is a list with all tst commands and their descriptions.
 
 ### TST commands
 Command | Description
 ------- | -----------
-**checkout** | Download a TST question and create a shared object and directory with the question code received as parameter.
+**checkout** | Download a TST question, create a shared object and a directory named with the question code received as argument.
 **commit** | Send user response to TST server.
 **login** | Login to a tst-online account using a token and the user email. Will open a page in the browser showing the required user token and email.
 **ls** | list all TST availabe objects
