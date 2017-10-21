@@ -34,9 +34,9 @@ Command | Description
 **checkout** | Download a TST question, create a shared object and a directory named with the question code received as argument.
 **commit** | Send user response to TST server.
 **login** | Login to a tst-online account using a token and the user email. Will open a page in the browser showing the required user token and email.
-**ls** | list all TST availabe objects
-**test** | validate user answer using public tests.
-**update** | update TST to the latest stable release.
+**ls** | List all TST availabe objects
+**test** | Validate user answer using public tests.
+**update** | Update TST to the latest stable release.
 
 ## Example
 In this section we will see the process of login, resolve a TST question, test and send to the server.
