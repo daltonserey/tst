@@ -192,7 +192,16 @@ def save_report(data):
         if a.has_key('last_answer'):
             if a['last_answer'].has_key('__summary'):
                 summary = a['last_answer']['__summary']
-                result = 'success' if summary == len(summary) * '.' else 'fail' 
+                if summary == len(summary) * '.':
+                    if 'null' in a:
+                        result = 'impugned'
+                    else:
+                        result = 'success'
+                else:
+                    if 'promoted' in a:
+                        result = 'accepted'
+                    else:
+                        result = 'fail'
                 key = "%s.%s" % (a['unit'], a['name'])
                 report[a['user']][key] = result
 
@@ -236,11 +245,13 @@ def save_assignments(assignments):
             # add tst data
             f.write("\n####\n")
             f.write("# activity name: %s\n" % a['name'])
-            f.write("# current state: %s\n" % a['state'])
             if 'null' in a:
-                f.write("# anulled: %s\n" % a['null'])
-            if 'promoted' in a:
-                f.write("# promoted: %s\n" % a['promoted'])
+                f.write("# current state: %s (impugned: %s)\n" % (a['state'], a[ 'null']))
+            elif 'promoted' in a:
+                f.write("# current state: %s (accepted: %s)\n" % (a['state'], a[ 'promoted']))
+            else:
+                f.write("# current state: %s\n" % a['state'])
+
             f.write("# summary published: %s\n" % a['last_answer'].get('__summary'))
             f.write("# user: %s\n" % a['user'])
             f.write("# assignment url: %s/%s\n" % (ASSIGNMENT_URL, a['iid']))
