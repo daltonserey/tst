@@ -21,7 +21,12 @@ function print {
 }
 
 if [[ "$1" == "" ]]; then
-    FILES=(*.py)
+    if ls *.py 1> /dev/null 2>&1; then
+        FILES=(*.py)
+    else
+        print $LRED"no files to check\n"$RESET
+        exit
+    fi
 else
     FILES=($1)
 fi
