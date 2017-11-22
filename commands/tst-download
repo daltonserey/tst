@@ -223,9 +223,10 @@ def save_assignments(assignments):
 
     # save assignments
     for a in assignments:
-        if a.get('last_answer') is None:
+        if a.get('answers') is None:
             continue
 
+        a['last_answer'] = a['answers'][-1]
         username = a['user'].split('@')[0].replace(".", "_")
         extension = a['last_answer']['__filename'].split('.')[-1]
         unit = a['unit']
