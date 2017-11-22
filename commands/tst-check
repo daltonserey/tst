@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# TST check
+# (C) 2017 Dalton Serey / UFCG
+
+LRED="\033[1;31m"
+LBLUE="\033[1;34m"
+LGREEN="\033[1;32m"
+LYELLOW="\033[1;33m"
+RESET="\033[0m"
+
+function clean_pattern {
+    pattern=$(echo "$pattern" | sed "s/\\\//g;s/\.\*/ … /g")
+}
+
+function print {
+    COLOR=$2
+    if [[ "$COLOR" == "" ]]; then
+        COLOR=$NORMAL
+    fi
+    echo -n -e $COLOR"$1"$RESET
+}
+
+file2check=$1
+if [[ "$file2check" == "" ]]; then
+    print $LRED"usage: check.sh <filename>"$RESET
+    exit 1
+fi
+
+if [[ -d "check.json" ]]; then
+    # read patterns from json
+    print $LRED"tbd... (remove check.json)"$RESET
+
+else
+    patterns=(
+        "replace"
+        "count"
+        "index"
+        "map"
+        "try"
+        "sort"
+        "sorted"
+        "extend"
+        "min"
+        "max"
+        "join"
+        "insert"
+        "remove"
+        "reverse"
+        "clear"
+        "copy"
+        "slice"
+        "del"
+        "\[.*for.*\]"
+        "sum"
+        "split"
+        "sort"
+        "remove"
+        "insert"
+        "if.*in "
+        "\[.*:.*\]"
+    )
+fi
+
+for pattern in "${patterns[@]}"; do
+    found=$(grep $pattern $file2check)
+    if [[ "$found" != "" ]]; then
+        clean_pattern $pattern
+        print $LRED"warning!"$RESET" code using <$LYELLOW$pattern$RESET>\n"
+    fi
+done
+
+if [[ "$found" ==  "" ]]; then
+    print $LGREEN"no problem found\n"$RESET
+fi
