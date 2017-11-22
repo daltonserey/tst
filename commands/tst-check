@@ -9,7 +9,7 @@ LYELLOW="\033[1;33m"
 RESET="\033[0m"
 
 function clean_pattern {
-    pattern=$(echo "$pattern" | sed "s/\\\//g;s/\.\*/ … /g")
+    pattern=$(echo "$pattern" | sed "s/\<//;s/\>//;s/\\\//g;s/\.\*/ … /g")
 }
 
 function print {
@@ -20,10 +20,10 @@ function print {
     echo -n -e $COLOR"$1"$RESET
 }
 
-file2check=$1
-if [[ "$file2check" == "" ]]; then
-    print $LRED"usage: check.sh <filename>"$RESET
-    exit 1
+if [[ "$1" == "" ]]; then
+    FILES=(*.py)
+else
+    FILES=($1)
 fi
 
 if [[ -d "check.json" ]]; then
@@ -51,24 +51,24 @@ else
         "slice"
         "del"
         "\[.*for.*\]"
-        "sum"
+        "sum\>"
         "split"
         "sort"
         "remove"
         "insert"
-        "if.*in "
+        "if.*\<in\>"
         "\[.*:.*\]"
     )
 fi
 
-for pattern in "${patterns[@]}"; do
-    found=$(grep $pattern $file2check)
-    if [[ "$found" != "" ]]; then
-        clean_pattern $pattern
-        print $LRED"warning!"$RESET" code using <$LYELLOW$pattern$RESET>\n"
-    fi
+for file2check in "${FILES[@]}"; do
+    found=""
+    for pattern in "${patterns[@]}"; do
+        found=$(grep $pattern $file2check)
+        if [[ "$found" != "" ]]; then
+            clean_pattern $pattern
+            print $LRED"!"$RESET" $file2check uses <$LYELLOW$pattern$RESET>\n"
+        fi
+    done
 done
 
-if [[ "$found" ==  "" ]]; then
-    print $LGREEN"no problem found\n"$RESET
-fi
