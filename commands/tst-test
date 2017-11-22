@@ -767,6 +767,7 @@ def main():
     # identify activity files
     tstjson = tst.read_tstjson(quit_on_fail=False)
     activity_files = []
+    ignore_files = []
     if tstjson:
         files = tstjson['files']
         ignore_files = tstjson.get('ignore_files', config.get('ignore_files', IGNORE_FILES_DEFAULT))
