@@ -9,7 +9,7 @@ LYELLOW="\033[1;33m"
 RESET="\033[0m"
 
 function clean_pattern {
-    pattern=$(echo "$pattern" | sed "s/\[:space:\]//;s/*//;s/\<//;s/\>//;s/\\\//g;s/\.\*/ … /g")
+    pattern=$(echo "$pattern" | sed "s/\[\[:space:\]\]//;s/*//;s/\<//;s/\>//;s/\\\//g;s/\.\*/ … /g")
 }
 
 function print {
@@ -37,26 +37,26 @@ if [[ -d "check.json" ]]; then
 
 else
     patterns=(
-        "sum\>[:space:]*(.*)"
-        "split\>[:space:]*(.*)"
-        "sort\>[:space:]*(.*)"
-        "remove\>[:space:]*(.*)"
-        "insert\>[:space:]*(.*)"
-        "replace\>[:space:]*(.*)"
-        "count\>[:space:]*(.*)"
-        "index\>[:space:]*(.*)"
-        "map\>[:space:]*(.*)"
-        "sort\>[:space:]*(.*)"
-        "sorted\>[:space:]*(.*)"
-        "extend\>[:space:]*(.*)"
-        "min\>[:space:]*(.*)"
-        "max\>[:space:]*(.*)"
-        "join\>[:space:]*(.*)"
-        "insert\>[:space:]*(.*)"
-        "remove\>[:space:]*(.*)"
-        "reverse\>[:space:]*(.*)"
-        "clear\>[:space:]*(.*)"
-        "copy\>[:space:]*(.*)"
+        "sum\>[[:space:]]*(.*)"
+        "split\>[[:space:]]*(.*)"
+        "sort\>[[:space:]]*(.*)"
+        "remove\>[[:space:]]*(.*)"
+        "insert\>[[:space:]]*(.*)"
+        "replace\>[[:space:]]*(.*)"
+        "count\>[[:space:]]*(.*)"
+        "index\>[[:space:]]*(.*)"
+        "map\>[[:space:]]*(.*)"
+        "sort\>[[:space:]]*(.*)"
+        "sorted\>[[:space:]]*(.*)"
+        "extend\>[[:space:]]*(.*)"
+        "min\>[[:space:]]*(.*)"
+        "max\>[[:space:]]*(.*)"
+        "join\>[[:space:]]*(.*)"
+        "insert\>[[:space:]]*(.*)"
+        "remove\>[[:space:]]*(.*)"
+        "reverse\>[[:space:]]*(.*)"
+        "clear\>[[:space:]]*(.*)"
+        "copy\>[[:space:]]*(.*)"
         "del"
         "try"
         "\[.*for.*\]"
