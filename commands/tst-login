@@ -9,44 +9,42 @@ from __future__ import unicode_literals
 import sys
 import os
 import webbrowser
+import json
 
 import tstlib as tst
+import jsonfile
 
-def main(token):
+def main(code):
 
-    config = tst.Config()
-    if not token:
-        webbrowser.open(config['url'] + "/token/get")
-        print("Copy and paste the token here:")
-        token = raw_input().strip()
+    config = jsonfile.JsonFile('~/.tst/config.json')
+    if code is None:
+        webbrowser.open('http://tst-online.appspot.com/activate')
+        code = raw_input('Code: ').strip()
 
-    if 'user' not in config:
-        user = raw_input("User email: ")
-    else:
-        user = config.get('user')
-
-    # request login authentication at google
-    headers = {'Authorization': 'Bearer ' + token}
-    path = '/token/validate/%s' % user
-
-    print("Validating the token...")
+    print("Validating code '%s'..." % code)
     server = tst.Server()
+    path = '/login/code/%s/token' % code
+    headers = {}
     try:
         response = server.get(path, headers=headers)
     except tst.ConnectionFail as e:
         print("tst: connection to server failed", file=sys.stderr)
         sys.exit()
 
-    validation_msg = response.body.splitlines()[0]
-    if validation_msg != "Valid token.":
-        print("ERRO: '%s'" % response.body)
-        sys.exit()
+    data = json.loads(response.body)
+    if data.get('error') == 404:
+        print('Code is not valid')
+        print('Run `tst login` (without code)')
+        sys.exit(1)
+
+    token = data['tst_token']
+    user = data['email']
 
     config['access_token'] = token
     config['user'] = user
 
     # save to ~/.tst/curlrc
-    with open(os.path.expanduser("~/.tst/curlrc"), "a") as curlrc:
+    with open(os.path.expanduser("~/.tst/curlrc"), "w") as curlrc:
         curlrc.write('-H "Authorization: Bearer %s"' % token)
         
     config.save()
@@ -56,8 +54,8 @@ def main(token):
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == '--one-line-help':
-        print("log into TST Server")
+        print("log into TST Online Server")
         sys.exit()
 
-    token = sys.argv[1] if len(sys.argv) > 1 else None
-    main(token)
+    code = sys.argv[1] if len(sys.argv) > 1 else None
+    main(code)
