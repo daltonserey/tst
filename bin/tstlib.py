@@ -206,7 +206,7 @@ class Config(object):
     def load(self, exit_on_fail=False):
         if not os.path.exists(TSTCONFIG):
             self.data = {
-                'url': 'http://tst-online.appspot.com',
+                'url': 'http://backend.tst-online.appspot.com',
                 'cookies': {},
                 'run': {
                     'py': 'python2.7',
