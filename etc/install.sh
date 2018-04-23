@@ -202,6 +202,7 @@ mv daltonserey-tst*/LICENSE $TST_DIR/
 # update release.json in TST_DIR
 cd $TST_DIR
 echo "{\"tag_name\": \"$tag_name\"}" > $TST_DIR/release.json
+echo "{\"url\": \"http://backend.tst-online.appspot.com\"}" > $TST_DIR/release.json
 
 # finish installation/update
 rm -rf $INSTALL_DIR
