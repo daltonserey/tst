@@ -527,12 +527,19 @@ def read_tests(tstjson):
 class StatusLine:
 
     def __init__(self):
+        if not sys.stdout.isatty():
+            self.terminal = False
+            return
+
+        self.terminal = True
         self.lastline = ''
         self.stty_size = os.popen('stty size', 'r').read()
         self.columns = int(self.stty_size.split()[1]) - 10
 
 
     def set(self, line):
+        if not self.terminal:
+            return
         GREEN = '\033[92m'
         RESET = '\033[0m'
         line = GREEN + line[:self.columns]+ RESET
@@ -543,6 +550,8 @@ class StatusLine:
 
 
     def clear(self):
+        if not self.terminal:
+            return
         sys.stderr.write('\r%s\r' % ((1+len(self.lastline)) * ' '))
         sys.stderr.write('')
         sys.stderr.flush()
