@@ -16,6 +16,7 @@ import glob
 import tstlib as tst
 from tstlib import data2json
 from tstlib import _assert
+import jsonfile
 
 TSTJSON = './.tst/tst.json'
 KINDS = ['assignment', 'activity', 'event', 'group']
@@ -313,7 +314,7 @@ if __name__ == "__main__":
         print("download assignments")
         sys.exit()
 
-    config = tst.Config()
+    config = jsonfile.JsonFile('~/.tst/config.json')
     if 'user' not in config:
         tst.cprint(tst.LRED, "No user logged in.")
         print("---")
