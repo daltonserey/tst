@@ -18,8 +18,8 @@ from tstlib import data2json
 from tstlib import _assert
 import jsonfile
 
-TSTJSON = './.tst/tst.json'
-KINDS = ['assignment', 'activity', 'event', 'group']
+ASSIGNMENT_URL = "http://tst-online.appspot.com/#/as"
+ACTIVITY_URL = "http://tst-online.appspot.com/#/ac"
 
 def help():
     print("usage: tst-checkout [name]")
@@ -220,47 +220,103 @@ def save_activities(activities):
             os.chdir(home)
         
 
-def save_assignments(assignments):
+def gather_metadata(answer, assignment):
+    """
+    Return a map of yaml like properties format of all
+    the relevant answer and assignment properties.
+    """
+    data = {}
+
+    data["activity name"] = assignment['name']
+    if 'null' in assignment:
+        data["current state"] = "%s (impugned: %s)" % (assignment['state'], assignment['null'])
+    elif 'promoted' in assignment:
+        data["current state"] = "%s (accepted: %s)\n" % (assignment['state'], assignment['promoted'])
+    else:
+        data["current state"] = "%s" % assignment['state']
+
+    data["summary published"] = answer['summary'] or 'null'
+    data["user"] = assignment['user']
+    data["assignment url"] = "%s/%s" % (ASSIGNMENT_URL, assignment['iid'])
+    data["activity url"] = "%s/%s\n" % (ACTIVITY_URL, assignment['name'])
+    data["submission timestamp"] = answer['timestamp']
+    data["submission ip"] = answer['ip']
+    data["revision number"] = answer['revision_number']
+
+    return data
+
+
+def save_answer(answer, assignment, dirname, filename, options={}):
+    metadata = gather_metadata(answer, assignment)
+    if options['anonymize']:
+        for prop in options['remove_on_anonymize']:
+            metadata.pop(prop) 
+
+    mkdirs(dirname)
+    with codecs.open(filename, mode='w', encoding='utf-8') as f:
+        # save user created content
+        data = answer['code']
+        f.write(data)
+
+        if options.get('add_metadata'):
+            metadata_lines = ["# %s: %s" % (k, metadata[k]) for k in metadata]
+            f.write("####\n")
+            f.write("\n".join(metadata_lines))
+            
+    if options.get('meta_file'):
+        metadata_filename = filename.split(".py").pop(0) + '.meta'
+        with codecs.open(metadata_filename, mode='w', encoding='utf-8') as f:
+            metadata_lines = ["# %s: %s" % (k, metadata[k]) for k in metadata]
+            f.write("\n".join(metadata_lines))
+
+    if options.get('yaml_file'):
+        yaml_filename = filename.split(".py").pop(0) + '.yaml'
+        with codecs.open(yaml_filename, mode='w', encoding='utf-8') as f:
+            yaml_metadata = "\n".join(["%s: %s" % (k, metadata[k]) for k in metadata])
+            f.write(yaml_metadata)
+
+
+def save_assignments(assignments, anonymize=False, last_only=True):
 
     # save assignments
-    for a in assignments:
-        if a.get('answers') is None:
+    for assignment in assignments:
+        if assignment.get('answers') is None:
             continue
 
-        a['last_answer'] = a['answers'][-1]
-        username = a['user'].split('@')[0].replace(".", "_")
-        extension = a['last_answer']['__filename'].split('.')[-1]
-        unit = a['unit']
-        activity = a['name']
-        activity_revision = a['last_answer']['__activity_revision']
-        major = activity_revision.split('.')[0]
-        dirname = "%s.%s-v%s" % (unit, activity, major)
-        mkdirs(dirname)
-        filename = "%s/%s.%s" % (dirname, username, extension)
-        ASSIGNMENT_URL = "http://tst-online.appspot.com/#/as"
-        ACTIVITY_URL = "http://tst-online.appspot.com/#/ac"
-        with codecs.open(filename, mode='w', encoding='utf-8') as f:
-            # save user created content
-            data = a['last_answer']['__code']
-            f.write(data)
-
-            # add tst data
-            f.write("\n####\n")
-            f.write("# activity name: %s\n" % a['name'])
-            if 'null' in a:
-                f.write("# current state: %s (impugned: %s)\n" % (a['state'], a[ 'null']))
-            elif 'promoted' in a:
-                f.write("# current state: %s (accepted: %s)\n" % (a['state'], a[ 'promoted']))
+        first = -1 if last_only else 0
+        for i in range(len(assignment['answers'][first:])):
+            chosen_answer = assignment['answers'][i]
+            answer = {
+                "code": chosen_answer['__code'],
+                "summary": chosen_answer.get('__summary'),
+                "timestamp": chosen_answer['__timestamp'],
+                "ip": chosen_answer['__ip'],
+                "activity_revision": chosen_answer['__activity_revision'],
+                "filename": chosen_answer['__filename'],
+                "revision_number": i + 1
+            }
+            major = answer['activity_revision'].split('.')[0]
+            dirname = "%s.%s-v%s" % (assignment['unit'], assignment['name'], major)
+            username = assignment['user'].split('@')[0].replace(".", "_")
+            userid = md5.md5(username).hexdigest() if anonymize else username
+            extension = answer['filename'].split('.')[-1]
+            if last_only:
+                filename = "%s/%s.%s" % (dirname, userid, extension)
             else:
-                f.write("# current state: %s\n" % a['state'])
+                filename = "%s/%s-%s.%s" % (dirname, userid, i + 1, extension)
 
-            f.write("# summary published: %s\n" % a['last_answer'].get('__summary'))
-            f.write("# user: %s\n" % a['user'])
-            f.write("# assignment url: %s/%s\n" % (ASSIGNMENT_URL, a['iid']))
-            f.write("# activity url: %s/%s\n" % (ACTIVITY_URL, a['name']))
-            f.write("# submission timestamp: %s\n" % a['last_answer']['__timestamp'])
-            f.write("# submission ip: %s\n" % a['last_answer']['__ip'])
-            f.write("# revision number: %s\n" % a['revision_number'])
+            options = {
+                'add_metadata': True,
+                'yaml_file': False,
+                'anonymize': anonymize,
+                'remove_on_anonymize': [
+                    'user',
+                    'assignment url',
+                    'submission ip',
+                    'activity url'
+                ]
+            }
+            save_answer(answer, assignment, dirname, filename, options)
 
 
 def main(args):
