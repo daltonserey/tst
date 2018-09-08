@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# TST gentests
+# (C) 2018 Dalton Serey / UFCG
+
+LRED="\033[1;31m"
+LBLUE="\033[1;34m"
+LCYAN="\033[1;36m"
+LGREEN="\033[1;32m"
+LYELLOW="\033[1;33m"
+RESET="\033[0m"
+
+function print {
+    COLOR=$2
+    if [[ "$COLOR" == "" ]]; then
+        COLOR=$NORMAL
+    fi
+    echo -n -e $COLOR"$1"$RESET
+}
+
+if [[ -f "tst.json" ]]; then
+    print $LCYAN"renaming tst.json to$LYELLOW tst.json.original\n"$RESET
+    mv tst.json tst.json.original
+fi
+
+if [[ -f "specs.yaml" ]]; then
+    print $LCYAN"using file specs.yaml\n"$RESET
+    python -m gen2 > tst.json
+else
+    print $LRED"no specs.yaml found\n"$RESET
+    exit
+fi
+
+if [[ -f "reference.py" ]]; then
+    print $LCYAN"running reference.py to generate output (this may take a while)\n"$RESET
+    tst -o tests reference.py > tst2.json
+else
+    print $LRED"no reference.py found\n"$RESET
+    exit
+fi
+
+mv tst2.json tst.json

@@ -213,6 +213,8 @@ class TestRun:
             input_data = ''
         self.result['input'] = self.testcase.input
         self.result['output'] = self.testcase.output
+        self.result['cases'] = self.testcase.cases
+        self.result['sha1'] = self.testcase.sha1
 
         # loop until running the test
         while True:
@@ -372,6 +374,8 @@ class TestCase():
         self.type = test.get('type', 'io')
         self.input = test.get('input', '')
         self.output = test.get('output', '')
+        self.cases = test.get('cases', None)
+        self.sha1 = test.get('sha1', None)
         self.tokens = test.get('tokens', [])
         self.ignore = test.get('ignore', [])
         self.script = test.get('script')
@@ -651,6 +655,19 @@ def report_results(subjects, output):
 
         print(data2json(data).encode('utf-8'))
 
+    elif output == 'tests':
+        tst._assert(len(subjects) == 1, "-o tests requires one single subjec")
+        data = {
+            "tests": [{
+                "input": test['input'],
+                "output": test['stdout'],
+                "cases": test['cases'],
+                "sha1": test.get('sha1', None),
+            } for test in subjects[0].results()]
+        }
+
+        print(data2json(data).encode('utf-8'))
+
     elif output == 'summary':
         cwd = os.path.basename(os.path.normpath(os.getcwd()))
         print("%s:" % cwd)
@@ -663,7 +680,7 @@ def report_results(subjects, output):
 def parse_cli():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('-t', '--timeout', type=int, default=5, help='stop execution at TIMEOUT seconds')
-    parser.add_argument('-o', '--output', choices=['raw', 'debug', 'json', 'summary'], help='set output type')
+    parser.add_argument('-o', '--output', choices=['raw', 'debug', 'json', 'tests', 'summary'], help='set output type')
     parser.add_argument('-s', '--server', action='store_const', const=True, help='run server acceptance tests on last answer')
     parser.add_argument('-f', '--tests-file', type=str, default='tst.json', help='read tests from file')
     parser.add_argument('filename', nargs='*', default=[''])
