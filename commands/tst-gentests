@@ -14,28 +14,19 @@ function print {
     if [[ "$COLOR" == "" ]]; then
         COLOR=$NORMAL
     fi
-    echo -n -e $COLOR"$1"$RESET
+    >&2 echo -n -e $COLOR"$1"$RESET
 }
 
-if [[ -f "tst.json" ]]; then
-    print $LCYAN"renaming tst.json to$LYELLOW tst.json.original\n"$RESET
-    mv tst.json tst.json.original
-fi
+# leave on first error
+set -e
 
-if [[ -f "specs.yaml" ]]; then
-    print $LCYAN"using file specs.yaml\n"$RESET
-    python -m gen2 > tst.json
-else
-    print $LRED"no specs.yaml found\n"$RESET
-    exit
-fi
+FILE="specs.yaml"
+print $LCYAN"generating tests based on specs.yaml\n"$RESET 
+python -m gen2 $FILE
 
-if [[ -f "reference.py" ]]; then
-    print $LCYAN"running reference.py to generate output (this may take a while)\n"$RESET
-    tst -o tests reference.py > tst2.json
-else
-    print $LRED"no reference.py found\n"$RESET
-    exit
+if [[ $1 == "-r" && -f "$2" ]]; then
+    print $LCYAN"running reference.py to generate output\n"$RESET 
+    tst -o tests $2 > tst2.json
+    mv tst2.json tst.json
+    tst reference.py
 fi
-
-mv tst2.json tst.json
