@@ -45,7 +45,10 @@ HELP = {
     "new": "create activity",
     "release": "release activity",
     "delete": "delete activity",
-    "list": "list all activities"
+    "list": "list all activities",
+    "gentests": "generate tests",
+    "check": "search forbidden patterns",
+    "download": "download answers",
 }
 
 def tst_help(args):
@@ -276,7 +279,7 @@ def get_one_line_help(command):
 
 
 def run_external_command(command, args):
-    script_name = os.path.expanduser("~/.tst/commands/tst-%s" % command)
+    script_name = os.path.expanduser("tst-%s" % command)
     args.insert(0, script_name)
     try:
         check_call(args)
@@ -320,6 +323,7 @@ def is_custom_external_command(cmd):
 
 
 def identify_and_run_command(args):
+    from distutils.spawn import find_executable
     if args and args[0] in INTERNALS:
         command_name = args.pop(0) # discard command name
         run_internal_command = globals()["tst_" + command_name]
@@ -343,6 +347,10 @@ def identify_and_run_command(args):
         command_name = args.pop(0)
         run_external_command(command_name, args)
 
+    elif args and find_executable('tst-%s' % args[0]):
+        command_name = args.pop(0)
+        run_external_command(command_name, args)
+            
     else: # neither internal, nor external command!?
         command_name = DEFAULT_COMMAND
         run_external_command(command_name, args)
