@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='tst',
-      version='0.9.1',
+      version='0.9.5',
       description='TST Student Testing',
       url='http://github.com/daltonserey/tst',
       author='Dalton Serey',
@@ -18,7 +18,7 @@ setup(name='tst',
         'commands/tst-gentests',
         'commands/tst-status',
         'commands/tst-update',
-        'commands/tst-checkout', #
+        'commands/tst-checkout',
         'commands/tst-commit',
         'commands/tst-delete',
         'commands/tst-download',
