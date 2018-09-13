@@ -190,9 +190,9 @@ def save_report(data):
     participants = [a['user'] for a in data['assignments']]
     report = {name:{} for name in participants}
     for a in data['assignments']:
-        if a.has_key('last_answer'):
-            if a['last_answer'].has_key('__summary'):
-                summary = a['last_answer']['__summary']
+        if a.has_key('answers'):
+            if a['answers'][-1].has_key('__summary'):
+                summary = a['answers'][-1]['__summary']
                 if summary == len(summary) * '.':
                     if 'null' in a:
                         result = 'impugned'
