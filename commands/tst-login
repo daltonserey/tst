@@ -12,11 +12,10 @@ import webbrowser
 import json
 
 import tstlib as tst
-import jsonfile
 
 def main(code):
 
-    config = jsonfile.JsonFile('~/.tst/config.json')
+    config = tst.Config()
     if code is None:
         webbrowser.open('http://tst-online.appspot.com/activate')
         code = raw_input('Code: ').strip()

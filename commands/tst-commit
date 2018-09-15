@@ -14,7 +14,6 @@ import codecs
 import md5
 import difflib
 
-import jsonfile
 import tstlib as tst
 from tstlib import show
 
@@ -387,6 +386,5 @@ if __name__ == "__main__":
         print("save object to the server")
         sys.exit()
 
-    #config = tst.Config()
-    config = jsonfile.JsonFile('~/.tst/config.json')
+    config = tst.Config()
     main()

@@ -16,7 +16,6 @@ import glob
 import tstlib as tst
 from tstlib import data2json
 from tstlib import _assert
-import jsonfile
 
 ASSIGNMENT_URL = "http://tst-online.appspot.com/#/as"
 ACTIVITY_URL = "http://tst-online.appspot.com/#/ac"
@@ -370,7 +369,7 @@ if __name__ == "__main__":
         print("download assignments")
         sys.exit()
 
-    config = jsonfile.JsonFile('~/.tst/config.json')
+    config = tst.Config()
     if 'user' not in config:
         tst.cprint(tst.LRED, "No user logged in.")
         print("---")
