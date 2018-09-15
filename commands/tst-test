@@ -591,7 +591,7 @@ def report_results(subjects, output):
 
                 if res['type'] == 'io':
                     name = '`%s`: ' % res['name'] if res['name'] else ''
-                    print(color(LCYAN, "## %s`%s` (`%s`)" % (name, res['status'], res['summary'])))
+                    print(color(LCYAN, "\n## %s`%s` (`%s`)" % (name, res['status'], res['summary'])))
                     if res['status'] == 'Timeout':
                         print('- input')
                         print(color(LCYAN, indent(res['input'])))
@@ -599,6 +599,12 @@ def report_results(subjects, output):
                     else:
                         print('### input:')
                         print(color(LCYAN, indent(res['input'])))
+                        print(indent('(%s)' % color(LCYAN, repr(res['input'])[1:])))
+
+                        print('### output:')
+                        print(color(LCYAN, indent(res['output'])))
+                        print(indent('(%s)' % color(LCYAN,
+                        repr(res['output'])[1:])))
 
                         print('### output diff')
                         differ = difflib.Differ()
@@ -614,7 +620,7 @@ def report_results(subjects, output):
 
                 elif res['type'] == 'script':
                     name = '`%s`: ' % res['name'] if res['name'] else ''
-                    print(color(LCYAN, "## %s`%s` (`%s`)" % (name, res['status'], res['summary'])))
+                    print(color(LCYAN, "\n## %s`%s` (`%s`)" % (name, res['status'], res['summary'])))
                     report = res['stderr'] or res['stdout']
                     if report:
                         print('### test script: `%s`' % res['command'])
@@ -791,7 +797,8 @@ def main():
     filenames, timeout, output, server, tests_file = parse_cli()
 
     # identify activity files
-    tstjson = tst.read_tstjson(quit_on_fail=False)
+    tstjson = tst.read_tstjson(quit_on_fail=True)
+    tst._assert(tstjson['kind'] == 'challenge', "Test command cannot be run on challenge directory")
     activity_files = []
     ignore_files = []
     if tstjson:
@@ -804,7 +811,7 @@ def main():
         tst._assert(tstjson['kind'] == 'assignment', "The --server option only apply to assignments")
         request_server_tests(tstjson)
         sys.exit()
-            
+
     # read local tests
     tests = tst.read_tstjson(file=tests_file)
     if tests is None:
