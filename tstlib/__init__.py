@@ -173,6 +173,9 @@ class Config(object):
         self.data = None
         return self
 
+    def __init__(self):
+        self.load()
+
     def __setitem__(self, key, value):
         if self.data is None:
             self.load()
@@ -181,7 +184,6 @@ class Config(object):
             value = boolean(value)
         
         self.data[key] = value
-
 
     def __getitem__(self, key):
         if self.data is None:
@@ -195,14 +197,6 @@ class Config(object):
 
         return key in self.data
 
-
-    def pop(self, key):
-        if self.data is None:
-            self.load()
-
-        self.data.pop(key, None)
-
-
     def load(self, exit_on_fail=False):
         if not os.path.exists(TSTCONFIG):
             self.data = {
@@ -213,6 +207,7 @@ class Config(object):
                     'java': 'runjava'
                 }
             }
+            self.save()
             return
 
         # actually read from file system
@@ -228,10 +223,9 @@ class Config(object):
 
             raise CorruptedFile(msg)
 
-
     def save(self):
-        if self.data is None:
-            return
+        if not os.path.exists(TSTDIR):
+            os.mkdir(TSTDIR)
 
         with codecs.open(TSTCONFIG, mode="w", encoding='utf-8') as f:
             f.write(json.dumps(
@@ -240,6 +234,11 @@ class Config(object):
                 separators=(',', ': ')
             ))
 
+    def pop(self, key):
+        if self.data is None:
+            self.load()
+
+        self.data.pop(key, None)
 
     def get(self, key, default=None):
         if self.data is None:
