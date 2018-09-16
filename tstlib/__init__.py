@@ -200,11 +200,14 @@ class Config(object):
     def load(self, exit_on_fail=False):
         if not os.path.exists(TSTCONFIG):
             self.data = {
-                'url': 'http://backend.tst-online.appspot.com',
-                'cookies': {},
-                'run': {
-                    'py': 'python2.7',
-                    'java': 'runjava'
+                "url": "http://backend.tst-online.appspot.com",
+                "ignore_default": [
+                    "public_tests.py",
+                    "acceptance_tests.py"
+                ],
+                "run": {
+                    "py": "python2.7",
+                    "java": "runjava"
                 }
             }
             self.save()
@@ -391,8 +394,8 @@ def read_tstjson(file=TSTJSON, exit=False, quit_on_fail=False):
 
     if not os.path.exists(file):
         if quit_on_fail:
-            msg = "This is not a tst directory."
-            print(msg, file=sys.stderr)
+            msg = "This is not a tst directory"
+            cprint(LRED, msg, file=sys.stderr)
             sys.exit(1)
         return None
 
