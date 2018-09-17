@@ -419,7 +419,7 @@ def preprocess(text, operator_names):
     if operator_names == ['all']:
         operator_names = OPERATOR.keys()
 
-    tst._assert(all(name in OPERATOR for name in operator_names), "unknown operator: %s" % opname)
+    tst._assert(all(name in OPERATOR for name in operator_names), "unknown operator in ignore")
 
     # sort to assure 'whites' is last
     operators = [OPERATOR[name] for name in sorted(operator_names)]
@@ -802,13 +802,14 @@ def main():
 
     # dispatch server tests if required
     if server:
-        tst._assert(tstjson, "This is not a tst activity directory")
+        tst._assert(tstjson, "No assignment directory (.tst)")
         tst._assert(tstjson['kind'] == 'assignment', "The --server option only apply to assignments")
         request_server_tests(tstjson)
         sys.exit()
 
     # read local tests
     tests = tst.read_tstjson(file=tests_file)
+    tst._assert(tests, "No tests file (tst.json)")
     ignore_files = tests.get('ignore', [])
     if tests is None:
         tst.cprint(tst.LRED, "No %s here" % tests_file)
@@ -817,8 +818,12 @@ def main():
     # set default output to user's preference if any
     output = output or config.get('output') or 'raw'
 
+    # separate files from tests
+    files = tests.get('files', [])
+    files = []
+
     # discard files mentioned in tst.json, if any
-    assignment_files = [f['name'] for f in tests.get('files', [])]
+    assignment_files = [f['name'] for f in files]
     assignment_files.append('tst.json')
     for i in xrange(len(filenames)-1, -1, -1):
         if filenames[i] in ignore_files:
