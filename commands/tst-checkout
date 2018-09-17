@@ -123,7 +123,7 @@ def save_assignment(assignment, is_checkout=True):
 
     # save visible tst.json
     with codecs.open(filename, mode='w', encoding='utf-8') as f:
-        tst_ignore = assignment.get('ignore', config.get('ignore_default', []))
+        ignore = assignment.get('ignore', config.get('ignore_default', []))
         f.write(data2json({'tests': tests, 'ignore': ignore}))
     
     # save files (server includes last answer as a file)
