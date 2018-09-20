@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # coding: utf-8
 """
 TST testcase generator.
@@ -159,7 +160,7 @@ def main():
             indent=2,
             separators=(',', ': '),
             ensure_ascii=False
-        ).encode('utf-8'))
+        ))
 
     num_added = len(new_tests) - num_repeated
     tst.cprint(tst.LGREEN, "%d tests added (%d discarded as repeated)" % (num_added, num_repeated))
