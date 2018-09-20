@@ -22,11 +22,11 @@ set -e
 
 FILE="specs.yaml"
 print $LCYAN"generating tests based on specs.yaml\n"$RESET 
-python -m gen2 $FILE
+gen2.py $FILE
 
 if [[ $1 == "-r" && -f "$2" ]]; then
-    print $LCYAN"running reference.py to generate output\n"$RESET 
+    print $LCYAN"running $2 to generate output\n"$RESET 
     tst -o tests $2 > tst2.json
     mv tst2.json tst.json
-    tst reference.py
+    tst $2
 fi
