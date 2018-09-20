@@ -1,13 +1,14 @@
 from setuptools import setup
 
 setup(name='tst',
-      version='0.9.5',
+      version='0.9a14',
       description='TST Student Testing',
       url='http://github.com/daltonserey/tst',
       author='Dalton Serey',
       author_email='daltonserey@gmail.com',
       license='MIT',
       packages=['tstlib', 'datagen', 'jsonfile'],
+      include_package_data=True,
       scripts=[
         'bin/gen2.py',
         'bin/runjava',
@@ -22,7 +23,6 @@ setup(name='tst',
         'commands/tst-commit',
         'commands/tst-delete',
         'commands/tst-download',
-        'commands/tst-install',
         'commands/tst-list',
         'commands/tst-login',
         'commands/tst-new',
@@ -30,5 +30,6 @@ setup(name='tst',
       ],
       install_requires=[
         'pyyaml',
+        'requests'
       ],
       zip_safe=False)
