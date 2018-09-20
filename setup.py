@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(name='tst',
       version='0.9a14',
@@ -7,14 +7,16 @@ setup(name='tst',
       author='Dalton Serey',
       author_email='daltonserey@gmail.com',
       license='MIT',
-      packages=['tstlib', 'datagen', 'jsonfile'],
+      packages=find_packages(),
       include_package_data=True,
       scripts=[
         'bin/gen2.py',
         'bin/runjava',
         'bin/tst',
+        'etc/tst.completion.sh',
         'commands/tst-test',
         'commands/tst-check',
+        'commands/tst-completion',
         'commands/tst-config',
         'commands/tst-gentests',
         'commands/tst-status',

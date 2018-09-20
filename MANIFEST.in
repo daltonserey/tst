@@ -1,1 +1,2 @@
-include etc/tst.completion.sh
+include include *.md
+include LICENSE
