@@ -1,0 +1,91 @@
+#!/usr/bin/env python3
+from __future__ import print_function
+
+import sys
+import os
+import requests
+import yaml
+import codecs
+import json
+
+import tst2
+import tstlib as tst
+from jsonfile import JsonFile 
+
+def checkout(url, dirname):
+
+    # do server request
+    response = requests.get(url)
+    assignment = response.json()
+    etag = response.headers['ETag']
+
+    # create and cd to checkout directory
+    checkout_name = sys.argv[1] if len(sys.argv) > 1 and not is_url(sys.argv[1]) else None
+    dirname = dirname or assignment.get('name', checkout_name or 'unnamed_assignment')
+    if dirname != "." and os.path.exists(dirname):
+        tst.cprint(tst.LRED, "directory already exists: '%s'" % dirname)
+        print("---")
+        print("To update assignment files, cd to the directory and type")
+        print("\n   tst checkout\n")
+        sys.exit()
+
+    if not os.path.exists(dirname):
+        tst.cprint(tst.LCYAN, "creating directory: '%s'" % dirname)
+        os.makedirs(dirname)
+
+    tst2.save_assignment(assignment, dirname, etag, url, is_checkout=True)
+
+
+def is_url(s):
+    return s.startswith("http:") or s.startswith("https:")
+
+
+def get_url_from_collections(name):
+    config = tst.Config()
+    url = "http://www.dsc.ufcg.edu.br/~dalton/tstrepo/index.json"
+    collections = [requests.get(url).json()]
+    collections = config.get('collections', [])
+    for collection in collections:
+        base_url = collection['url']
+        for assignment in collection['assignments']:
+            if assignment['name'] == name:
+                return "%s/%s" % (base_url, assignment['url'])
+
+    return None
+
+
+def read_assignment_json():
+    tst._assert(os.path.exists(".tst"), "This is not a tst assignment directory.")
+    tst._assert(os.path.exists(".tst/assignment.json"), "No .tst/assignment.json found.")
+    assignment_json = JsonFile(".tst/assignment.json")
+    return assignment_json
+
+
+def main():
+    tst._assert(len(sys.argv) in [1, 2, 3], "Invalid number of arguments")
+    if len(sys.argv) == 1:
+        # assignment must be in current directory
+        assignment_json = read_assignment_json()
+        tst._assert("url" in assignment_json, "No url in .tst/assignment.json")
+        url = assignment_json['url']
+        dirname = "."
+
+    elif len(sys.argv) >= 2 and not is_url(sys.argv[1]):
+        # argument 2 is assignment name
+        dirname = None
+        url = get_url_from_collections(sys.argv[1])
+
+    elif len(sys.argv) >= 2 and is_url(sys.argv[1]):
+        # argument 2 is url
+        dirname = None
+        url = sys.argv[1]
+
+    if len(sys.argv) == 3:
+        # user has chosen directory name
+        dirname = sys.argv[2]
+
+    checkout(url, dirname)
+
+
+if __name__ == '__main__':
+    main()
