@@ -12,10 +12,11 @@ import tst2
 import tstlib as tst
 from jsonfile import JsonFile 
 
-def checkout(url, dirname):
+def checkout(url, dirname, repo):
 
     # do server request
     response = requests.get(url)
+    tst._assert(response.status_code == 200, "Invalid assignment url\n%s" % url)
     assignment = response.json()
     etag = response.headers['ETag']
 
@@ -30,28 +31,58 @@ def checkout(url, dirname):
         sys.exit()
 
     if not os.path.exists(dirname):
-        tst.cprint(tst.LCYAN, "creating directory: '%s'" % dirname)
+        tst.cprint(tst.LCYAN, "Creating directory '%s'" % dirname)
         os.makedirs(dirname)
 
-    tst2.save_assignment(assignment, dirname, etag, url, is_checkout=True)
+    tst2.save_assignment(assignment, dirname, etag, url, repo)
 
 
 def is_url(s):
     return s.startswith("http:") or s.startswith("https:")
 
 
-def get_url_from_collections(name):
-    config = tst.Config()
-    url = "http://www.dsc.ufcg.edu.br/~dalton/tstrepo/index.json"
-    collections = [requests.get(url).json()]
-    collections = config.get('collections', [])
-    for collection in collections:
-        base_url = collection['url']
-        for assignment in collection['assignments']:
-            if assignment['name'] == name:
-                return "%s/%s" % (base_url, assignment['url'])
+def get_repository_assignments(repo):
+    cache_fn = os.path.expanduser("~/.tst/cache/%s.json" % repo['name'])
+    if os.path.exists(cache_fn):
+        repo_index = json.loads(open(cache_fn).read().decode('utf-8'))
+        etag = repo_index['etag']
+        headers = {'If-None-Match': etag} # TODO: add Authorization
+    else:
+        repo_index = {"assignments":[]}
+        dirname = os.path.dirname(cache_fn)
+        if not os.path.exists(dirname):
+            os.makedirs(os.path.dirname(cache_fn))
+        headers = {} # TODO: add Authorization
 
-    return None
+    # get repository index
+    refresh = True
+    if refresh:
+        try:
+            response = requests.get(repo['url'] + "/index.json", headers=headers)
+        except:
+            tst._assert(False, "Connection error")
+        if response.status_code == 200:
+            repo_index = response.json()
+            repo_index['etag'] = response.headers['etag']
+            with codecs.open(cache_fn, mode='w', encoding='utf-8') as f:
+                f.write(tst.data2json(repo_index).encode('utf-8'))
+    
+    return repo_index['assignments']
+
+
+def get_url_from_collections(name, repo):
+    config = tst.Config()
+    repositories = [r for r in config['repositories'] if repo is None or r['name'] == repo]
+    tst._assert(repositories, "No repositories")
+
+    for repo in repositories:
+        tst.cprint(tst.RESET, "Fetching `%s` index..." % repo['name'])
+        assignments = get_repository_assignments(repo)
+        for assignment in assignments:
+            if assignment['name'] == name:
+                return repo['name'], "%s/%s" % (repo['url'], assignment['url'])
+
+    return None, None
 
 
 def read_assignment_json():
@@ -68,23 +99,31 @@ def main():
         assignment_json = read_assignment_json()
         tst._assert("url" in assignment_json, "No url in .tst/assignment.json")
         url = assignment_json['url']
+        repo = assignment_json['repo']
         dirname = "."
 
     elif len(sys.argv) >= 2 and not is_url(sys.argv[1]):
-        # argument 2 is assignment name
+        # argument 2 is a checkout name
+        if '@' in sys.argv[1]:
+            checkout_name, repo = sys.argv[1].split("@", 1)
+        else:
+            checkout_name, repo = sys.argv[1], None
+            
         dirname = None
-        url = get_url_from_collections(sys.argv[1])
+        repo, url = get_url_from_collections(checkout_name, repo)
+        tst._assert(url, "No assignment `%s` found" % checkout_name)
 
     elif len(sys.argv) >= 2 and is_url(sys.argv[1]):
         # argument 2 is url
         dirname = None
         url = sys.argv[1]
+        repo = None
 
     if len(sys.argv) == 3:
         # user has chosen directory name
         dirname = sys.argv[2]
 
-    checkout(url, dirname)
+    checkout(url, dirname, repo)
 
 
 if __name__ == '__main__':
