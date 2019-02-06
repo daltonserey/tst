@@ -6,30 +6,41 @@ import datetime as dt
 from jsonfile import JsonFile
 
 from tstlib import data2json
-from tst import cprint, LRED, LCYAN, WHITE, RESET
 
-def save_assignment(assignment, dir_name, etag, url, repo):
+YELLOW = '\033[1;33m'
+LRED = '\033[1;31m'
+LGREEN = '\033[1;32m'
+GREEN="\033[9;32m"
+WHITE="\033[1;37m"
+LCYAN = '\033[1;36m'
+RESET = '\033[0m'
+
+def cprint(color, msg, file=sys.stdout):
+    print(color + msg + RESET, file=file)
+
+
+def save_assignment(activity, dir_name, etag, url, repo):
 
     # move into directory
     os.chdir(dir_name)
 
-    # save the original assignment data
+    # save the original activity data
     dirname = './.tst' 
     if not os.path.exists(dirname):
         os.makedirs(dirname)
 
-    with codecs.open('./.tst/assignment.json', mode='w', encoding='utf-8') as f:
+    with codecs.open('./.tst/activity.json', mode='w', encoding='utf-8') as f:
         f.write(data2json({
             "url": url,
-            "name": assignment.get('name'),
-            "assignment": assignment,
+            "name": activity.get('name'),
+            "activity": activity,
             "etag": etag,
             "repo": repo,
             "updated_at": dt.datetime.utcnow().isoformat().split(".").pop(0) + "Z"
         }))
 
-    # save assignment files
-    files = assignment['files']
+    # save activity files
+    files = activity['files']
     for file in files:
         if os.path.exists(file['name']):
             contents = open(file['name']).read().decode('utf-8')
