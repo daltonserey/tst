@@ -279,11 +279,13 @@ def save_assignments(assignments, anonymize=False, last_only=True):
 
     # save assignments
     for assignment in assignments:
+        username = assignment['user'].split('@')[0].replace(".", "_")
         if assignment.get('answers') is None:
+            print(username, assignment['name'], file=sys.stderr)
             continue
 
-        first = -1 if last_only else 0
-        for i in range(len(assignment['answers'][first:])):
+        first = len(assignment['answers']) - 1 if last_only else 0
+        for i in range(first, len(assignment['answers'])):
             chosen_answer = assignment['answers'][i]
             answer = {
                 "code": chosen_answer['__code'],
@@ -296,7 +298,6 @@ def save_assignments(assignments, anonymize=False, last_only=True):
             }
             major = answer['activity_revision'].split('.')[0]
             dirname = "%s.%s-v%s" % (assignment['unit'], assignment['name'], major)
-            username = assignment['user'].split('@')[0].replace(".", "_")
             userid = md5.md5(username).hexdigest() if anonymize else username
             extension = answer['filename'].split('.')[-1]
             if last_only:

@@ -12,11 +12,19 @@ import webbrowser
 import json
 
 import tstlib as tst
+from climenu import climenu
 
 def main(code):
-
     config = tst.Config()
+    repositories = [r['name'] for r in config['repositories']]
+    assert repositories, "oops! no repositories configured"
+
+    opcao = "1" if len(repositories) == 1 else climenu(repositories, try_curses=False)[0]
+    #repository = config['repositories'][int(opcao[0])]
+    #login_url = repository.get('login_url')
     if code is None:
+        login_url = 'http://tst-online.appspot.com/activate'
+        #login_url = config['repositories'][index]
         webbrowser.open('http://tst-online.appspot.com/activate')
         code = raw_input('Code: ').strip()
 

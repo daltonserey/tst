@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(name='tst',
-      version='0.9a14',
+      version='0.9a18',
       description='TST Student Testing',
       url='http://github.com/daltonserey/tst',
       author='Dalton Serey',
