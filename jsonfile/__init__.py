@@ -52,7 +52,7 @@ class JsonFile(object):
 
     __instances = {}
 
-    def __new__(cls, filename):
+    def __new__(cls, filename, failmsg=None, array2map=None):
         filename = os.path.expanduser(filename)
         if filename in JsonFile.__instances:
             return JsonFile.__instances[filename]
@@ -62,7 +62,10 @@ class JsonFile(object):
         self.filename = filename
         
         if os.path.exists(filename):
-            self.load()
+            self.load(failmsg=failmsg)
+            if array2map and type(self.data) is list:
+                self.data = { array2map: self.data }
+
         else:
             self.data = {}
 
@@ -85,7 +88,7 @@ class JsonFile(object):
         self.data.pop(key, None)
 
 
-    def load(self, exit_on_fail=False):
+    def load(self, exit_on_fail=False, failmsg=None):
         if not os.path.exists(self.filename):
             self.data = {}
             return
@@ -96,8 +99,8 @@ class JsonFile(object):
                 self.data = json.loads(to_unicode(f.read()))
 
         except ValueError:
-            msg = "jsonfile: %s is corrupted" % self.filename
-            if exit_on_fail:
+            if exit_on_fail or failmsg:
+                msg = failmsg or "jsonfile: %s is corrupted" % self.filename
                 print(msg, file=sys.stderr)
                 sys.exit()
 
