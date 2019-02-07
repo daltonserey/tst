@@ -51,3 +51,11 @@ def save_assignment(activity, dir_name, etag, url, repo):
         except:
             print("tst: fatal: Can't save file '%s'" % file['name'], file=sys.stderr)
             sys.exit(1)
+
+
+def _assert(condition, msg):
+    if condition:
+        return
+
+    cprint(LRED, msg)
+    sys.exit(1)
