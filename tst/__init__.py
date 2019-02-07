@@ -5,15 +5,8 @@ import codecs
 import datetime as dt
 from jsonfile import JsonFile
 
-from tstlib import data2json
-
-YELLOW = '\033[1;33m'
-LRED = '\033[1;31m'
-LGREEN = '\033[1;32m'
-GREEN="\033[9;32m"
-WHITE="\033[1;37m"
-LCYAN = '\033[1;36m'
-RESET = '\033[0m'
+from colors import *
+from data2json import *
 
 def cprint(color, msg, file=sys.stdout):
     print(color + msg + RESET, file=file)
