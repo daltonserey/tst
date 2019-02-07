@@ -8,8 +8,8 @@ import yaml
 import codecs
 import json
 
-import tst2
-import tstlib as tst
+import tst
+import tstlib
 from jsonfile import JsonFile 
 
 from tstlib import pop_argument, pop_option, pop_flag
@@ -17,7 +17,7 @@ from tstlib import pop_argument, pop_option, pop_flag
 def checkout(url, dirname, repo):
 
     # do server request
-    config = tst.Config()
+    config = tstlib.Config()
     #token = next(r.get('access_token') for r in config['repositories'] if r['name'] == repo)
     token = ''
     headers = {}
@@ -25,7 +25,7 @@ def checkout(url, dirname, repo):
         headers['Authorization'] = 'Bearer %s' % token
 
     response = requests.get(url, headers=headers)
-    tst._assert(response.status_code == 200,
+    tstlib._assert(response.status_code == 200,
                 "Problems fetching activity (status code %d)\n%s" % (response.status_code, url))
     activity = response.json()
     etag = response.headers.get('ETag')
@@ -34,17 +34,17 @@ def checkout(url, dirname, repo):
     checkout_name = sys.argv[1] if len(sys.argv) > 1 and not is_url(sys.argv[1]) else None
     dirname = dirname or activity.get('name', checkout_name or 'unnamed_assignment')
     if dirname != "." and os.path.exists(dirname):
-        tst.cprint(tst.LRED, "directory already exists: '%s'" % dirname)
+        tstlib.cprint(tstlib.LRED, "directory already exists: '%s'" % dirname)
         print("---")
         print("To update activity files, cd to the directory and type")
         print("\n   tst checkout\n")
         sys.exit()
 
     if not os.path.exists(dirname):
-        tst.cprint(tst.LCYAN, "Creating directory '%s'" % dirname)
+        tstlib.cprint(tstlib.LCYAN, "Creating directory '%s'" % dirname)
         os.makedirs(dirname)
 
-    tst2.save_assignment(activity, dirname, etag, url, repo)
+    tst.save_assignment(activity, dirname, etag, url, repo)
 
 
 def is_url(s):
@@ -62,7 +62,7 @@ def get_repository_assignments(repo):
         dirname = os.path.dirname(cache_fn)
         if not os.path.exists(dirname):
             os.makedirs(os.path.dirname(cache_fn))
-        config = tst.Config()
+        config = tstlib.Config()
         headers = {
             'Authorization': 'Bearer %s' % repo['access_token']
         }
@@ -73,26 +73,26 @@ def get_repository_assignments(repo):
         try:
             response = requests.get(repo['base_url'] + "/index.json", headers=headers)
         except:
-            tst._assert(False, "Connection error")
+            tstlib._assert(False, "Connection error")
         if response.status_code == 200:
             repo_index = response.json()
             repo_index['etag'] = response.headers['etag']
             with codecs.open(cache_fn, mode='w', encoding='utf-8') as f:
-                f.write(tst.data2json(repo_index).encode('utf-8'))
+                f.write(tstlib.data2json(repo_index).encode('utf-8'))
     
     return repo_index['assignments']
 
 
 def get_url_from_collections(name, repo):
-    config = tst.Config()
+    config = tstlib.Config()
     repositories = [r for r in config.get('repositories', []) if repo is None or r['name'] == repo]
-    tst._assert(repositories, "No repositories")
+    tstlib._assert(repositories, "No repositories")
 
     for repo in repositories:
-        tst.cprint(tst.RESET, "Fetching `%s` index..." % repo['name'])
+        tstlib.cprint(tstlib.RESET, "Fetching `%s` index..." % repo['name'])
         print("index url:", repo['index_url'])
         assignments = get_repository_assignments(repo)
-        tst._assert(repo.get('index_url'), "No index_url for index %s" % repo['name'])
+        tstlib._assert(repo.get('index_url'), "No index_url for index %s" % repo['name'])
         for assignment in assignments:
             print("  assignment url:", assignment['url'])
             if assignment['name'] == name:
@@ -102,8 +102,8 @@ def get_url_from_collections(name, repo):
 
 
 def read_assignment_json():
-    tst._assert(os.path.exists(".tst"), "This is not a tst assignment directory.")
-    tst._assert(os.path.exists(".tst/assignment.json"), "No .tst/assignment.json found.")
+    tstlib._assert(os.path.exists(".tst"), "This is not a tst assignment directory.")
+    tstlib._assert(os.path.exists(".tst/assignment.json"), "No .tst/assignment.json found.")
     assignment_json = JsonFile(".tst/assignment.json")
     return assignment_json
 
@@ -136,11 +136,11 @@ def main2():
 
 
 def main():
-    tst._assert(len(sys.argv) in [1, 2, 3], "Invalid number of arguments")
+    tstlib._assert(len(sys.argv) in [1, 2, 3], "Invalid number of arguments")
     if len(sys.argv) == 1:
         # assignment must be in current directory
         assignment_json = read_assignment_json()
-        tst._assert("url" in assignment_json, "No url in .tst/assignment.json")
+        tstlib._assert("url" in assignment_json, "No url in .tst/assignment.json")
         url = assignment_json['url']
         repo = assignment_json['repo']
         dirname = "."
@@ -154,7 +154,7 @@ def main():
             
         dirname = None
         repo, url = get_url_from_collections(checkout_name, repo)
-        tst._assert(url, "No repository has assignment `%s`" % checkout_name)
+        tstlib._assert(url, "No repository has assignment `%s`" % checkout_name)
 
     elif len(sys.argv) >= 2 and is_url(sys.argv[1]):
         # argument 2 is url

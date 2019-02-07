@@ -26,7 +26,7 @@ gen2.py $FILE
 
 if [[ $1 == "-r" && -f "$2" ]]; then
     print $LCYAN"running $2 to generate output\n"$RESET 
-    tst -o tests $2 > tst2.json
-    mv tst2.json tst.json
+    tst -o tests $2 > tst_.json
+    mv tst_.json tst.json
     tst $2
 fi
