@@ -9,7 +9,6 @@ import codecs
 import json
 
 import tst
-import tstlib
 from jsonfile import JsonFile 
 
 from tst.popargs import pop_argument, pop_option, pop_flag
@@ -17,7 +16,7 @@ from tst.popargs import pop_argument, pop_option, pop_flag
 def checkout(url, dirname, repo):
 
     # do server request
-    config = tstlib.Config()
+    config = tst.get_config();
     #token = next(r.get('access_token') for r in config['repositories'] if r['name'] == repo)
     token = ''
     headers = {}
@@ -62,7 +61,7 @@ def get_repository_assignments(repo):
         dirname = os.path.dirname(cache_fn)
         if not os.path.exists(dirname):
             os.makedirs(os.path.dirname(cache_fn))
-        config = tstlib.Config()
+        config = tst.get_config()
         headers = {
             'Authorization': 'Bearer %s' % repo['access_token']
         }
@@ -84,7 +83,7 @@ def get_repository_assignments(repo):
 
 
 def get_url_from_collections(name, repo):
-    config = tstlib.Config()
+    config = tst.get_config()
     repositories = [r for r in config.get('repositories', []) if repo is None or r['name'] == repo]
     tst._assert(repositories, "No repositories")
 
