@@ -7,6 +7,9 @@
 from __future__ import print_function
 from __future__ import unicode_literals
 
+from config import Config
+from colors import *
+
 import os
 import sys
 import json
@@ -33,18 +36,7 @@ except ImportError:
     we_have_yaml = False
 
 # Constants
-TSTDIR = os.path.expanduser("~/.tst/")
-TSTCONFIG = os.path.expanduser(TSTDIR + "config.json")
-TSTRELEASE = os.path.expanduser(TSTDIR + "release.json")
 TSTJSON = os.path.expanduser("./.tst/tst.json")
-
-YELLOW = '\033[1;33m'
-LRED = '\033[1;31m'
-LGREEN = '\033[1;32m'
-GREEN="\033[9;32m"
-WHITE="\033[1;37m"
-LCYAN = '\033[1;36m'
-RESET = '\033[0m'
 
 def _assert(condition, msg):
     if condition:
@@ -157,99 +149,6 @@ def boolean(value):
         return False
 
 
-class Config(object):
-
-    __instance = None
-    FLAGS = ['debug']
-
-    def __new__(cls):
-        if Config.__instance is not None:
-            return Config.__instance
-
-        Config.__instance = object.__new__(cls)
-        self = Config.__instance
-
-        # initialization
-        self.data = None
-        return self
-
-    def __init__(self):
-        self.load()
-
-    def __setitem__(self, key, value):
-        if self.data is None:
-            self.load()
-
-        if key in Config.FLAGS:
-            value = boolean(value)
-        
-        self.data[key] = value
-
-    def __getitem__(self, key):
-        if self.data is None:
-            self.load()
-
-        return self.data[key]
-
-    def __contains__(self, key):
-        if self.data is None:
-            self.load()
-
-        return key in self.data
-
-    def load(self, exit_on_fail=False):
-        if not os.path.exists(TSTCONFIG):
-            self.data = {
-                "url": "http://backend.tst-online.appspot.com",
-                "ignore_default": [
-                    "public_tests.py",
-                    "acceptance_tests.py"
-                ],
-                "run": {
-                    "py": "python2.7",
-                    "java": "runjava"
-                }
-            }
-            self.save()
-            return
-
-        # actually read from file system
-        try:
-            with codecs.open(TSTCONFIG, mode='r', encoding='utf-8') as f:
-                self.data = json.loads(to_unicode(f.read()))
-
-        except ValueError:
-            msg = "tst: %s is corrupted" % TSTCONFIG
-            if exit_on_fail:
-                print(msg, file=sys.stderr)
-                sys.exit()
-
-            raise CorruptedFile(msg)
-
-    def save(self):
-        if not os.path.exists(TSTDIR):
-            os.mkdir(TSTDIR)
-
-        with codecs.open(TSTCONFIG, mode="w", encoding='utf-8') as f:
-            f.write(json.dumps(
-                self.data,
-                indent=2,
-                separators=(',', ': ')
-            ))
-
-    def pop(self, key):
-        if self.data is None:
-            self.load()
-
-        self.data.pop(key, None)
-
-    def get(self, key, default=None):
-        if self.data is None:
-            self.load()
-
-        return self.data.get(key, default)
-
-    
 class Server(object):
     
     __instance = None
