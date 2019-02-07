@@ -12,7 +12,7 @@ import tst
 import tstlib
 from jsonfile import JsonFile 
 
-from tstlib import pop_argument, pop_option, pop_flag
+from tst.popargs import pop_argument, pop_option, pop_flag
 
 def checkout(url, dirname, repo):
 
