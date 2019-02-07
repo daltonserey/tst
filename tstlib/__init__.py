@@ -9,6 +9,7 @@ from __future__ import unicode_literals
 
 from config import Config
 from colors import *
+from utils import to_unicode
 
 import os
 import sys
@@ -73,21 +74,6 @@ def show(data):
     print(data2json(data).encode('utf-8'))
     sys.exit()
     
-
-def to_unicode(obj, encoding='utf-8'):
-    assert isinstance(obj, basestring), type(obj)
-    if isinstance(obj, unicode):
-        return obj
-
-    for encoding in ['utf-8', 'latin1']:
-        try:
-            obj = unicode(obj, encoding)
-            return obj
-        except UnicodeDecodeError:
-            pass
-
-    assert False, "tst: non-recognized encoding"
-
 
 def pop_argument(args, index=0):
     if index >= len(args):

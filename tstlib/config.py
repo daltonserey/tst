@@ -6,6 +6,8 @@ import codecs
 import os
 import sys
 
+from utils import to_unicode
+
 TSTDIR = os.path.expanduser("~/.tst/")
 TSTCONFIG = os.path.expanduser(TSTDIR + "config.json")
 
