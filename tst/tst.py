@@ -9,6 +9,11 @@ from jsonfile import JsonFile
 from colors import *
 from data2json import *
 
+def get_config():
+    TSTDIR = os.path.expanduser("~/.tst/")
+    TSTCONFIG = os.path.expanduser(TSTDIR + "config.json")
+    return JsonFile(TSTCONFIG)
+
 def cprint(color, msg, file=sys.stdout):
     print(color + msg + RESET, file=file)
 
