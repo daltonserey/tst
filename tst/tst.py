@@ -10,10 +10,28 @@ from colors import *
 from data2json import *
 from utils import cprint
 
-TSTCONFIG = os.path.expanduser("~/.tst/config.json")
+TSTCONFIG = os.path.expanduser('~/.tst/config.json')
 
-def get_config():
-    return JsonFile(TSTCONFIG)
+def get_config(writeable=False):
+    return JsonFile(TSTCONFIG, writeable=writeable)
+
+
+def get_context(filename=None):
+    if filename:
+        _assert(os.path.exists(filename), "File %s not found" % filename) 
+        spec_filename = filename
+
+    elif os.path.exists('tst.yaml'):
+        spec_filename = 'tst.yaml'
+
+    elif os.path.exists('tst.json'):
+        spec_filename = 'tst.json'
+
+    else:
+        return None
+
+    return JsonFile(spec_filename)
+
 
 def save_assignment(activity, dir_name, etag, url, repo):
 
