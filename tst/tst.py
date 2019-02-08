@@ -8,15 +8,12 @@ import datetime as dt
 from jsonfile import JsonFile
 from colors import *
 from data2json import *
+from utils import cprint
 
 TSTCONFIG = os.path.expanduser("~/.tst/config.json")
 
 def get_config():
     return JsonFile(TSTCONFIG)
-
-def cprint(color, msg, file=sys.stdout):
-    print(color + msg + RESET, file=file)
-
 
 def save_assignment(activity, dir_name, etag, url, repo):
 
@@ -56,11 +53,3 @@ def save_assignment(activity, dir_name, etag, url, repo):
         except:
             print("tst: fatal: Can't save file '%s'" % file['name'], file=sys.stderr)
             sys.exit(1)
-
-
-def _assert(condition, msg):
-    if condition:
-        return
-
-    cprint(LRED, msg)
-    sys.exit(1)
