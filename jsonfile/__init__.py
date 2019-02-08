@@ -14,7 +14,7 @@ constructor (it is a singleton). See the example below.
 ```
 from jsonfile import JsonFile
 
-f = JsonFile('/Users/dalton/somefile.json')
+f = JsonFile('/Users/dalton/somefile.json', writable=True)
 f['name'] = 'dalton'
 f['data'] = [1, 2, 3]
 f.save()
@@ -52,7 +52,7 @@ class JsonFile(object):
 
     __instances = {}
 
-    def __new__(cls, filename, failmsg=None, array2map=None):
+    def __new__(cls, filename, failmsg=None, array2map=None, writable=False):
         filename = os.path.expanduser(filename)
         if filename in JsonFile.__instances:
             return JsonFile.__instances[filename]
@@ -60,6 +60,8 @@ class JsonFile(object):
         JsonFile.__instances[filename] = object.__new__(cls)
         self = JsonFile.__instances[filename]
         self.filename = filename
+        self.writable = writable
+        self.isyaml = filename.endswith("yaml") or filename.endswith("yml")
         
         if os.path.exists(filename):
             self.load(failmsg=failmsg)
@@ -95,8 +97,13 @@ class JsonFile(object):
 
         # actually read data from file system
         try:
-            with codecs.open(self.filename, mode='r', encoding='utf-8') as f:
-                self.data = json.loads(to_unicode(f.read()))
+            if self.isyaml:
+                import yaml
+                with codecs.open(self.filename, mode='r', encoding='utf-8') as f:
+                    self.data = yaml.load(to_unicode(f.read()))
+            else:    
+                with codecs.open(self.filename, mode='r', encoding='utf-8') as f:
+                    self.data = json.loads(to_unicode(f.read()))
 
         except ValueError:
             if exit_on_fail or failmsg:
@@ -108,6 +115,7 @@ class JsonFile(object):
 
 
     def save(self):
+        assert self.writable, "jsonfile: cannot save a non writable JsonFile"
         with codecs.open(self.filename, mode="w", encoding='utf-8') as f:
             f.write(json.dumps(
                 self.data,
