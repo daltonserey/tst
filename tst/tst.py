@@ -12,8 +12,8 @@ from utils import cprint
 
 TSTCONFIG = os.path.expanduser('~/.tst/config.json')
 
-def get_config(writeable=False):
-    return JsonFile(TSTCONFIG, writeable=writeable)
+def get_config(writable=False):
+    return JsonFile(TSTCONFIG, writable=writable)
 
 
 def get_context(filename=None):
