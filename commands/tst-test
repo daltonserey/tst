@@ -22,7 +22,10 @@ import difflib
 import hashlib
 
 from jsonfile import JsonFile
-import tstlib as tst
+from tstlib import Server
+import tst
+from tst.utils import _assert
+from tst.utils import cprint
 
 from subprocess import Popen, PIPE
 
@@ -72,7 +75,7 @@ RESET = '\033[0m'
 TSTJSONFAILMSG = LRED + "Spec file is not a valid config object" + RESET
 
 def abort(msg, code=1):
-    tst.cprint(LRED, msg.encode('utf-8'), file=sys.stderr)
+    cprint(LRED, msg.encode('utf-8'), file=sys.stderr)
     sys.exit(code)
 
 
@@ -194,7 +197,7 @@ class TestRun:
     def run_iotest(self, timeout=TIMEOUT_DEFAULT):
 
         # define command
-        config = tst.Config()
+        config = tst.get_config()
         if config.get('run'):
             # use run option
             run = config['run']
@@ -203,7 +206,7 @@ class TestRun:
             if ext not in extensions:
                 self.result['status'] = 'NoInterpreterError'
                 return
-            tst._assert(ext in extensions, "\nfatal: missing command for extension %s" % ext)
+            _assert(ext in extensions, "\nfatal: missing command for extension %s" % ext)
             command = config['run'][ext]
             cmd_str = "%s %s" % (command, self.subject.filename)
         else:
@@ -426,7 +429,7 @@ def preprocess(text, operator_names):
     if operator_names == ['all']:
         operator_names = OPERATOR.keys()
 
-    tst._assert(all(name in OPERATOR for name in operator_names), "unknown operator in ignore")
+    _assert(all(name in OPERATOR for name in operator_names), "unknown operator in ignore")
 
     # sort to assure 'whites' is last
     operators = [OPERATOR[name] for name in sorted(operator_names)]
@@ -667,7 +670,7 @@ def report_results(subjects, output):
         print(data2json(data).encode('utf-8'))
 
     elif output == 'tests':
-        tst._assert(len(subjects) == 1, "-o tests requires one single subjec")
+        _assert(len(subjects) == 1, "-o tests requires one single subjec")
         data = {
             "tests": [{
                 "input": test['input'],
@@ -730,7 +733,7 @@ def tests_report(summary):
 def request_server_tests(tstjson):
 
     # basic data
-    server = tst.Server()
+    server = Server()
     url = '/api/assignment/%s/validation' % tstjson['iid']
 
     while True:
@@ -745,12 +748,12 @@ def request_server_tests(tstjson):
 
         if status == 'no validation requested':
             # request last answer validation
-            tst.cprint(LGREEN, "Requesting validation...")
+            cprint(LGREEN, "Requesting validation...")
             response = server.post(url, payload="", exit_on_fail=True)
 
         elif status == 'waiting worker response':
             # wait a few seconds
-            tst.cprint(LCYAN, "Waiting for the worker...")
+            cprint(LCYAN, "Waiting for the worker...")
             time.sleep(3)
 
         elif status == 'tests finished':
@@ -768,14 +771,14 @@ def request_server_tests(tstjson):
     msg = "%d tests run, %d errors, %d fails." % (num_tests, errors, fails)
 
     if all(c == '.' for c in summary):
-        tst.cprint(LCYAN, summary)
+        cprint(LCYAN, summary)
     else:
-        tst.cprint(LRED, summary)
+        cprint(LRED, summary)
     print(msg)
     if not fails and not errors:
-        tst.cprint(LGREEN, "Answer accepted")
+        cprint(LGREEN, "Answer accepted")
     else:
-        tst.cprint(LGREEN, "Answer rejected")
+        cprint(LGREEN, "Answer rejected")
 
     fn = next((f for f in tstjson['files'] if tstjson['files'][f]['category'] == 'answer'), None)
     if fn:
@@ -783,7 +786,7 @@ def request_server_tests(tstjson):
         with codecs.open(answer['name'], mode="r", encoding="utf-8") as f:
             answerhash = hashlib.sha1(f.read().encode('utf-8')).hexdigest()
         if answerhash != report['hash']:
-            tst.cprint(LRED, "Warning: server copy differs from local one")
+            cprint(LRED, "Warning: server copy differs from local one")
             print('---')
             print("Use `tst commit` to save latest version to server")
 
@@ -796,19 +799,19 @@ def main():
     # TODO: remove this feature from test command
     # dispatch server tests if required
     if server:
-        tst.cprint(LRED, "WARNING: the `tst -z` feature will be removed soon")
+        cprint(LRED, "WARNING: the `tst -z` feature will be removed soon")
         activity_json = JsonFile(".tst/tst.json")
-        tst._assert(activity_json, "No activity directory (.tst) found")
-        tst._assert(activity_json['kind'] == 'assignment', "The --server option only apply to activities")
+        _assert(activity_json, "No activity directory (.tst) found")
+        _assert(activity_json['kind'] == 'assignment', "The --server option only apply to activities")
         request_server_tests(activity_json)
         sys.exit()
 
     # read tst file (default: tst.json; specified with -s)
-    tst._assert(tstfile == 'tst.json' or os.path.exists(tstfile), "File %s not found" % tstfile)
+    _assert(tstfile == 'tst.json' or os.path.exists(tstfile), "File %s not found" % tstfile)
     tstjson = JsonFile(tstfile, array2map="tests", failmsg=TSTJSONFAILMSG)
     for pattern in tstjson.get('require', []):
         files = glob.glob(pattern)
-        tst._assert(files, "Missing required files for this test: %s" % pattern)
+        _assert(files, "Missing required files for this test: %s" % pattern)
 
     # read tests from tstjson and extra_tests files
     tests = tstjson.get('tests', [])
@@ -816,22 +819,22 @@ def main():
         with codecs.open(extra_file, encoding="utf-8") as f:
             data = json.load(f)
             tests.extend(data.get('tests', []) if type(data) is dict else data)
-    tst._assert(tests, 'No tests found')
+    _assert(tests, 'No tests found')
     
     # filter filenames based on extensions and ignore_files
-    config = tst.Config()
+    config = tst.get_config()
     extensions = tstjson.get('extensions') or config['run'].keys() if 'run' in config else ['py']
     ignore_files = tstjson.get('ignore', [])
     filenames = [f for f in filenames if any(f.endswith(e) for e in extensions) and f not in ignore_files]
     filenames.sort()
-    tst._assert(filenames, 'No files to test')
+    _assert(filenames, 'No files to test')
 
     # read subjects and testcases
     subjects = [TestSubject(fn) for fn in filenames]
     testcases = [TestCase(t) for t in tests]
 
     # define output_fmt (use user's preference if any)
-    output_fmt = output_fmt or tst.Config().get('default_output_format') or 'raw'
+    output_fmt = output_fmt or tst.get_config().get('default_output_format') or 'raw'
 
     # run every test case for every subject
     status = StatusLine()
