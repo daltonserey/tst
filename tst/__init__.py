@@ -4,4 +4,4 @@ from colors import *
 
 from tst import save_assignment
 from tst import get_config
-from tst import get_context
+from tst import read_specification

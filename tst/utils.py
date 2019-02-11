@@ -4,8 +4,8 @@ import sys
 
 from colors import *
 
-def cprint(color, msg, file=sys.stdout):
-    print(color + msg + RESET, file=file)
+def cprint(color, msg, file=sys.stdout, end='\n'):
+    print(color + msg + RESET, file=file, end=end)
 
 
 def _assert(condition, msg):
