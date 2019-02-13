@@ -17,6 +17,43 @@ def get_config(writable=False):
     return JsonFile(TSTCONFIG, writable=writable)
 
 
+def dirtype(path=""):
+    path = os.path.abspath(os.path.expanduser(path))
+
+    # tst internal types of directories
+    if path == os.path.expanduser('~/.tst'):
+        return "config"
+
+    elif os.path.basename(path) == '.tst':
+        return "internal"
+
+    # user content
+    elif os.path.exists(path + '/.tst/assignment.json'):
+        return "assignment"
+
+    elif os.path.exists(path + '/.tst/activity.json'):
+        return "activity"
+
+    elif os.path.exists(path + '/.tst/collection.json'):
+        return "collection"
+
+    # user content (old format)
+    elif os.path.exists(path + '/.tst/tst.json'):
+        kind = JsonFile(path + "/.tst/tst.json").get("kind", "")
+        return "old:" + kind
+
+    # corrupted/incomplete content
+    elif os.path.isdir(path + '/.tst') and not path == os.path.expanduser('~'):
+        return "corrupted"
+
+    # directory contains a file with tst tests
+    elif os.path.exists(path + '/tst.json') or os.path.exists(path + '/tst.yaml'):
+        return "tst-able"
+
+    # not a tst directory
+    return None
+
+
 def read_specification(filename=None, verbose=False):
     # deal with a custom specification file name
     if filename:
