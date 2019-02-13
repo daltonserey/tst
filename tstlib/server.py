@@ -4,11 +4,8 @@ import json
 
 from subprocess import Popen, PIPE, CalledProcessError
 
-# imports from within tstlib directory
-from config import Config
-from colors import *
-# end
-
+import tst
+from tst.colors import *
 from tst.utils import to_unicode
 
 class ConnectionFail(Exception): pass
@@ -39,7 +36,8 @@ class Server(object):
         self = Server.__instance
 
         # initialization
-        self.config = Config()
+        #self.config = Config()
+        self.config = tst.get_config()
         self.user = self.config.get('user')
         self.token = self.config.get('access_token')
 
