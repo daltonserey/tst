@@ -6,9 +6,10 @@ from subprocess import Popen, PIPE, CalledProcessError
 
 # imports from within tstlib directory
 from config import Config
-from utils import to_unicode
 from colors import *
 # end
+
+from tst.utils import to_unicode
 
 class ConnectionFail(Exception): pass
 

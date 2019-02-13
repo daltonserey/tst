@@ -25,7 +25,7 @@ from jsonfile import JsonFile
 from tstlib import Server
 import tst
 from tst.utils import _assert
-from tst.utils import cprint
+from tst.utils import cprint, to_unicode
 from tst.colors import *
 
 from subprocess import Popen, PIPE
@@ -503,21 +503,6 @@ def alarm_handler(signum, frame):
     raise CutTimeOut
 
 signal.signal(signal.SIGALRM, alarm_handler)
-
-
-def to_unicode(obj, encoding='utf-8'):
-    assert isinstance(obj, basestring), type(obj)
-    if isinstance(obj, unicode):
-        return obj
-
-    for encoding in ['utf-8', 'latin1']:
-        try:
-            obj = unicode(obj, encoding)
-            return obj
-        except UnicodeDecodeError:
-            pass
-
-    assert False, 'tst: non-recognized encoding (use utf-8 or latin1)'
 
 
 class StatusLine:
