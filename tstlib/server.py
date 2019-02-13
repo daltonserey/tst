@@ -6,7 +6,7 @@ from subprocess import Popen, PIPE, CalledProcessError
 
 import tst
 from tst.colors import *
-from tst.utils import to_unicode
+from tst.utils import to_unicode, cprint
 
 class ConnectionFail(Exception): pass
 
