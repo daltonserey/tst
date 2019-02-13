@@ -4,4 +4,5 @@ LGREEN = '\033[1;32m'
 GREEN="\033[9;32m"
 WHITE="\033[1;37m"
 LCYAN = '\033[1;36m'
+LBLUE = '\033[1;34m'
 RESET = '\033[0m'
