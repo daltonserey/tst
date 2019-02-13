@@ -69,6 +69,10 @@ class JsonFile(object):
         self.data.pop(key, None)
 
 
+    def setdefault(self, key, value):
+        return self.data.setdefault(key, value)
+
+
     def load(self, exit_on_fail=False, failmsg=None):
         if not os.path.exists(self.filename):
             self.data = {}
