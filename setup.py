@@ -12,7 +12,6 @@ setup(name='tst',
       scripts=[
         'bin/runjava',
         'bin/tst',
-        'etc/tst.completion.sh',
         'commands/tst-test',
         'commands/tst-completion',
         'commands/tst-config',
