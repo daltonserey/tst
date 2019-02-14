@@ -10,7 +10,7 @@ import json
 
 import tst
 
-from jsonfile import JsonFile 
+from tst.jsonfile import JsonFile
 from tst.utils import _assert
 
 from tst.popargs import pop_argument, pop_option, pop_flag

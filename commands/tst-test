@@ -21,7 +21,7 @@ import argparse
 import difflib
 import hashlib
 
-from jsonfile import JsonFile
+from tst.jsonfile import JsonFile
 from tstlib import Server
 import tst
 from tst.utils import _assert

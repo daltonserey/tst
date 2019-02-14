@@ -5,7 +5,7 @@ import sys
 
 from tst.colors import *
 from tst.utils import cprint
-from jsonfile import JsonFile
+from tst.jsonfile import JsonFile
 
 def main():
     print("Script executed: " + sys.argv[0])
