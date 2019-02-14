@@ -1,7 +1,9 @@
-all: clean uninstall
-	python setup.py build -e"/usr/bin/env python"
-	python setup.py sdist bdist_wheel
+install: build
 	python setup.py install --user --prefix=
+
+build:
+	python setup.py sdist bdist_wheel
+	python setup.py build -e"/usr/bin/env python"
 
 uninstall:
 	pip uninstall -y tst
