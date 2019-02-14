@@ -28,4 +28,9 @@ setup(name='tst',
         'pyyaml',
         'requests'
       ],
+      entry_points = {
+        'console_scripts': [
+            'tst=tst.commands:main',
+        ]
+      },
       zip_safe=False)
