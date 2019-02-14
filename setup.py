@@ -10,29 +10,27 @@ setup(name='tst',
       packages=find_packages(),
       include_package_data=True,
       scripts=[
-        'bin/gen2.py',
         'bin/runjava',
         'bin/tst',
         'etc/tst.completion.sh',
         'commands/tst-test',
-        'commands/tst-check',
         'commands/tst-completion',
         'commands/tst-config',
-        'commands/tst-gentests',
         'commands/tst-status',
-        'commands/tst-update',
         'commands/tst-checkout',
         'commands/tst-checkout2',
         'commands/tst-commit',
         'commands/tst-delete',
-        'commands/tst-download',
-        'commands/tst-list',
         'commands/tst-login',
         'commands/tst-new',
-        'commands/tst-release',
       ],
       install_requires=[
         'pyyaml',
         'requests'
       ],
+      entry_points = {
+        'console_scripts': [
+            'tst=tst.commands:main',
+        ]
+      },
       zip_safe=False)

@@ -31,13 +31,6 @@ else
             return 0
         fi
 
-        # complete update (only one arg)
-        if [[ "$command" == "update" ]] && [[ $COMP_CWORD == 2 ]]; then
-            [[ -f $config ]] && email=$(grep email $config | cut -f 4 -d '"')
-            COMPREPLY=($(compgen -W "--pre-release" -- ${current}))
-            return 0
-        fi
-
         # complete commit or test
         if [[ "$command" == "commit" ]] || [[ "$command" == "test" ]]; then
             if [[ -z "$TST_COMPLETION_FILTER" ]]; then
