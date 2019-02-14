@@ -22,7 +22,7 @@ def to_unicode(obj, encoding='utf-8'):
         except UnicodeDecodeError:
             pass
 
-    assert False, "tst: non-recognized encoding"
+    assert False, "jsonfile: non-recognized encoding"
 
 class CorruptedJsonFile(Exception): pass
 
