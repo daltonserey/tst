@@ -7,9 +7,10 @@
 from __future__ import print_function
 from __future__ import unicode_literals
 
+from tst.utils import to_unicode
+
 from config import Config
 from colors import *
-from utils import to_unicode
 from popargs import *
 from server import Server
 

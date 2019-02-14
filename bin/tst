@@ -21,8 +21,11 @@ import sys
 import os
 
 from subprocess import Popen, PIPE, check_call, CalledProcessError
+from jsonfile import JsonFile
+from tst.utils import _assert
 
-import tstlib as tst
+import tst
+from tst.server import Server
 
 # TST INTERNAL COMMANDS
 DEFAULT_COMMAND = 'test'
@@ -50,6 +53,14 @@ HELP = {
     "download": "download answers",
 }
 
+def old_activity(function):
+    def wrapper(*args, **kwargs):
+        _assert(tst.dirtype() == "old:activity", "Operation restricted to old style activities")
+        function(*args, **kwargs)
+
+    return wrapper
+
+
 def tst_help(args):
     """short description of commands"""
     print("usage: tst [<command>] [<args>]\n")
@@ -72,6 +83,7 @@ def tst_version(args):
     print(msg)
 
 
+@old_activity
 def tst_share(args):
     """list, add or remove collaborators"""
 
@@ -84,7 +96,7 @@ def tst_share(args):
         help()
         return
 
-    tstjson = tst.read_tstjson(quit_on_fail=True)
+    tstjson = JsonFile('.tst/tst.json', writable=True)
     if len(args) == 0:
         # list all collaborators
         collaborators = tstjson['collaborators']
@@ -109,7 +121,7 @@ def tst_share(args):
         print("tst: fatal: unknown (or non implemented yet) share action")
         sys.exit(1)
 
-    config = tst.Config()
+    config = tst.get_config()
     domain = config.get('domain', '')
     usernames = []
     for i in xrange(1, len(args)):
@@ -119,7 +131,7 @@ def tst_share(args):
             sys.exit(1)
         usernames.append(un)
 
-    server = tst.Server()
+    server = Server()
     activity = tstjson['iid']
     url = '/api/activity/%s/collaborators' % activity
     response = server.post(url, payload=usernames)
@@ -139,7 +151,7 @@ def tst_share(args):
 
     elif response.status_code == 201:
         tstjson['collaborators'].extend(data['added'])
-        tst.save_tstjson(tstjson)
+        tstjson.save()
         print("Sharing successful.")
         sys.exit()
 
@@ -153,18 +165,22 @@ def tst_share(args):
         sys.exit(1)
 
 
+@old_activity
 def tst_ls(args):
     """list files in activity"""
-    tstjson = tst.read_tstjson()
+
+    tstjson = JsonFile('.tst/tst.json')
     files = tstjson.setdefault('files', {})
     for fn in sorted(files.keys()):
         visibility = files[fn].get('category', 'private')
         print(fn, ("(%s)" % visibility if visibility == 'public' else ''))
 
 
+@old_activity
 def tst_remove(args):
     """remove files from activity"""
-    tstjson = tst.read_tstjson()
+
+    tstjson = JsonFile('.tst/tst.json', writable=True)
     files = tstjson.setdefault('files', {})
     if any(f not in files for f in args):
         print("Some of the files don't exist.")
@@ -175,14 +191,15 @@ def tst_remove(args):
     for f in args:
         removed[f] = files.pop(f)
 
-    tst.save_tstjson(tstjson)
+    tstjson.save()
     for f in removed:
         print('removed: %s %s' % (removed[f].get('category', 'private'), f))
 
 
+@old_activity
 def tst_file(args):
     """add files to activity"""
-    tstjson = tst.read_tstjson()
+    tstjson = JsonFile(".tst/tst.json", writable=True)
     visibility = args.pop(0) if args[0] in ('public', 'private') else None
     files = tstjson.setdefault('files', {})
     if any(f in files for f in args):
@@ -199,21 +216,23 @@ def tst_file(args):
         if visibility:
             filedict['category'] = visibility
 
-    tst.save_tstjson(tstjson)
+    tstjson.save()
     for f in added:
         print('added: %s %s' % (files[f].get('category', 'private'), f))
 
 
+@old_activity
 def tst_remove(args):
     """remove files from activity"""
-    tstjson = tst.read_tstjson()
+
+    tstjson = JsonFile(".tst/tst.json", writable=True)
     for f in args:
         if tstjson['files'].pop(f, None) is None:
             print("File `%s` not found in activity" % f)
             print("Operation aborted.")
             sys.exit(1)
 
-    tst.save_tstjson(tstjson)
+    tstjson.save()
     print('Files successfully removed.')
 
 

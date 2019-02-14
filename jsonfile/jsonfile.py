@@ -24,7 +24,6 @@ def to_unicode(obj, encoding='utf-8'):
 
     assert False, "jsonfile: non-recognized encoding"
 
-
 class CorruptedJsonFile(Exception): pass
 
 class JsonFile(object):
@@ -67,6 +66,10 @@ class JsonFile(object):
 
     def pop(self, key):
         self.data.pop(key, None)
+
+
+    def setdefault(self, key, value):
+        return self.data.setdefault(key, value)
 
 
     def load(self, exit_on_fail=False, failmsg=None):
