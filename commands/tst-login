@@ -12,7 +12,7 @@ import webbrowser
 import json
 
 import tstlib as tst
-from climenu import climenu
+from tst.climenu import climenu
 
 def main(code):
     config = tst.Config()
