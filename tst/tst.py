@@ -6,7 +6,7 @@ import codecs
 import glob
 import datetime as dt
 
-from jsonfile import JsonFile
+from jsonfile import JsonFile, CorruptedJsonFile
 from colors import *
 from data2json import *
 from utils import cprint, _assert
@@ -70,14 +70,14 @@ def read_specification(filename=None, verbose=False):
     if tstyaml_exists:
         try:
             specification = JsonFile('tst.yaml', array2map="tests")
-        except:
+        except CorruptedJsonFile:
             _assert(False, "Invalid tst.yaml file")
         return specification
 
     elif tstjson_exists:
         try:
             specification = JsonFile('tst.json', array2map="tests")
-        except:
+        except CorruptedJsonFile:
             _assert(False, "Invalid tst.json file")
         return specification
 
