@@ -65,20 +65,20 @@ def read_specification(filename=None, verbose=False):
     tstyaml_exists = os.path.exists('tst.yaml')
     tstjson_exists = os.path.exists('tst.json')
     if verbose and tstyaml_exists and tstjson_exists:
-        cprint(YELLOW, "Using tst.yaml as specification file")
+        cprint(YELLOW, "Found both tst.yaml and tst.json: using tst.yaml")
 
     if tstyaml_exists:
         try:
             specification = JsonFile('tst.yaml', array2map="tests")
         except CorruptedJsonFile:
-            _assert(False, "Invalid tst.yaml file")
+            _assert(False, "Corrupted specification file")
         return specification
 
     elif tstjson_exists:
         try:
             specification = JsonFile('tst.json', array2map="tests")
         except CorruptedJsonFile:
-            _assert(False, "Invalid tst.json file")
+            _assert(False, "Corrupted specification file")
         return specification
 
     # neither tst.yaml, nor tst.json exist

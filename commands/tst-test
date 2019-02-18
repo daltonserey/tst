@@ -812,7 +812,7 @@ def main():
             cprint(LGREEN, " ✓ (%s tests read)" % len(testsfile["tests"]))
             tests.extend(testsfile["tests"])
         except:
-            cprint(YELLOW, " %s✗%s (invalid file)" % (LRED, YELLOW))
+            cprint(YELLOW, " %s✗%s (cannot read)" % (LRED, YELLOW))
 
     # make sure there are tests
     _assert(tests, '0 tests found')
