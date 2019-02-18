@@ -45,6 +45,8 @@ def to_unicode(obj, encoding='utf-8'):
 
 class CorruptedJsonFile(Exception): pass
 
+DEFAULT_FAIL_MESSAGE = "file is corrupted"
+
 class JsonFile(object):
 
     __instances = {}
@@ -97,24 +99,33 @@ class JsonFile(object):
             return
 
         # actually read data from file system
-        try:
-            if self.isyaml:
-                import yaml
+        if self.isyaml:
+            import yaml
+            try:
                 with codecs.open(self.filename, mode='r', encoding='utf-8') as f:
                     self.data = yaml.load(to_unicode(f.read()))
                     if self.data is None:
                         raise ValueError()
-            else:    
+
+            except (ValueError, yaml.scanner.ScannerError) as e:
+                if exit_on_fail or failmsg:
+                    print(failmsg or DEFAULT_FAIL_MESSAGE, file=sys.stderr)
+                    sys.exit()
+
+                raise CorruptedJsonFile("corrupted specification file")
+
+        else: # assume is json
+            try:
                 with codecs.open(self.filename, mode='r', encoding='utf-8') as f:
                     self.data = json.loads(to_unicode(f.read()))
 
-        except ValueError:
-            if exit_on_fail or failmsg:
-                failmsg = failmsg or "jsonfile: %s is corrupted" % self.filename
-                print(failmsg, file=sys.stderr)
-                sys.exit()
+            except ValueError as e:
+                if exit_on_fail or failmsg:
+                    print(failmsg or DEFAULT_FAIL_MESSAGE, file=sys.stderr)
+                    sys.exit(1)
 
-            raise CorruptedJsonFile("corrupted json file")
+                raise CorruptedJsonFile("corrupted specification file")
+
 
 
     def save(self):
