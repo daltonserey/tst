@@ -11,10 +11,23 @@ from colors import *
 from data2json import *
 from utils import cprint, _assert
 
-TSTCONFIG = os.path.expanduser('~/.tst/config.json')
 
-def get_config(writable=False):
-    return JsonFile(TSTCONFIG, writable=writable)
+def get_config():
+    YAMLCONFIG = os.path.expanduser('~/.tst/config.yaml')
+    JSONCONFIG = os.path.expanduser('~/.tst/config.json')
+
+    if not os.path.exists(YAMLCONFIG) and os.path.exists(JSONCONFIG):
+        return JsonFile(JSONCONFIG)
+
+    if not os.path.exists(YAMLCONFIG):
+        with codecs.open(YAMLCONFIG, encoding="utf-8", mode="w") as config_file:
+            config_file.write(
+                "sites:\n" 
+                "- name: demo\n"
+                "  url: http://www.dsc.ufcg.edu.br/~dalton/demo\n"
+            )
+
+    return JsonFile(YAMLCONFIG)
 
 
 def dirtype(path=""):
