@@ -9,7 +9,7 @@ import datetime as dt
 from jsonfile import JsonFile, CorruptedJsonFile
 from colors import *
 from data2json import *
-from utils import cprint, _assert
+from utils import cprint, _assert, is_posix_filename
 
 TSTDIR = os.path.expanduser('~/.tst/')
 YAMLCONFIG = TSTDIR + 'config.yaml'
@@ -70,6 +70,33 @@ def dirtype(path=""):
     return None
 
 
+class Site:
+    def __init__(self, name=None, url=None):
+        self.name = name
+        self.url = url
+        sites = get_config()['sites']
+        for s in sites:
+            if s['name'] == name:
+                self.url = s['url']
+
+    def get(self, key):
+        cprint(LBLUE, "downloading object...")
+        return {"files": []}
+
+
+def get_site(name=None, url=None):
+    assert name is None or url is None
+    config = get_config()
+    if name is None or name == "_DEFAULT":
+        index = 0
+
+    else:
+        sites = get_config()['sites']
+        index = next((i for i in range(len(sites)) if sites[i]['name'] == name), None)
+
+    return None if index is None else Site(config['sites'][index]['name'])
+
+
 def read_specification(filename=None, verbose=False):
     # deal with a custom specification file name
     if filename:
@@ -113,7 +140,6 @@ def read_specification(filename=None, verbose=False):
     cprint(YELLOW, "Cannot determine specification file")
     _assert(False, "Use --spec-file to indicate specification file")
     
-
 
 def save_assignment(activity, dir_name, etag, url, repo):
 
