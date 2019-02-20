@@ -11,7 +11,6 @@ import tst
 EXTERNALS = [
     "test",
     "login",
-    "checkout",
     "commit",
     "status",
     "new",
@@ -64,21 +63,44 @@ def dispatcher(args):
         import ls
         ls.main()
 
+    elif possible_command == 'checkout':
+        dirtype = tst.dirtype()
+        if dirtype == "old:activity":
+            cprint(YELLOW, "┌─────────────────────────────────────────────────────────┐")
+            cprint(YELLOW, "│ IMPORTANT                                               │")
+            cprint(YELLOW, "│                                                         │")
+            cprint(YELLOW, "│ This is an old style activity. The old checkout command │")
+            cprint(YELLOW, "│ will be used.                                           │")
+            cprint(YELLOW, "└─────────────────────────────────────────────────────────┘")
+            run_external_command("checkout", args[1:])
+
+        elif dirtype is not None:
+            cprint(LRED, "┌───────────────────────────────────────────────┐")
+            cprint(LRED, "│ checkout cannot be executed in this directory │")
+            cprint(LRED, "│                                               │")
+            cprint(LRED, "│ Currently, the checkout command must be used  │")
+            cprint(LRED, "│ in a non tst directory.                       │")
+            cprint(LRED, "└───────────────────────────────────────────────┘")
+
+        else:
+            import checkout
+            checkout.main()
+
     elif possible_command == 'update':
-        cprint(YELLOW, "┌─────────────────────────────────────┐")
-        cprint(YELLOW, "│ update is deprecated                │")
-        cprint(YELLOW, "│                                     │")
-        cprint(YELLOW, "│ Use pip to update tst:              │")
-        cprint(YELLOW, "│ $ pip install tst --upgrade --user  │")
-        cprint(YELLOW, "└─────────────────────────────────────┘")
+        cprint(LRED, "┌─────────────────────────────────────┐")
+        cprint(LRED, "│ update is deprecated                │")
+        cprint(LRED, "│                                     │")
+        cprint(LRED, "│ Use pip to update tst:              │")
+        cprint(LRED, "│ $ pip install tst --upgrade --user  │")
+        cprint(LRED, "└─────────────────────────────────────┘")
 
     elif possible_command == 'config':
-        cprint(YELLOW, "┌────────────────────────────────────────────────────┐")
-        cprint(YELLOW, "│ config is deprecated                               │")
-        cprint(YELLOW, "│                                                    │")
-        cprint(YELLOW, "│ Edit ~/.tst/config.yaml directly to configure tst. │")
-        cprint(YELLOW, "│ See documentation to see existing options.         │")
-        cprint(YELLOW, "└────────────────────────────────────────────────────┘")
+        cprint(LRED, "┌────────────────────────────────────────────────────┐")
+        cprint(LRED, "│ config is deprecated                               │")
+        cprint(LRED, "│                                                    │")
+        cprint(LRED, "│ Edit ~/.tst/config.yaml directly to configure tst. │")
+        cprint(LRED, "│ See documentation to see existing options.         │")
+        cprint(LRED, "└────────────────────────────────────────────────────┘")
 
     else:
         command = identify_and_run_command(args)

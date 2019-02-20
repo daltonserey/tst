@@ -70,6 +70,10 @@ def dirtype(path=""):
     return None
 
 
+def save2fs(tst_object):
+    cprint(LGREEN, "saving object to fs...")
+
+
 class Site:
     def __init__(self, name=None, url=None):
         self.name = name
