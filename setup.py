@@ -25,7 +25,8 @@ setup(name='tst',
       ],
       install_requires=[
         'pyyaml',
-        'requests'
+        'requests',
+        'cachecontrol[filecache]'
       ],
       entry_points = {
         'console_scripts': [
