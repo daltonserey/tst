@@ -12,7 +12,8 @@ def is_posix_filename(name, extra_chars=""):
 
 
 def cprint(color, msg, file=sys.stdout, end='\n'):
-    print(color + msg + RESET, file=file, end=end)
+    data = msg.__str__() if hasattr(msg, '__str__') else msg
+    print(color + data + RESET, file=file, end=end)
 
 
 def _assert(condition, msg):
