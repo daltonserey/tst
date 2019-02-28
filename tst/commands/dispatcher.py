@@ -74,7 +74,7 @@ def dispatcher(args):
             cprint(YELLOW, "└─────────────────────────────────────────────────────────┘")
             run_external_command("checkout", args[1:])
 
-        elif dirtype is not None:
+        elif dirtype not in [None, "assignment"]:
             cprint(LRED, "┌───────────────────────────────────────────────┐")
             cprint(LRED, "│ checkout cannot be executed in this directory │")
             cprint(LRED, "│                                               │")
