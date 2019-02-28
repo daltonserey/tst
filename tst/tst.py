@@ -8,8 +8,7 @@ import datetime as dt
 
 from jsonfile import JsonFile, CorruptedJsonFile
 from colors import *
-from data2json import *
-from utils import cprint, _assert, is_posix_filename
+from utils import cprint, _assert, is_posix_filename, data2json
 
 TSTDIR = os.path.expanduser('~/.tst/')
 YAMLCONFIG = TSTDIR + 'config.yaml'

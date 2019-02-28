@@ -2,6 +2,7 @@ from __future__ import print_function
 
 import sys
 import string
+import json
 
 from colors import *
 
@@ -37,3 +38,21 @@ def to_unicode(obj, encoding='utf-8'):
             pass
 
     assert False, "tst: non-recognized encoding"
+
+
+def data2json(data):
+    def date_handler(obj):
+        if hasattr(obj, 'isoformat'):
+            return obj.isoformat()
+        elif hasattr(obj, 'email'):
+            return obj.email()
+
+        return obj
+
+    return json.dumps(
+        data,
+        default=date_handler,
+        indent=2,
+        separators=(',', ': '),
+        sort_keys=True,
+        ensure_ascii=False)
