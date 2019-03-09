@@ -20,6 +20,73 @@ license. Please read the LICENSE file.
 To be written.
 
 
+## Commands
+**The command `tst --help` lists all the TST commands and `tst <command> --help` shows more details about an individual command**
+
+Below, is a list with all TST commands and their descriptions.
+
+### TST commands
+Command | Description
+------- | -----------
+**checkout** | Download a TST question, create a shared object and a directory named with the question code received as argument.
+**commit** | Send user response to TST server.
+**login** | Login to a tst-online account using a token and the user email. Will open a page in the browser showing the required user token and email.
+**ls** | List all TST availabe objects
+**test** | Validate user answer using public tests.
+**update** | Update TST to the latest stable release.
+
+## Example
+In this section we will see the process of login, resolve a TST question, test it and send to the server.
+
+### Login
+First you need to login to [TST-ONLINE](http://tst-online.appspot.com/). And then you can login to your account using:
+```
+$ tst login
+```
+Will open a new tab in the browser containing the token necessary for the login and the user TST-Online email. Copy the token and past in the terminal.
+
+### Checkout
+Copy the [TST](http://tst-online.appspot.com/#/) question checkout code and run the following command:
+
+```sh
+$ tst checkout <question_code>
+```
+
+After this you can go to the newly created directory that has been named with the question code and start coding your solution:
+
+```sh
+$ cd <question_code>
+```
+
+### Test
+To test your solution, replace `<your_file_here>` with your program file and run:
+
+```sh
+$ tst test <your_file_here>
+```
+Or you can just run `tst` if there is only one `.py` file in the folder:
+
+```sh
+$ tst
+```
+
+If you received a output containing only points(e.g: `.`, `...`), you passed on public tests and now you can submit to the server.
+
+### Send
+
+Send your file to the server:
+
+```sh
+$ tst commit <your_file_here>
+```
+
+And then, you can verify if you passed in all tests and if your answer was accepted.
+
+```sh
+$ tst -s
+```
+
+
 ## Dependencies
 
 These scripts depend on Python 2.7 and on Bash. The scripts were
