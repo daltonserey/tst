@@ -134,7 +134,7 @@ def main():
 
     # check for missed updates
     server = tst.Server()
-    url = '/api/activity/%s/version' % tstjson['iid']
+    url = '/activity/%s/version' % tstjson['iid']
     last_version = server.get(url).json()
     missed_updates = False
     if last_version['version'] != tstjson['version'] or last_version['version_token'] != tstjson['version_token']:

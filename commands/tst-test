@@ -716,7 +716,7 @@ def request_server_tests(tstjson):
 
     # basic data
     server = Server()
-    url = '/api/assignment/%s/validation' % tstjson['iid']
+    url = '/assignment/%s/validation' % tstjson['iid']
 
     while True:
 

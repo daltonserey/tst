@@ -34,7 +34,7 @@ def main():
 
     # dispatch request
     server = tst.Server()
-    url = '/api/activity/%d' % tstjson['iid']
+    url = '/activity/%d' % tstjson['iid']
     response = server.delete(url, exit_on_fail=True)
     tst.save_tstjson({
         "files": tstjson.get('files', {}),
