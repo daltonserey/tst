@@ -13,7 +13,10 @@ def is_posix_filename(name, extra_chars=""):
 
 
 def cprint(color, msg, file=sys.stdout, end='\n'):
-    data = msg.__str__() if hasattr(msg, '__str__') else msg
+    if type(msg) is unicode:
+        data = msg
+    elif type(msg) is str:
+        data = msg.__str__()
     print(color + data + RESET, file=file, end=end)
 
 
