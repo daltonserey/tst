@@ -139,6 +139,56 @@ def save_files(files, basedir, verbose=True):
     return saved
 
 
+def parse_file_spec(fspec):
+
+    # normalize fspec
+    while fspec.count(',') < 2:
+        fspec = fspec + ','
+
+    # separate filename and details
+    data = fspec.split(",")
+    filename = data[0].strip()
+    details = [e.strip() for e in data[1:]]
+
+    # consume public or private specification
+    if 'public' in details:
+        public = True
+        details.remove('public')
+
+    elif 'private' in details:
+        public = False
+        details.remove('private')
+
+    else:
+        public = False
+        details.remove('')
+
+    # check mode
+    mode = details[0]
+
+    return filename, 'public' if public else 'private', mode
+
+
+def is_single_line_string(text):
+    return '\n' not in text and '\r' not in text
+
+
+def fetch_file(url, encoding=None):
+    s = requests.session()
+    s = CacheControl(s, cache=FileCache(os.path.expanduser('~/.tst/cache')))
+
+    try:
+        response = s.get(url, headers={})
+    except requests.ConnectionError:
+        _assert(False, "Connection failed... check your internet connection")
+
+    _assert(response.ok, "%s\nRequest failed: %s (%d)" % (url, response.reason, response.status_code))
+    if encoding:
+        response.encoding = encoding
+
+    return response.text
+
+
 class Site:
     def __init__(self, name=None, url=None):
         self.name = name
@@ -167,12 +217,76 @@ class Site:
             validate_tst_object(resource)
 
         except ValueError:
-            _assert(False, "Resource is not valid json")
+            #_assert(False, "Resource is not valid json")
+            return None
 
         except AssertionError as e:
             _assert(False, "Not a TST Object: %s" % e.message)
 
         return resource
+
+
+    def get_directory(self, key):
+        s = requests.session()
+        s = CacheControl(s, cache=FileCache(os.path.expanduser('~/.tst/cache')))
+
+        url = "%s/%s/tst.yaml" % (self.url, key)
+        try:
+            response = s.get(url, headers={})
+        except requests.ConnectionError:
+            _assert(False, "Connection failed... check your internet connection (1)")
+
+        _assert(response.ok, "%s\nRequest failed: %s (%d)" % (url, response.reason, response.status_code))
+        response.encoding = 'utf-8'
+        try:
+            import yaml
+            resource = yaml.load(response.text)
+            resource['_response'] = response
+
+        except Exception as e:
+            cprint(YELLOW, "Failed parsing yaml: %s" % url)
+            cprint(YELLOW, e.message)
+            raise e
+
+        # gather files
+        files = resource.get('files') or []
+        files.append({
+            "name": "tst.yaml",
+            "content": response.text,
+            "mode": "ro"
+        })
+
+        ## add text file if required
+        if is_single_line_string(resource['text']):
+            files.append({
+                "name": resource['text'],
+                "content": '%s/%s/%s' % (self.url, key, resource['text']),
+                "mode": "ro"
+            })
+
+        ## add included files
+        files_filenames = [f['name'] for f in files]
+        for fspec in resource['include']:
+            filename, category, mode = parse_file_spec(fspec)
+            if filename not in files_filenames:
+                files.append({
+                    'name': filename,
+                    'content': '%s/%s/%s' % (self.url, key, filename),
+                    'mode': mode
+                })
+            else:
+                entry = next(e for e in files if e['name'] == filename)
+                entry['mode'] = mode
+
+        ## fetch missing files
+        for f in files:
+            if f['content'].startswith('http://'):
+                f['content'] = fetch_file('%s/%s/%s' % (self.url, key, f['name']), encoding='utf-8')
+
+        return {
+            'kind': 'activity',
+            'files': files,
+        }
 
 
 def get_site(name=None, url=None):
