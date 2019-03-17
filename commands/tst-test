@@ -811,8 +811,12 @@ def main():
             testsfile = JsonFile(filename, array2map="tests")
             cprint(LGREEN, " ✓ (%s tests read)" % len(testsfile["tests"]))
             tests.extend(testsfile["tests"])
-        except:
-            cprint(YELLOW, " %s✗%s (cannot read)" % (LRED, YELLOW))
+        except KeyError as e:
+            _msg = " %s✗%s (no tests found)" % (LRED, YELLOW)
+            cprint(YELLOW, _msg.encode('utf-8'))
+        except tst.jsonfile.CorruptedJsonFile as e:
+            _msg = " %s✗%s (corrupted json)" % (LRED, YELLOW)
+            cprint(YELLOW, _msg.encode('utf-8'))
 
     # make sure there are tests
     _assert(tests, '0 tests found')
