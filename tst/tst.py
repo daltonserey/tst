@@ -240,7 +240,7 @@ class Site:
         response.encoding = 'utf-8'
         try:
             import yaml
-            resource = yaml.load(response.text)
+            resource = yaml.load(response.text, Loader=yaml.FullLoader)
             resource['_response'] = response
 
         except Exception as e:
