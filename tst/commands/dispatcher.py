@@ -55,7 +55,12 @@ def identify_and_run_command(args):
 
 def dispatcher(args):
     possible_command = args[0] if args else None
-    if possible_command == 'info':
+    if possible_command in ['--version', '-v', 'version']:
+        import pkg_resources
+        print(pkg_resources.get_distribution('tst').version)
+        sys.exit()
+
+    elif possible_command == 'info':
         import info
         info.main()
 
