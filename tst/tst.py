@@ -16,26 +16,22 @@ from jsonfile import JsonFile, CorruptedJsonFile
 from colors import *
 from utils import cprint, _assert, is_posix_filename, data2json
 
-TSTDIR = os.path.expanduser('~/.tst/')
-YAMLCONFIG = TSTDIR + 'config.yaml'
-JSONCONFIG = TSTDIR + 'config.json'
+CONFIGDIR = os.path.expanduser('~/.tst/')
+CONFIGFILE = CONFIGDIR + 'config.yaml'
 
 def get_config():
-    if not os.path.exists(YAMLCONFIG) and os.path.exists(JSONCONFIG):
-        return JsonFile(JSONCONFIG)
+    if not os.path.exists(CONFIGFILE):
+        if not os.path.isdir(CONFIGDIR):
+            os.mkdir(CONFIGDIR)
 
-    if not os.path.exists(YAMLCONFIG):
-        if not os.path.isdir(TSTDIR):
-            os.mkdir(TSTDIR)
-
-        with codecs.open(YAMLCONFIG, encoding="utf-8", mode="w") as config_file:
+        with codecs.open(CONFIGFILE, encoding="utf-8", mode="w") as config_file:
             config_file.write(
                 "sites:\n" 
                 "- name: demo\n"
                 "  url: http://www.dsc.ufcg.edu.br/~dalton/demo\n"
             )
 
-    return JsonFile(YAMLCONFIG)
+    return JsonFile(CONFIGFILE)
 
 
 def dirtype(path=""):
