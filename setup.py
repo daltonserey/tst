@@ -28,7 +28,7 @@ setup(name='tst',
         'commands/tst-new',
       ],
       install_requires=[
-        'pyyaml',
+        'pyyaml>=5.1',
         'requests',
         'cachecontrol[filecache]'
       ],
