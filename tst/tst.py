@@ -178,7 +178,7 @@ def fetch_file(url, encoding=None):
     except requests.ConnectionError:
         _assert(False, "Connection failed... check your internet connection")
 
-    _assert(response.ok, "%s\nRequest failed: %s (%d)" % (url, response.reason, response.status_code))
+    _assert(response.ok, "%s\nFile request failed: %s (%d)" % (url, response.reason, response.status_code))
     if encoding:
         response.encoding = encoding
 
@@ -201,11 +201,13 @@ class Site:
 
         url = "%s/%s" % (self.url, key)
         try:
-            response = s.get(url, headers={})
+            response = s.get(url, headers={}, allow_redirects=True)
         except requests.ConnectionError:
             _assert(False, "Connection failed... check your internet connection")
 
-        _assert(response.ok, "%s\nRequest failed: %s (%d)" % (url, response.reason, response.status_code))
+        if not response.ok:
+            return None
+
         response.encoding = 'utf-8'
         try:
             resource = response.json()
@@ -228,7 +230,7 @@ class Site:
 
         url = "%s/%s/tst.yaml" % (self.url, key)
         try:
-            response = s.get(url, headers={})
+            response = s.get(url, headers={}, allow_redirects=True)
         except requests.ConnectionError:
             _assert(False, "Connection failed... check your internet connection (1)")
 
@@ -276,7 +278,7 @@ class Site:
 
         ## fetch missing files
         for f in files:
-            if f['content'].startswith('http://'):
+            if f['content'].startswith('http://') or f['content'].startswith('https://'):
                 f['content'] = fetch_file('%s/%s/%s' % (self.url, key, f['name']), encoding='utf-8')
 
         return {
