@@ -716,7 +716,7 @@ def request_server_tests(tstjson):
 
     # basic data
     server = Server()
-    url = '/api/assignment/%s/validation' % tstjson['iid']
+    url = '/assignment/%s/validation' % tstjson['iid']
 
     while True:
 
@@ -776,7 +776,7 @@ def request_server_tests(tstjson):
 def main():
 
     # parse command line data
-    filenames, timeout, output_fmt, server, tstfile, patterns2scan = parse_cli()
+    filenames, timeout, output_fmt, server, specfile, patterns2scan = parse_cli()
 
     # TODO: remove this feature from test command
     # dispatch server tests if required
@@ -789,15 +789,15 @@ def main():
         sys.exit()
 
     # read specification file
-    tstjson = tst.read_specification(tstfile, verbose=True)
-    tstfile = tstjson.filename
+    tstjson = tst.read_specification(specfile, verbose=True)
+    specfile = tstjson.filename
 
     # check for files required by specification
     for pattern in tstjson.get('require', []):
         _assert(glob.glob(pattern), "Missing required files for this test: %s" % pattern)
 
     # identify files to scan for tests
-    files2scan = [tstfile]
+    files2scan = [specfile]
     for pattern in patterns2scan:
         for filename in glob.glob(pattern):
             if filename not in files2scan:
@@ -806,13 +806,18 @@ def main():
     # read tests
     tests = []
     for filename in files2scan:
-        cprint(LCYAN, "Looking for tests in %s" % filename, end='')
+        cprint(LCYAN, "Reading %s" % filename, end='')
         try:
             testsfile = JsonFile(filename, array2map="tests")
-            cprint(LGREEN, " ✓ (%s tests read)" % len(testsfile["tests"]))
+            cprint(LGREEN, " ✓ (%s tests)" % len(testsfile.get("tests", [])))
             tests.extend(testsfile["tests"])
-        except:
-            cprint(YELLOW, " %s✗%s (cannot read)" % (LRED, YELLOW))
+        except KeyError as e:
+            #_msg = " %s✗%s (no tests found)" % (LRED, YELLOW)
+            #cprint(YELLOW, _msg.encode('utf-8'))
+            pass
+        except tst.jsonfile.CorruptedJsonFile as e:
+            _msg = " %s✗%s (corrupted json)" % (LRED, YELLOW)
+            cprint(YELLOW, _msg.encode('utf-8'))
 
     # make sure there are tests
     _assert(tests, '0 tests found')

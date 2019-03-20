@@ -43,8 +43,9 @@ def checkout_activity(data, dirname, overwrite=False):
 
     # get data from server
     server = tst.Server()
-    url = '/api/activity/%s' % data['iid']
+    url = '/activity/%s' % data['iid']
     activity = server.get(url, exit_on_fail=True).json()
+    dirname = "%s.%s" % (activity['name'], data['iid'])
 
 
     # change to target directory
@@ -53,7 +54,12 @@ def checkout_activity(data, dirname, overwrite=False):
     os.chdir(dirname)
 
     # save activity
-    tst.save_activity(activity, is_checkout=True)
+    try:
+        tst.save_activity(activity, is_checkout=True)
+    except (TypeError, ValueError) as e:
+        raise
+        tst.cprint(tst.YELLOW, "invalid activity")
+        sys.exit(1)
     tst.cprint(tst.LCYAN, "Activity successfully checked out")
     tst.cprint(tst.RESET, "Target directory: %s%s" % (tst.LGREEN, dirname))
     
@@ -76,7 +82,7 @@ def update_activity(data, dirname, overwrite=True):
 
     # request activity data
     server = tst.Server()
-    url = '/api/activity/%s' % data['iid']
+    url = '/activity/%s' % data['iid']
     activity = server.get(url, exit_on_fail=True).json()
 
     # inspect response
@@ -138,7 +144,7 @@ def checkout_assignment(data, dirname, overwrite=False):
 
     # request activity data
     server = tst.Server()
-    url = '/api/assignment/%s?checkout=true' % data['iid']
+    url = '/assignment/%s?checkout=true' % data['iid']
     assignment = server.get(url, exit_on_fail=True).json()
 
     # change to target directory
@@ -196,12 +202,17 @@ def main(args):
         name = tstjson.get('name') or tstjson.get('iid')
         dirname = "."
 
+    # force
+    checkout = get_checkout_function('activity')
+    checkout({'iid': name}, dirname, overwrite=overwrite)
+    sys.exit()
+
     # identify kind of object requested
     server = tst.Server()
     if user:
-        url = "/api/object/%s?user=%s" % (name, user)
+        url = "/object/%s?user=%s" % (name, user)
     else:
-        url = "/api/object/%s" % name
+        url = "/object/%s" % name
     objects = server.get(url, exit_on_fail=True).json()
     _assert(type(objects) is list, "tst: fatal: invalid data received from server")
 

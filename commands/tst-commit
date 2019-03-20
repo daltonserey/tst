@@ -30,7 +30,7 @@ def help():
 
 
 def activity_url(iid):
-    activities_endpoint = "/api/activity"
+    activities_endpoint = "/activity"
     return "%s/%s" % (activities_endpoint, str(iid))
 
 
@@ -232,7 +232,7 @@ def commit_activity(tstjson, args):
     server = tst.Server()
     if tstjson['state'] == 'new':
         # post new activity
-        url = "/api/activity"
+        url = "/activity"
         response = server.post(url, payload=activity, exit_on_fail=True)
         tst.sync_activity(response, tstjson)
         tst.cprint(tst.LCYAN, "Activity successfully created (%d)" % response.json()['iid'])
@@ -246,7 +246,7 @@ def commit_activity(tstjson, args):
         sys.exit()
 
     # check for missed updates
-    url = '/api/activity/%s/version' % tstjson['iid']
+    url = '/activity/%s/version' % tstjson['iid']
     last_version = server.get(url).json()
     missed_updates = False
     if last_version['version'] != tstjson['version'] or last_version['version_token'] != tstjson['version_token']:
@@ -329,7 +329,7 @@ def commit_assignment(tstjson, args):
 
     # send answer to server
     server = tst.Server()
-    url = '/api/assignment/%s' % tstjson['iid']
+    url = '/assignment/%s' % tstjson['iid']
     payload = [{
         "op": "add",
         "path": "/answers",

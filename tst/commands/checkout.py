@@ -109,8 +109,7 @@ def checkout(args):
 
     # fetch tst object
     cprint(LGREEN, "Fetching %s from %s" % (key, site.name or site.url))
-    tst_object = site.get(key)
-    _assert(tst_object is not None, "No tst object found in site")
+    tst_object = site.get(key) or site.get_directory(key)
 
     # set destination directory
     destdir = target_dir or tst_object.get('dirname') or tst_object.get('name') or key

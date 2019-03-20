@@ -1,7 +1,11 @@
 from setuptools import setup, find_packages
+import codecs
+
+with codecs.open('VERSION', encoding='utf-8', mode='r') as fv:
+    version = fv.read().strip()
 
 setup(name='tst',
-      version='0.9a18',
+      version=version,
       description='TST Student Testing',
       url='http://github.com/daltonserey/tst',
       author='Dalton Serey',
@@ -24,7 +28,7 @@ setup(name='tst',
         'commands/tst-new',
       ],
       install_requires=[
-        'pyyaml',
+        'pyyaml>=5.1',
         'requests',
         'cachecontrol[filecache]'
       ],

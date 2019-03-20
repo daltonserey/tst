@@ -244,7 +244,7 @@ def read_activity(tstjson=None):
     yamlfilename = tstjson['name'] + '.yaml'
     with codecs.open(yamlfilename, mode='r', encoding='utf-8') as y:
         try:
-            yamlfile = yaml.load(y.read())
+            yamlfile = yaml.load(y.read(), Loader=yaml.FullLoader)
         except:
             msg = "tst: failed loading activity yaml\n"
             msg += "Is your yaml well formed?\n"

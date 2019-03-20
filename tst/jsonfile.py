@@ -103,7 +103,7 @@ class JsonFile(object):
             import yaml
             try:
                 with codecs.open(self.filename, mode='r', encoding='utf-8') as f:
-                    self.data = yaml.load(to_unicode(f.read()))
+                    self.data = yaml.load(to_unicode(f.read()), Loader=yaml.FullLoader)
                     if self.data is None:
                         raise ValueError()
 
