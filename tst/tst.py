@@ -28,7 +28,7 @@ def get_config():
             config_file.write(
                 "sites:\n" 
                 "- name: demo\n"
-                "  url: http://www.dsc.ufcg.edu.br/~dalton/demo\n"
+                "  url: https://raw.githubusercontent.com/daltonserey/tst-demo/master\n"
             )
 
     return JsonFile(CONFIGFILE)
