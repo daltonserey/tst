@@ -234,7 +234,9 @@ class Site:
         except requests.ConnectionError:
             _assert(False, "Connection failed... check your internet connection (1)")
 
-        _assert(response.ok, "%s\nRequest failed: %s (%d)" % (url, response.reason, response.status_code))
+        if not response.ok:
+            return None
+
         response.encoding = 'utf-8'
         try:
             import yaml
@@ -255,7 +257,7 @@ class Site:
         })
 
         ## add text file if required
-        if is_single_line_string(resource['text']):
+        if 'text' in resource and is_single_line_string(resource['text']):
             files.append({
                 "name": resource['text'],
                 "content": '%s/%s/%s' % (self.url, key, resource['text']),
