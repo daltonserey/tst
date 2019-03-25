@@ -1,3 +1,5 @@
+PYCs:=$(shell find . -type f -iname '*.pyc')
+
 install: build
 	python setup.py install --user --prefix=
 
@@ -12,3 +14,4 @@ clean:
 	rm -rf build
 	rm -rf dist
 	rm -rf tst.egg-info
+	[ $(PYCs) ] && rm -f $(PYCs) || true
