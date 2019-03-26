@@ -10,7 +10,6 @@ from tst.utils import cprint
 
 EXTERNALS = [
     "test",
-    "login",
     "commit",
     "status",
     "new",
@@ -81,6 +80,10 @@ def dispatcher(args):
         import info
         info.main()
 
+    elif possible_command == 'login':
+        import login
+        login.main()
+
     elif possible_command == 'ls':
         import ls
         ls.main()
@@ -131,4 +134,5 @@ def dispatcher(args):
 def main():
     args = sys.argv[:]
     args.pop(0) # pop dispatcher name
+    config = tst.get_config()
     dispatcher(args) 

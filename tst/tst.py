@@ -5,6 +5,7 @@ from __future__ import print_function
 import sys
 import os
 import codecs
+import json
 import glob
 import datetime as dt
 
@@ -76,7 +77,7 @@ def validate_tst_object(json):
         return mode is None or\
                isinstance(mode, basestring) and\
                len(mode) <= 3 and\
-               all(d in 'rwx' for d in mode.lower())
+               all(d in 'rwxo' for d in mode.lower())
 
     assert 'files' in json, "missing files property"
     assert type(json) is dict, "json is not an object"
@@ -195,13 +196,71 @@ class Site:
                 self.url = s['url']
 
 
+    def login_url(self):
+        urls = self.urls()
+        if urls is None:
+            return None
+
+        return self.full_url(urls['login'])
+
+
+    def full_url(self, url):
+        if url.startswith('http://') or url.startswith('https://'):
+            return url
+
+        if url.startswith('/'):
+            return self.url + url
+
+        return self.url + '/' + url
+
+
+    def token_url(self):
+        urls = self.urls()
+        if urls is None:
+            return None
+
+        return self.full_url(urls['token'])
+
+
+    def urls(self):
+        s = requests.session()
+        s = CacheControl(s, cache=FileCache(os.path.expanduser('~/.tst/cache')))
+
+        headers = {}
+        tokens = JsonFile(os.path.expanduser('~/.tst/tokens.json'))
+        token = tokens.get(self.name)
+        try:
+            response = s.get(self.url, allow_redirects=True)
+        except requests.ConnectionError:
+            _assert(False, "Connection failed... check your internet connection")
+
+        if not response.ok:
+            return None
+
+        response.encoding = 'utf-8'
+        try:
+            resource = response.json()
+            resource['_response'] = response
+
+        except ValueError:
+            return None
+
+        return resource
+
+
     def get(self, key):
         s = requests.session()
         s = CacheControl(s, cache=FileCache(os.path.expanduser('~/.tst/cache')))
 
         url = "%s/%s" % (self.url, key)
+        headers = {}
+        tokens = JsonFile(os.path.expanduser('~/.tst/tokens.json'))
+        token = tokens.get(self.name)
+        if token:
+            headers['Authorization'] = 'Bearer %s' % token
+
         try:
-            response = s.get(url, headers={}, allow_redirects=True)
+            response = s.get(url, headers=headers, allow_redirects=True)
         except requests.ConnectionError:
             _assert(False, "Connection failed... check your internet connection")
 
@@ -219,6 +278,7 @@ class Site:
             return None
 
         except AssertionError as e:
+            print(resource)
             _assert(False, "Not a TST Object: %s" % e.message)
 
         return resource

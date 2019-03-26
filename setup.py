@@ -24,7 +24,6 @@ setup(name='tst',
         'commands/tst-checkout2',
         'commands/tst-commit',
         'commands/tst-delete',
-        'commands/tst-login',
         'commands/tst-new',
       ],
       install_requires=[
