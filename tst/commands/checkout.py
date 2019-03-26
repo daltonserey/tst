@@ -36,15 +36,19 @@ def process_args(args):
 
     # add default args
     if len(args) == 0:
+        ## no args: use current directory
         cwd = os.getcwd()
         _assert(tst.dirtype(cwd) == "assignment", "This directory is not a tst activity")
         args.append(os.path.basename(cwd))
         args.append(".")
 
     elif len(args) == 1 and os.path.isdir(args[0]):
-        tst_object = JsonFile(args[0] + "/.tst/assignment.json")
-        _assert("key" in tst_object, "No key found in tst object")
-        _assert("site" in tst_object, "No site found in tst object")
+        ## single directory as arg: make sure is a checkout
+        checkout_file = args[0] + "/.tst/assignment.json"
+        _assert(os.path.exists(checkout_file), "Directory %s has no checkout info\n%sTry: tst checkout key <new-directory>" % (args[0], RESET))
+        tst_object = JsonFile(checkout_file)
+        _assert("key" in tst_object, "Checkout corrupted: missing key")
+        _assert("site" in tst_object, "Checkout corrupted: missing site")
         args = ["%s@%s" % (tst_object["key"], tst_object["site"]), args[0]]
 
     data = { "destdir": args[1] if len(args) > 1 else None }
@@ -110,6 +114,7 @@ def checkout(args):
     # fetch tst object
     cprint(LGREEN, "Fetching %s from %s" % (key, site.name or site.url))
     tst_object = site.get(key) or site.get_directory(key)
+    _assert(tst_object, "No %s in site %s" % (key, site.name))
 
     # set destination directory
     destdir = target_dir or tst_object.get('dirname') or tst_object.get('name') or key
