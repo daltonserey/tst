@@ -15,7 +15,12 @@ from tst.jsonfile import JsonFile
 
 def main():
     assert sys.argv[0].endswith('/tst') and sys.argv[1] == 'checkout'
-    checkout(sys.argv[2:])
+
+    # parse user arguments
+    args = sys.argv[2:]
+    site, key, target_dir, overwrite = process_args(args)
+
+    checkout(site, key, target_dir, overwrite)
 
 
 def syntax_help():
@@ -102,14 +107,11 @@ def existing_files(basedir, files):
     return filenames
 
 
-def checkout(args):
+def checkout(site, key, target_dir, overwrite):
     """checkout tst object from site/collection"""
 
     def is_valid_dir(dirtype):
         return dirtype in [None, "assignment"]
-
-    # parse user arguments
-    site, key, target_dir, overwrite = process_args(args)
 
     # fetch tst object
     cprint(LGREEN, "Fetching %s from %s" % (key, site.name or site.url))
@@ -118,6 +120,15 @@ def checkout(args):
 
     # set destination directory
     destdir = target_dir or tst_object.get('dirname') or tst_object.get('name') or key
+    if not target_dir:
+        cprint(YELLOW, "Directory argument not found")
+        cprint(RESET, "(You can add directory as an additional argument)")
+        while True:
+            destdir = raw_input("Provide directory name (default %s): " % destdir) or key
+            if is_posix_filename(destdir): break
+            cprint(YELLOW, "Invalid portable posix filename: '%s'" % destdir)
+
+
     _assert(not os.path.exists(destdir) or (os.path.isdir(destdir) and is_valid_dir(tst.dirtype(destdir))), "Invalid target directory: %s" % destdir)
 
     # check whether files exist
