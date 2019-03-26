@@ -407,8 +407,8 @@ def read_specification(filename=None, verbose=False):
             _assert(False, "Invalid specification file")
         return specification
 
-    cprint(YELLOW, "Cannot determine specification file")
-    _assert(False, "Use --spec-file to indicate specification file")
+    cprint(LRED, "No tst tests found")
+    sys.exit(1)
     
 
 def save_assignment(activity, dir_name, etag, url, repo):
