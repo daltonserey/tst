@@ -51,29 +51,11 @@ def identify_and_run_command(args):
     return command_name
 
 
-def version():
-    import pkg_resources
-    import requests
-
-    current_version = pkg_resources.get_distribution('tst').version
-    cprint(WHITE, current_version)
-    try:
-        response = requests.get('https://pypi.org/pypi/tst/json')
-        data = response.json()
-        latest_version = data['info']['version']
-        if current_version != latest_version:
-            cprint(YELLOW, 'tst %s is available' % latest_version)
-            print('Use `pip install --upgrade tst`')
-            sys.exit()
-    except requests.ConnectionError:
-        pass
-
-
 def dispatcher(args):
     possible_command = args[0] if args else None
     if possible_command in ['--version', '-v', 'version']:
-        version()
-        sys.exit()
+        import version
+        version.main()
 
     elif possible_command == 'info':
         import info
