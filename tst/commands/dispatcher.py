@@ -10,7 +10,6 @@ from tst.utils import cprint
 
 EXTERNALS = [
     "test",
-    "commit",
     "status",
     "new",
     "delete",
@@ -87,6 +86,28 @@ def dispatcher(args):
     elif possible_command == 'ls':
         import ls
         ls.main()
+
+    elif possible_command == 'commit':
+        dirtype = tst.dirtype()
+        if dirtype == "old:activity":
+            cprint(LRED, "┌──────────────────────────────────────────────────────────┐")
+            cprint(LRED, "│ Oops...                                                  │")
+            cprint(LRED, "│                                                          │")
+            cprint(LRED, "│ This directory contains an activity in an old format. It │")
+            cprint(LRED, "│ is no longer supported, however. Consider discarding     │")
+            cprint(LRED, "│ this directory and performing a new checkout of the same │")
+            cprint(LRED, "│ activity from the source site to have it updated to the  │")
+            cprint(LRED, "│ latest version and current format.                       │")
+            cprint(LRED, "└──────────────────────────────────────────────────────────┘")
+            sys.exit(1)
+
+        elif dirtype in ["assignment", None]:
+            import commit
+            commit.main()
+
+        else:
+            cprint(LRED, "No assignment found in this directory")
+            sys.exit(1)
 
     elif possible_command == 'checkout':
         dirtype = tst.dirtype()
