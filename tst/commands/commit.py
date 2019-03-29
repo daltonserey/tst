@@ -4,7 +4,8 @@ import os
 import sys
 
 import tst
-from tst.utils import data2json, _assert
+from tst.utils import data2json, _assert, cprint
+from tst.colors import *
 from tst.jsonfile import JsonFile
 
 def main():
