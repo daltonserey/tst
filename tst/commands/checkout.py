@@ -116,7 +116,7 @@ def checkout(site, key, target_dir, overwrite):
     # fetch tst object
     cprint(LGREEN, "Fetching %s from %s" % (key, site.name or site.url))
     tst_object = site.get(key) or site.get_directory(key)
-    _assert(tst_object, "No %s in site %s" % (key, site.name))
+    _assert(tst_object, "Cannot checkout %s from site %s (%s)" % (key, site.name, str(site.last_error)))
 
     # set destination directory
     destdir = target_dir or tst_object.get('dirname') or tst_object.get('name') or key
@@ -155,6 +155,7 @@ def checkout(site, key, target_dir, overwrite):
             "kind": "assignment",
             "site": site.name,
             "key": key,
+            "iid": tst_object.get('iid'),
         })
     }]
     tst.save_files(internal, destdir, verbose=False)

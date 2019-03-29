@@ -12,7 +12,7 @@ def is_posix_filename(name, extra_chars=""):
     return all(c in CHARS for c in name)
 
 
-def cprint(color, msg, file=sys.stdout, end='\n'):
+def cprint(color, msg, file=sys.stderr, end='\n'):
     if type(msg) is unicode:
         data = msg
     elif type(msg) is str:
