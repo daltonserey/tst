@@ -809,14 +809,14 @@ def main():
         cprint(LCYAN, "Reading %s" % filename, end='')
         try:
             testsfile = JsonFile(filename, array2map="tests")
-            cprint(LGREEN, " ✓ (%s tests)" % len(testsfile.get("tests", [])))
+            cprint(LGREEN, " (%s tests)" % len(testsfile.get("tests", [])))
             tests.extend(testsfile["tests"])
         except KeyError as e:
             #_msg = " %s✗%s (no tests found)" % (LRED, YELLOW)
             #cprint(YELLOW, _msg.encode('utf-8'))
             pass
         except tst.jsonfile.CorruptedJsonFile as e:
-            _msg = " %s✗%s (corrupted json)" % (LRED, YELLOW)
+            _msg = " %s(corrupted json)" % LRED
             cprint(YELLOW, _msg.encode('utf-8'))
 
     # make sure there are tests
