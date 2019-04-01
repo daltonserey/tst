@@ -30,6 +30,7 @@ def read_content(filename):
 
 def commit(filename, key, site):
     content = read_content(filename)
+    checksum = hashlib.sha1(content.encode('utf-8')).hexdigest()
     data = {
         "files": [
             {
@@ -37,10 +38,10 @@ def commit(filename, key, site):
                 "content": content,
                 "mode": read_mode(filename),
                 "category": "public",
-                "hash": hashlib.sha1(content).hexdigest()
+                "hash": checksum
             }
         ],
-        "hash": hashlib.sha1(content).hexdigest()
+        "hash": checksum
     }
 
     response = site.send_answer(data, key)

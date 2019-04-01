@@ -373,7 +373,7 @@ class Site:
         s = CacheControl(s, cache=FileCache(os.path.expanduser('~/.tst/cache')))
 
         url = "%s/%s/answers" % (self.url, key)
-        data = data2json(answer)
+        data = data2json(answer).encode('utf-8')
         tokens = JsonFile(os.path.expanduser('~/.tst/tokens.json'))
         headers = {"Authorization": "Bearer %s" % tokens.get(self.name)}
         try:
