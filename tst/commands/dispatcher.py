@@ -36,13 +36,7 @@ def identify_and_run_command(args):
 
     elif args and find_executable('tst-%s' % args[0]):
         command_name = args.pop(0)
-        cprint(YELLOW, "┌───────────────────────────────────┐")
-        cprint(YELLOW, "│ WARNING: this is a custom command │")
-        cprint(YELLOW, "└───────────────────────────────────┘")
         run_external_command(command_name, args)
-        cprint(YELLOW, "┌───────────────────────────────────┐")
-        cprint(YELLOW, "│ WARNING: this is a custom command │")
-        cprint(YELLOW, "└───────────────────────────────────┘")
             
     else: # neither internal, nor external command!?
         command_name = DEFAULT_COMMAND
