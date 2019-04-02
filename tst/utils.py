@@ -17,6 +17,9 @@ def cprint(color, msg, file=sys.stderr, end='\n'):
         data = msg
     elif type(msg) is str:
         data = msg.__str__()
+    else:
+        data = str(msg)
+
     print(color + data + RESET, file=file, end=end)
 
 
