@@ -28,8 +28,7 @@ def post(url, data):
         _assert(False, "Connection failed... check your internet connection")
 
     if not response.ok:
-        print(response.text)
-    _assert(response.ok, "Login failed.")
+        cprint(LRED, "Login failed")
 
     response.encoding = 'utf-8'
     try:
@@ -46,19 +45,19 @@ def login(sitename):
 
     # fetch site urls
     site = tst.get_site(sitename)
+    _assert(site is not None, "Site %s not found in config.yaml" % sitename)
+
     login_url = site.login_url()
-    _assert(login_url, "Site %s has no login" % site.name)
     token_url = site.token_url()
-    _assert(token_url, "Site %s has no login" % site.name)
+    _assert(login_url and token_url, "Site %s has no login urls" % site.name)
 
     # open login url to user
     webbrowser.open(login_url)
-    code = raw_input("Code? ")
+    code = raw_input(LCYAN + "Code? " + RESET)
 
     # exchange code for token
-    print("Validating code: %s" % code)
+    cprint(RESET, "Validating code: %s" % code)
     token = post(token_url, {"code": code})
-    print("Code validated")
 
     # save token
     tokens = JsonFile(os.path.expanduser('~/.tst/tokens.json'))
@@ -66,4 +65,4 @@ def login(sitename):
     tokens.writable = True
     tokens.save()
 
-    print("Logged in %s as %s" % (site.name, token['email']))
+    cprint(LGREEN, "Logged in %s as %s" % (site.name, token['email']))
