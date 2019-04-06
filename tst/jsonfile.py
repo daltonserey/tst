@@ -60,6 +60,7 @@ class JsonFile(object):
         self = JsonFile.__instances[filename]
         self.filename = filename
         self.writable = writable
+        self.isjson = filename.endswith("json")
         self.isyaml = filename.endswith("yaml") or filename.endswith("yml")
         
         if os.path.exists(filename):
@@ -99,7 +100,19 @@ class JsonFile(object):
             return
 
         # actually read data from file system
-        if self.isyaml:
+        if self.isjson:
+            try:
+                with codecs.open(self.filename, mode='r', encoding='utf-8') as f:
+                    self.data = json.loads(to_unicode(f.read()))
+
+            except ValueError as e:
+                if exit_on_fail or failmsg:
+                    print(failmsg or DEFAULT_FAIL_MESSAGE, file=sys.stderr)
+                    sys.exit(1)
+
+                raise CorruptedJsonFile("corrupted specification file")
+
+        else:
             import yaml
             try:
                 with codecs.open(self.filename, mode='r', encoding='utf-8') as f:
@@ -112,19 +125,7 @@ class JsonFile(object):
                     print(failmsg or DEFAULT_FAIL_MESSAGE, file=sys.stderr)
                     sys.exit()
 
-                raise CorruptedJsonFile("corrupted specification file")
-
-        else: # assume is json
-            try:
-                with codecs.open(self.filename, mode='r', encoding='utf-8') as f:
-                    self.data = json.loads(to_unicode(f.read()))
-
-            except ValueError as e:
-                if exit_on_fail or failmsg:
-                    print(failmsg or DEFAULT_FAIL_MESSAGE, file=sys.stderr)
-                    sys.exit(1)
-
-                raise CorruptedJsonFile("corrupted specification file")
+                raise CorruptedJsonFile("unrecognized file")
 
 
 
