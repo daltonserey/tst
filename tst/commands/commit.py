@@ -32,15 +32,13 @@ def commit(filename, key, site):
     content = read_content(filename)
     checksum = hashlib.sha1(content.encode('utf-8')).hexdigest()
     data = {
-        "files": [
-            {
+        "files": [{
                 "name": filename,
                 "content": content,
                 "mode": read_mode(filename),
                 "category": "public",
                 "hash": checksum
-            }
-        ],
+            }],
         "hash": checksum
     }
 

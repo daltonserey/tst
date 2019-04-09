@@ -14,7 +14,7 @@ from tst.utils import data2json
 from tst.jsonfile import JsonFile
 
 def main():
-    assert sys.argv[0].endswith('/tst') and sys.argv[1] == 'checkout'
+    assert sys.argv[0].endswith('tst') and sys.argv[1] == 'checkout'
 
     # parse user arguments
     args = sys.argv[2:]
