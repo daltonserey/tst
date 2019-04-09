@@ -27,7 +27,7 @@ setup(name='tst',
       ],
       install_requires=[
         'pyyaml>=5.1',
-        'requests',
+        'requests>=2.6.1',
         'cachecontrol[filecache]'
       ],
       entry_points = {
