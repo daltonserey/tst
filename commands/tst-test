@@ -381,6 +381,8 @@ class TestCase():
         self.tokens = test.get('tokens', [])
         self.ignore = test.get('ignore', [])
         self.script = test.get('script')
+        if self.script:
+            self.script = self.script.replace('{}', '')
         self.files = test.get('files')
 
         # convert tokens to a list of strings, if necessary
