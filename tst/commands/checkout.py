@@ -159,5 +159,4 @@ def checkout(site, key, target_dir, overwrite):
             "user": tst_object.get('user'),
         })
     }]
-    print(tst_object.keys())
     tst.save_files(internal, destdir, verbose=False)
