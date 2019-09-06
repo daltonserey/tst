@@ -9,12 +9,13 @@ from tst.colors import *
 from tst.jsonfile import JsonFile
 
 def main():
-    _assert(len(sys.argv) == 3, 'Usage: tst commit <filename>')
+    _assert(len(sys.argv) in [3, 4], 'Usage: tst commit [--support-file|-s] <filename>')
     _assert(os.path.exists('.tst/assignment.json'), 'No tst assignment found')
-    filename = sys.argv[2]
+    filetype = 'support' if sys.argv[2] in ['--support-file', '-s'] else 'answer'
+    filename = sys.argv[3 if filetype == 'support' else 2]
     assignment_id = JsonFile('.tst/assignment.json')['iid']
     site = tst.get_site('prog1')
-    commit(filename, assignment_id, site)
+    commit(filename, filetype, assignment_id, site)
 
 
 def read_mode(filename):
@@ -28,7 +29,7 @@ def read_content(filename):
     return content
 
 
-def commit(filename, key, site):
+def commit(filename, filetype, key, site):
     content = read_content(filename)
     checksum = hashlib.sha1(content.encode('utf-8')).hexdigest()
     data = {
@@ -37,6 +38,7 @@ def commit(filename, key, site):
                 "content": content,
                 "mode": read_mode(filename),
                 "category": "public",
+                "type": filetype,
                 "hash": checksum
             }],
         "hash": checksum
