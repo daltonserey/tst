@@ -52,6 +52,7 @@ def login(sitename):
     _assert(login_url and token_url, "Site %s has no login urls" % site.name)
 
     # open login url to user
+    cprint(LGREEN, "Get a code at: %s" % login_url)
     webbrowser.open(login_url)
     code = raw_input(LCYAN + "Code? " + RESET)
 
