@@ -156,6 +156,7 @@ def checkout(site, key, target_dir, overwrite):
             "site": site.name,
             "key": key,
             "iid": tst_object.get('iid'),
+            "user": tst_object.get('user'),
         })
     }]
     tst.save_files(internal, destdir, verbose=False)

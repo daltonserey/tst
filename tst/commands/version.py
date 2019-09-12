@@ -18,13 +18,13 @@ def main():
     try:
         s = requests.session()
         s = CacheControl(s, cache=FileCache(os.path.expanduser('~/.tst/cache')))
-        response = s.get('https://pypi.org/pypi/tst/json')
+        response = s.get('https://pypi.org/pypi/tst/json', timeout=5)
         data = response.json()
-    except requests.ConnectionError:
-        pass
 
-    latest_version = data['info']['version']
-    if current != latest_version:
-        cprint(YELLOW, 'Latest version available: %s' % latest_version, file=sys.stdout)
-        cprint(RESET, '---\nUse `pip install --upgrade tst`')
-        cprint(RESET, ' or `pip install --upgrade --user tst`')
+        latest_version = data['info']['version']
+        if current != latest_version:
+            cprint(YELLOW, 'Latest version available: %s' % latest_version, file=sys.stdout)
+            cprint(RESET, '---\nUse `pip install --upgrade tst`')
+            cprint(RESET, ' or `pip install --upgrade --user tst`')
+    except requests.ConnectionError:
+        cprint(RED, 'Cannot connect to pypi.org server')

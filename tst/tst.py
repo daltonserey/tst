@@ -8,6 +8,7 @@ import codecs
 import json
 import glob
 import datetime as dt
+import pkg_resources
 
 import requests
 from cachecontrol import CacheControl
@@ -254,7 +255,7 @@ class Site:
         s = CacheControl(s, cache=FileCache(os.path.expanduser('~/.tst/cache')))
 
         url = "%s/%s" % (self.url, key)
-        headers = {}
+        headers = {'X-TST-Version': pkg_resources.get_distribution('tst').version}
         tokens = JsonFile(os.path.expanduser('~/.tst/tokens.json'))
         token = tokens.get(self.name)
         if token:

@@ -52,11 +52,13 @@ def login(sitename):
     _assert(login_url and token_url, "Site %s has no login urls" % site.name)
 
     # open login url to user
+    cprint(LGREEN, "Get a code at: %s" % login_url)
     webbrowser.open(login_url)
     code = raw_input(LCYAN + "Code? " + RESET)
 
     # exchange code for token
     cprint(RESET, "Validating code: %s" % code)
+    cprint(YELLOW, token_url)
     token = post(token_url, {"code": code})
 
     # save token
@@ -64,5 +66,18 @@ def login(sitename):
     tokens[site.name] = token['tst_token']
     tokens.writable = True
     tokens.save()
+
+    # save cookies
+    cookies = token.get('cookies')
+    cookies_file = JsonFile(os.path.expanduser('~/.tst/cookies.json'))
+    cookies_file.writable = True
+    if cookies:
+        cprint(YELLOW, "Setting cookies: " + str(cookies))
+        cookies_file[site.name] = cookies
+    else:
+        if site.name in cookies_file:
+            cprint(YELLOW, "Removing previous cookie")
+            cookies_file.pop(site.name)
+    cookies_file.save()
 
     cprint(LGREEN, "Logged in %s as %s" % (site.name, token['email']))

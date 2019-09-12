@@ -22,7 +22,6 @@ import difflib
 import hashlib
 
 from tst.jsonfile import JsonFile
-from tstlib import Server
 import tst
 from tst.utils import _assert
 from tst.utils import cprint, to_unicode
@@ -381,6 +380,8 @@ class TestCase():
         self.tokens = test.get('tokens', [])
         self.ignore = test.get('ignore', [])
         self.script = test.get('script')
+        if self.script:
+            self.script = self.script.replace('{}', '')
         self.files = test.get('files')
 
         # convert tokens to a list of strings, if necessary
@@ -674,7 +675,6 @@ def parse_cli():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('-t', '--timeout', type=int, default=5, help='stop execution at TIMEOUT seconds')
     parser.add_argument('-o', '--output', choices=['raw', 'debug', 'json', 'tests', 'summary', 'worker'], help='set output type')
-    parser.add_argument('-z', '--server', action='store_const', const=True, help='run server acceptance tests on last answer')
     parser.add_argument('-s', '--spec-file', type=str, default=None, help='read specification from file (default: tst.yaml or tst.json)')
     parser.add_argument('-x', '--extra-tests', type=str, default='*.yaml,*.json', help='specify files to search for additional tests')
     parser.add_argument('filename', nargs='*', default=[''])
@@ -694,7 +694,7 @@ def parse_cli():
     # identify extra tests patterns
     extra_tests = args.extra_tests.split(",") if args.extra_tests else []
 
-    return filenames, args.timeout, args.output, args.server, args.spec_file, extra_tests
+    return filenames, args.timeout, args.output, args.spec_file, extra_tests
 
 
 def debug(msg=''):
@@ -712,81 +712,10 @@ def tests_report(summary):
     return num_tests, successes, fails, errors
 
 
-def request_server_tests(tstjson):
-
-    # basic data
-    server = Server()
-    url = '/assignment/%s/validation' % tstjson['iid']
-
-    while True:
-
-        # request last validation results
-        response = server.get(url)
-        report = response.json()
-        if 'error' in report:
-            status = report.get('messages')[0]
-        else:
-            status = report['status']
-
-        if status == 'no validation requested':
-            # request last answer validation
-            cprint(LGREEN, "Requesting validation...")
-            response = server.post(url, payload="", exit_on_fail=True)
-
-        elif status == 'waiting worker response':
-            # wait a few seconds
-            cprint(LCYAN, "Waiting for the worker...")
-            time.sleep(3)
-
-        elif status == 'tests finished':
-            break
-
-        else:
-            print(response.stdout)
-            _assert(False, "fatal: please contact developers")
-
-    report = response.json()
-    summary = report['summary']
-    num_tests, successes, fails, errors = tests_report(summary)
-
-    # add num tests to msg
-    msg = "%d tests run, %d errors, %d fails." % (num_tests, errors, fails)
-
-    if all(c == '.' for c in summary):
-        cprint(LCYAN, summary)
-    else:
-        cprint(LRED, summary)
-    print(msg)
-    if not fails and not errors:
-        cprint(LGREEN, "Answer accepted")
-    else:
-        cprint(LGREEN, "Answer rejected")
-
-    fn = next((f for f in tstjson['files'] if tstjson['files'][f]['category'] == 'answer'), None)
-    if fn:
-        answer = tstjson['files'][fn]
-        with codecs.open(answer['name'], mode="r", encoding="utf-8") as f:
-            answerhash = hashlib.sha1(f.read().encode('utf-8')).hexdigest()
-        if answerhash != report['hash']:
-            cprint(LRED, "Warning: server copy differs from local one")
-            print('---')
-            print("Use `tst commit` to save latest version to server")
-
-
 def main():
 
     # parse command line data
-    filenames, timeout, output_fmt, server, specfile, patterns2scan = parse_cli()
-
-    # TODO: remove this feature from test command
-    # dispatch server tests if required
-    if server:
-        cprint(LRED, "WARNING: the `tst -z` feature will be removed soon")
-        activity_json = JsonFile(".tst/tst.json")
-        _assert(activity_json, "No activity directory (.tst) found")
-        _assert(activity_json['kind'] == 'assignment', "The --server option only apply to activities")
-        request_server_tests(activity_json)
-        sys.exit()
+    filenames, timeout, output_fmt, specfile, patterns2scan = parse_cli()
 
     # read specification file
     tstjson = tst.read_specification(specfile, verbose=True)
