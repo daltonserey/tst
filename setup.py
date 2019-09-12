@@ -15,8 +15,7 @@ setup(name='tst',
       include_package_data=True,
       scripts=[
         'bin/runjava',
-        'bin/tst',
-        'commands/tst-test',
+        'tst/commands/tst-test',
       ],
       install_requires=[
         'pyyaml>=5.1',
