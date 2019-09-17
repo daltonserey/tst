@@ -141,6 +141,7 @@ class TestRun:
     @unpack_results
     def run_script(self, timeout=TIMEOUT_DEFAULT):
         cmd_str = '%s %s' % (self.testcase.script, self.subject.filename)
+        cmd_str = re.sub(r'\bpython\b', 'python3', cmd_str)
         command = shlex.split(cmd_str.encode('utf-8'))
         self.result['command'] = cmd_str
 
