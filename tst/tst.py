@@ -171,22 +171,6 @@ def is_single_line_string(text):
     return '\n' not in text and '\r' not in text
 
 
-def fetch_file(url, encoding=None):
-    s = requests.session()
-    s = CacheControl(s, cache=FileCache(os.path.expanduser('~/.tst/cache')))
-
-    try:
-        response = s.get(url, headers={})
-    except requests.ConnectionError:
-        _assert(False, "Connection failed... check your internet connection")
-
-    _assert(response.ok, "%s\nFile request failed: %s (%d)" % (url, response.reason, response.status_code))
-    if encoding:
-        response.encoding = encoding
-
-    return response.text
-
-
 class Site:
     def __init__(self, name=None, url=None):
         self.name = name
@@ -225,12 +209,7 @@ class Site:
 
 
     def urls(self):
-        s = requests.session()
-        s = CacheControl(s, cache=FileCache(os.path.expanduser('~/.tst/cache')))
-
-        headers = {}
-        tokens = JsonFile(os.path.expanduser('~/.tst/tokens.json'))
-        token = tokens.get(self.name)
+        s = self.get_session()
         try:
             response = s.get(self.url, allow_redirects=True)
         except requests.ConnectionError:
@@ -250,24 +229,11 @@ class Site:
         return resource
 
 
-    def get(self, key):
-        # TODO: rename this method to get_activity, because
-        #       the name is misleading; it is not a generic HTTP GET.
-        #       We can create a generic GET that would take the 
-        #       request-target as parameter. It would form the whole
-        #       path from that.
-        s = requests.session()
-        s = CacheControl(s, cache=FileCache(os.path.expanduser('~/.tst/cache')))
-
+    def get_activity(self, key):
+        s = self.get_session()
         url = "%s/%s" % (self.url, key)
-        headers = {'X-TST-Version': pkg_resources.get_distribution('tst').version}
-        tokens = JsonFile(os.path.expanduser('~/.tst/tokens.json'))
-        token = tokens.get(self.name)
-        if token:
-            headers['Authorization'] = 'Bearer %s' % token
-
         try:
-            response = s.get(url, headers=headers, allow_redirects=True)
+            response = s.get(url, allow_redirects=True)
         except requests.ConnectionError:
             _assert(False, "Connection failed... check your internet connection")
 
@@ -292,29 +258,13 @@ class Site:
 
         return resource
 
-
     def get_directory(self, key):
-        s = requests.session()
-        s = CacheControl(s, cache=FileCache(os.path.expanduser('~/.tst/cache')))
-
+        s = self.get_session()
         url = "%s/%s/tst.yaml" % (self.url, key)
-        headers = {}
-        tokens = JsonFile(os.path.expanduser('~/.tst/tokens.json'))
-        token = tokens.get(self.name)
-        if token:
-            headers['Authorization'] = 'Bearer %s' % token
-
         try:
             response = s.get(url, headers=headers, allow_redirects=True)
         except requests.ConnectionError:
             _assert(False, "Connection failed... check your internet connection (1)")
-
-        # TODO: Split method in two. The first part performs a fetch,
-        #       while the second part (below) processes the response and
-        #       possibly fetches further files. We could have a simple
-        #       fetch method/funcion and a more high level get_directory
-        #       that uses such method. In fact, the get() method above can
-        #       also be improved with such a refactoring.
 
         # process response
         if not response.ok:
@@ -366,7 +316,15 @@ class Site:
         ## fetch missing files
         for f in files:
             if f['content'].startswith('http://') or f['content'].startswith('https://'):
-                f['content'] = fetch_file('%s/%s/%s' % (self.url, key, f['name']), encoding='utf-8')
+                url = '%s/%s/%s' % (self.url, key, f['name'])
+                try:
+                    response = s.get(url)
+                except requests.ConnectionError:
+                    _assert(False, "Connection failed... check your internet connection")
+
+                _assert(response.ok, "%s\nFile request failed: %s (%d)" % (url, response.reason, response.status_code))
+                response.encoding = 'utf-8'
+                f['content'] = response.text
 
         return {
             'kind': 'activity',
@@ -396,20 +354,15 @@ class Site:
         return CacheControl(s, cache=FileCache(os.path.expanduser('~/.tst/cache')))
 
     def send_answer(self, answer, key):
-        s = requests.session()
-        s = CacheControl(s, cache=FileCache(os.path.expanduser('~/.tst/cache')))
-
+        s = self.get_session()
         url = "%s/%s/answers" % (self.url, key)
         data = data2json(answer).encode('utf-8')
-        tokens = JsonFile(os.path.expanduser('~/.tst/tokens.json'))
-        headers = {"Authorization": "Bearer %s" % tokens.get(self.name)}
         try:
-            response = s.post(url, headers=headers, data=data, allow_redirects=True)
+            response = s.post(url, data=data, allow_redirects=True)
         except requests.ConnectionError:
             _assert(False, "Connection failed... check your internet connection (1)")
 
         return response
-
 
     def post(self, target, data, headers=None, cookies=None):
         # BEWARE: this is an attempt to make a simple facility method 

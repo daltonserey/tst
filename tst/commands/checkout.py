@@ -115,7 +115,7 @@ def checkout(site, key, target_dir, overwrite):
 
     # fetch tst object
     cprint(LGREEN, "Fetching %s from %s" % (key, site.name or site.url))
-    tst_object = site.get(key) or site.get_directory(key)
+    tst_object = site.get_activity(key) or site.get_directory(key)
     _assert(tst_object, "Cannot checkout %s from site %s (%s)" % (key, site.name, str(site.last_error)))
 
     # set destination directory
