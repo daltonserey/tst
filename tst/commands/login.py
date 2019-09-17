@@ -5,9 +5,7 @@ import sys
 import os
 import webbrowser
 
-import requests
-from cachecontrol import CacheControl
-from cachecontrol.caches.file_cache import FileCache
+from requests import ConnectionError
 
 from tst.colors import *
 from tst.utils import cprint, data2json, _assert
@@ -16,28 +14,6 @@ from tst.jsonfile import JsonFile
 def main():
     sitename = sys.argv[2] if len(sys.argv) > 2 else '_DEFAULT'
     login(sitename)
-
-
-def post(url, data):
-    s = requests.session()
-    s = CacheControl(s, cache=FileCache(os.path.expanduser('~/.tst/cache')))
-
-    try:
-        response = s.post(url, data=data2json(data), allow_redirects=True)
-    except requests.ConnectionError:
-        _assert(False, "Connection failed... check your internet connection")
-
-    if not response.ok:
-        cprint(LRED, "Login failed")
-
-    response.encoding = 'utf-8'
-    try:
-        token = response.json()
-
-    except ValueError:
-        _assert(False, "Server didn't send json")
-
-    return token
 
 
 def login(sitename):
@@ -59,7 +35,22 @@ def login(sitename):
     # exchange code for token
     cprint(RESET, "Validating code: %s" % code)
     cprint(YELLOW, token_url)
-    token = post(token_url, {"code": code})
+
+    try:
+        response = site.post(token_url, data={"code": code})
+        _assert(response.ok, "Login failed")
+    except ConnectionError:
+        _assert(False, "Connection failed... check your internet connection")
+
+    response.encoding = 'utf-8'
+    try:
+        token = response.json()
+    except ValueError:
+        _assert(False, "Server didn't send json")
+
+    return token
+
+
 
     # save token
     tokens = JsonFile(os.path.expanduser('~/.tst/tokens.json'))

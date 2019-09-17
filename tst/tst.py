@@ -251,6 +251,11 @@ class Site:
 
 
     def get(self, key):
+        # TODO: rename this method to get_activity, because
+        #       the name is misleading; it is not a generic HTTP GET.
+        #       We can create a generic GET that would take the 
+        #       request-target as parameter. It would form the whole
+        #       path from that.
         s = requests.session()
         s = CacheControl(s, cache=FileCache(os.path.expanduser('~/.tst/cache')))
 
@@ -383,6 +388,29 @@ class Site:
             _assert(False, "Connection failed... check your internet connection (1)")
 
         return response
+
+    def post(self, target, data, headers=None, cookies=None):
+        # BEWARE: this is an attempt to make a simple facility method 
+        #         configures and performs an HTTP POST request to
+        #         the given site.
+        #
+        # target: is either a target within the site or the full url
+        s = requests.session()
+        s = CacheControl(s, cache=FileCache(os.path.expanduser('~/.tst/cache')))
+        headers = headers or { 'X-TST-Version': pkg_resources.get_distribution('tst').version }
+
+        # set headers
+        tokens = JsonFile(os.path.expanduser('~/.tst/tokens.json'))
+        token = tokens.get(self.name)
+        if token:
+            headers['Authorization'] = 'Bearer %s' % token
+
+        # set cookies
+        allcookies = JsonFile(os.path.expanduser('~/.tst/cookies.json'))
+        cookies = cookies or allcookies.get(self.name)
+
+        url = "%s%s" % (self.url, target) if target.startswith('/') else target
+        return s.post(url, data=data2json(data), allow_redirects=True, headers=headers, cookies=cookies)
 
 
 def get_site(name=None, url=None):
