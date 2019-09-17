@@ -14,7 +14,7 @@ def main():
     filetype = 'support' if sys.argv[2] in ['--support-file', '-s'] else 'answer'
     filename = sys.argv[3 if filetype == 'support' else 2]
     assignment_id = JsonFile('.tst/assignment.json')['iid']
-    site = tst.get_site('prog1')
+    site = tst.get_site('_DEFAULT')
     commit(filename, filetype, assignment_id, site)
 
 
