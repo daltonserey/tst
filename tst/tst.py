@@ -374,6 +374,27 @@ class Site:
         }
 
 
+    def get_session(self, headers=None, cookies=None):
+        """
+        Return a pre-configured requests session object, containing
+        the proper headers, cookies and cache control decorator.
+        """
+        # create basic session objet
+        s = requests.session()
+
+        # add headers
+        s.headers = headers or { 'X-TST-Version': pkg_resources.get_distribution('tst').version }
+        token = JsonFile(os.path.expanduser('~/.tst/tokens.json')).get(self.name)
+        if token:
+            s.headers['Authorization'] = 'Bearer %s' % token
+
+        # set cookies
+        allcookies = JsonFile(os.path.expanduser('~/.tst/cookies.json'))
+        cookies = cookies or allcookies.get(self.name) or {}
+        s.cookies.update(cookies)
+
+        return CacheControl(s, cache=FileCache(os.path.expanduser('~/.tst/cache')))
+
     def send_answer(self, answer, key):
         s = requests.session()
         s = CacheControl(s, cache=FileCache(os.path.expanduser('~/.tst/cache')))
@@ -389,28 +410,16 @@ class Site:
 
         return response
 
+
     def post(self, target, data, headers=None, cookies=None):
         # BEWARE: this is an attempt to make a simple facility method 
         #         configures and performs an HTTP POST request to
         #         the given site.
         #
         # target: is either a target within the site or the full url
-        s = requests.session()
-        s = CacheControl(s, cache=FileCache(os.path.expanduser('~/.tst/cache')))
-        headers = headers or { 'X-TST-Version': pkg_resources.get_distribution('tst').version }
-
-        # set headers
-        tokens = JsonFile(os.path.expanduser('~/.tst/tokens.json'))
-        token = tokens.get(self.name)
-        if token:
-            headers['Authorization'] = 'Bearer %s' % token
-
-        # set cookies
-        allcookies = JsonFile(os.path.expanduser('~/.tst/cookies.json'))
-        cookies = cookies or allcookies.get(self.name)
-
+        s = self.get_session(headers=headers, cookies=cookies)
         url = "%s%s" % (self.url, target) if target.startswith('/') else target
-        return s.post(url, data=data2json(data), allow_redirects=True, headers=headers, cookies=cookies)
+        return s.post(url, data=data2json(data), allow_redirects=True)
 
 
 def get_site(name=None, url=None):
