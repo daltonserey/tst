@@ -1,12 +1,13 @@
 from __future__ import print_function
 
-import tst
 import sys
 import os
 import webbrowser
+import logging
 
 from requests import ConnectionError
 
+import tst
 from tst.colors import *
 from tst.utils import cprint, data2json, _assert
 from tst.jsonfile import JsonFile
@@ -34,7 +35,6 @@ def login(sitename):
 
     # exchange code for token
     cprint(RESET, "Validating code: %s" % code)
-    cprint(YELLOW, token_url)
 
     try:
         response = site.post(token_url, data={"code": code})
@@ -48,27 +48,12 @@ def login(sitename):
     except ValueError:
         _assert(False, "Server didn't send json")
 
-    return token
-
-
-
     # save token
     tokens = JsonFile(os.path.expanduser('~/.tst/tokens.json'))
     tokens[site.name] = token['tst_token']
     tokens.writable = True
     tokens.save()
 
-    # save cookies
-    cookies = token.get('cookies')
-    cookies_file = JsonFile(os.path.expanduser('~/.tst/cookies.json'))
-    cookies_file.writable = True
-    if cookies:
-        cprint(YELLOW, "Setting cookies: " + str(cookies))
-        cookies_file[site.name] = cookies
-    else:
-        if site.name in cookies_file:
-            cprint(YELLOW, "Removing previous cookie")
-            cookies_file.pop(site.name)
-    cookies_file.save()
-
-    cprint(LGREEN, "Logged in %s as %s" % (site.name, token['email']))
+    msg = "Logged in %s as %s" % (site.name, token['email'])
+    cprint(LGREEN, msg)
+    logging.info(msg)
