@@ -9,6 +9,7 @@ import json
 import glob
 import datetime as dt
 import pkg_resources
+import logging
 
 import requests
 from cachecontrol import CacheControl
@@ -22,13 +23,14 @@ CONFIGDIR = os.path.expanduser('~/.tst/')
 CONFIGFILE = CONFIGDIR + 'config.yaml'
 
 def get_config():
+    logging.basicConfig(filename=os.path.expanduser('~/.tst/logs.txt'), level=logging.DEBUG, format='%(asctime)s (%(levelname)s@%(name)s) %(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
     if not os.path.exists(CONFIGFILE):
         if not os.path.isdir(CONFIGDIR):
             os.mkdir(CONFIGDIR)
 
         with codecs.open(CONFIGFILE, encoding="utf-8", mode="w") as config_file:
             config_file.write(
-                "sites:\n" 
+                "sites:\n"
                 "- name: demo\n"
                 "  url: https://raw.githubusercontent.com/daltonserey/tst-demo/master\n"
             )
@@ -176,6 +178,8 @@ class Site:
         self.name = name
         self.url = url
         self.last_error = None
+        self._session = None
+        self._googappuid = None
         sites = get_config()['sites']
         for s in sites:
             if s['name'] == name:
@@ -229,11 +233,30 @@ class Site:
         return resource
 
 
+    def save_cookies(self, response):
+        cookies_file = JsonFile(os.path.expanduser('~/.tst/cookies.json'))
+        cookies_file.writable = True
+        new_googappuid = response.cookies['GOOGAPPUID'] if response.cookies else None
+        if not new_googappuid:
+            logging.warning("no GOOGAPPUID cookie in server response (setting value to 0)")
+            new_googappuid = '0'
+
+        if not new_googappuid.isdigit() or not (0 <= int(new_googappuid) < 1000):
+            logging.warning("invalid value for GOOGAPPUID cookie: %s (setting value to 0)" % new_googappuid)
+            new_googappuid = '0'
+
+        if new_googappuid != self._googappuid:
+            logging.info("saving new GOOGAPPUID cookie: %s" % new_googappuid)
+            cookies_file[self.name] = {"GOOGAPPUID": new_googappuid}
+            cookies_file.save()
+
+
     def get_activity(self, key):
         s = self.get_session()
         url = "%s/%s" % (self.url, key)
         try:
             response = s.get(url, allow_redirects=True)
+            logging.info('GET %s (%s)' % (url, response.status_code))
         except requests.ConnectionError:
             _assert(False, "Connection failed... check your internet connection")
 
@@ -242,6 +265,7 @@ class Site:
             self.last_response = response
             return None
 
+        self.save_cookies(response)
         response.encoding = 'utf-8'
         try:
             resource = response.json()
@@ -250,10 +274,10 @@ class Site:
 
         except ValueError:
             #_assert(False, "Resource is not valid json")
+            logging.warning('ValueError during resource processing (in get_activity())')
             return None
 
         except AssertionError as e:
-            print(resource)
             _assert(False, "Not a TST Object: %s" % e.message)
 
         return resource
@@ -262,7 +286,8 @@ class Site:
         s = self.get_session()
         url = "%s/%s/tst.yaml" % (self.url, key)
         try:
-            response = s.get(url, headers=headers, allow_redirects=True)
+            response = s.get(url, allow_redirects=True)
+            logging.info('GET %s (%s)' % (url, response.status_code))
         except requests.ConnectionError:
             _assert(False, "Connection failed... check your internet connection (1)")
 
@@ -279,8 +304,8 @@ class Site:
             resource['_response'] = response
 
         except Exception as e:
-            cprint(YELLOW, "Failed parsing yaml: %s" % url)
-            cprint(YELLOW, e.message)
+            cprint(YELLOW, "Activity malformed: %s" % url)
+            logging.info('Falied parsing activity yaml' % (url, response.status_code))
             raise e
 
         # gather files
@@ -319,6 +344,7 @@ class Site:
                 url = '%s/%s/%s' % (self.url, key, f['name'])
                 try:
                     response = s.get(url)
+                    logging.info('GET %s (%s)' % (url, response.status_code))
                 except requests.ConnectionError:
                     _assert(False, "Connection failed... check your internet connection")
 
@@ -337,6 +363,10 @@ class Site:
         Return a pre-configured requests session object, containing
         the proper headers, cookies and cache control decorator.
         """
+        # is there a previous session?
+        if self._session:
+            return self._session
+
         # create basic session objet
         s = requests.session()
 
@@ -349,9 +379,15 @@ class Site:
         # set cookies
         allcookies = JsonFile(os.path.expanduser('~/.tst/cookies.json'))
         cookies = cookies or allcookies.get(self.name) or {}
+        if cookies:
+            self._googappuid = cookies['GOOGAPPUID']
+            logging.info("setting up session with GOOGAPPUID cookie: %s" % self._googappuid)
+        else:
+            logging.warning("setting up session WITHOUT GOOGAPPUID")
         s.cookies.update(cookies)
 
-        return CacheControl(s, cache=FileCache(os.path.expanduser('~/.tst/cache')))
+        self._session = CacheControl(s, cache=FileCache(os.path.expanduser('~/.tst/cache')))
+        return self._session
 
     def send_answer(self, answer, key):
         s = self.get_session()
@@ -365,14 +401,17 @@ class Site:
         return response
 
     def post(self, target, data, headers=None, cookies=None):
-        # BEWARE: this is an attempt to make a simple facility method 
+        # BEWARE: this is an attempt to make a simple facility method
         #         configures and performs an HTTP POST request to
         #         the given site.
         #
         # target: is either a target within the site or the full url
         s = self.get_session(headers=headers, cookies=cookies)
         url = "%s%s" % (self.url, target) if target.startswith('/') else target
-        return s.post(url, data=data2json(data), allow_redirects=True)
+        response = s.post(url, data=data2json(data), allow_redirects=True)
+        logging.info('POST %s (%s)' % (url, response.status_code))
+        self.save_cookies(response)
+        return response
 
 
 def get_site(name=None, url=None):
@@ -435,7 +474,7 @@ def read_specification(filename=None, verbose=False):
 
     cprint(LRED, "No tst tests found")
     sys.exit(1)
-    
+
 
 def save_assignment(activity, dir_name, etag, url, repo):
 
@@ -443,7 +482,7 @@ def save_assignment(activity, dir_name, etag, url, repo):
     os.chdir(dir_name)
 
     # save the original activity data
-    dirname = './.tst' 
+    dirname = './.tst'
     if not os.path.exists(dirname):
         os.makedirs(dirname)
 
