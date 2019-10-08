@@ -3,6 +3,7 @@ from __future__ import print_function
 import sys
 import string
 import json
+import logging
 
 from colors import *
 
@@ -28,6 +29,7 @@ def _assert(condition, msg):
         return
 
     cprint(LRED, msg)
+    logging.error(msg)
     sys.exit(1)
 
 
