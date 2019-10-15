@@ -27,4 +27,4 @@ def main():
             cprint(RESET, '---\nUse `pip install --upgrade tst`')
             cprint(RESET, ' or `pip install --upgrade --user tst`')
     except requests.ConnectionError:
-        cprint(RED, 'Cannot connect to pypi.org server')
+        cprint(LRED, 'Cannot connect to pypi.org server')
