@@ -24,13 +24,6 @@ LOG_FILE = os.path.expanduser('~/.tst/logs.txt')
 CONFIGFILE = CONFIGDIR + 'config.yaml'
 
 def get_config():
-    if not os.path.exists(LOG_FILE):
-        open(LOG_FILE, 'w').close()
-    logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG, format='%(asctime)s (%(levelname)s@%(name)s) %(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
-    # Uncomment to reduce too much data in logs
-    #logging.getLogger("requests").setLevel(logging.WARNING)
-    #logging.getLogger("cachecontrol.controller").setLevel(logging.WARNING)
-    #logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
     if not os.path.exists(CONFIGFILE):
         if not os.path.isdir(CONFIGDIR):
             os.mkdir(CONFIGDIR)
@@ -41,6 +34,14 @@ def get_config():
                 "- name: demo\n"
                 "  url: https://raw.githubusercontent.com/daltonserey/tst-demo/master\n"
             )
+
+    if not os.path.exists(LOG_FILE):
+        open(LOG_FILE, 'w').close()
+    logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG, format='%(asctime)s (%(levelname)s@%(name)s) %(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
+    # Uncomment to reduce too much data in logs
+    #logging.getLogger("requests").setLevel(logging.WARNING)
+    #logging.getLogger("cachecontrol.controller").setLevel(logging.WARNING)
+    #logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
 
     return JsonFile(CONFIGFILE)
 
