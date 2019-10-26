@@ -140,7 +140,10 @@ class TestRun:
 
     @unpack_results
     def run_script(self, timeout=TIMEOUT_DEFAULT):
-        cmd_str = '%s %s' % (self.testcase.script, self.subject.filename)
+        if "{}" in self.testcase.script:
+            cmd_str = self.testcase.script.format(self.subject.filename)
+        else:
+            cmd_str = self.testcase.script
         cmd_str = re.sub(r'\bpython\b', 'python3', cmd_str)
         command = shlex.split(cmd_str.encode('utf-8'))
         self.result['command'] = cmd_str
@@ -373,7 +376,6 @@ class TestCase():
 
         # get data from tst.json
         self.name = test.get('name')
-        self.type = test.get('type', 'io')
         self.input = test.get('input', '')
         self.output = test.get('output', '')
         self.cases = test.get('cases', None)
@@ -381,9 +383,15 @@ class TestCase():
         self.tokens = test.get('tokens', [])
         self.ignore = test.get('ignore', [])
         self.script = test.get('script')
-        if self.script:
-            self.script = self.script.replace('{}', '')
+        self.command = test.get('command')
         self.files = test.get('files')
+        self.type = test.get('type') or ('script' if self.script or self.command else 'io')
+        if self.type == 'script':
+            _assert(self.command or self.script, "script tests must have a command")
+            _assert(not self.command or not self.script, "script tests cannot have both script and command")
+            _assert(not self.input and not self.output, "script tests cannot have input/output")
+            _assert(not self.tokens, "script tests cannot have tokens")
+            self.script = self.script or self.command
 
         # convert tokens to a list of strings, if necessary
         if isinstance(self.tokens, basestring):
