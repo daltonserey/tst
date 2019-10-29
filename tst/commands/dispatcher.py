@@ -129,7 +129,10 @@ def dispatcher(args):
 
 
 def main():
-    args = sys.argv[:]
-    args.pop(0) # pop dispatcher name
-    config = tst.get_config()
-    dispatcher(args) 
+    try:
+        args = sys.argv[:]
+        args.pop(0) # pop dispatcher name
+        config = tst.get_config()
+        dispatcher(args) 
+    except (KeyboardInterrupt, SystemExit):
+        cprint(LRED, "\nuser interruption")
