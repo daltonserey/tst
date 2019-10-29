@@ -11,7 +11,6 @@ import re
 import sys
 import json
 import glob
-import time
 import shlex
 import signal
 import string
@@ -19,15 +18,15 @@ import codecs
 import unicodedata
 import argparse
 import difflib
-import hashlib
+import logging
 
 from tst.jsonfile import JsonFile
 import tst
-from tst.utils import _assert
+from tst.utils import _assert, data2json
 from tst.utils import cprint, to_unicode
 from tst.colors import *
 
-from subprocess import Popen, PIPE
+from subprocess import Popen, PIPE, check_output, CalledProcessError
 
 TIMEOUT_DEFAULT = 2
 PYTHON = 'python2.7'
@@ -64,21 +63,12 @@ STATUS_CODE = {
     'NameError': 'n',
 }
 
-
 TSTJSONFAILMSG = LRED + "Spec file is not a valid config object" + RESET
 
-def abort(msg, code=1):
-    cprint(LRED, msg.encode('utf-8'), file=sys.stderr)
-    sys.exit(code)
+def alarm_handler(signum, frame):
+    raise CutTimeOut
 
-
-def data2json(data):
-    return json.dumps(
-        data,
-        indent=2,
-        separators=(',', ': '),
-        ensure_ascii=False
-    )
+signal.signal(signal.SIGALRM, alarm_handler)
 
 
 def unpack_results(run_method):
@@ -88,7 +78,9 @@ def unpack_results(run_method):
 
         if self.testcase.type == 'io':
             self.result['summary'] = STATUS_CODE[self.result['status']]
-          
+
+        return self.result
+
     return wrapper
 
 
@@ -114,7 +106,7 @@ def parse_test_report(data):
         feedback = parts[2]
     else:
         feedback = None
-        
+
     return summary, feedback
 
 
@@ -129,14 +121,13 @@ class TestRun:
 
     def run(self, timeout=TIMEOUT_DEFAULT):
         if self.testcase.type == 'io':
-            self.run_iotest()
+            return self.run_iotest()
 
         elif self.testcase.type == 'script':
-            self.run_script()
+            return self.run_script()
 
         else:
-            assert False, 'unknown test type'
-
+            _assert(False, 'unknown test type')
 
     @unpack_results
     def run_script(self, timeout=TIMEOUT_DEFAULT):
@@ -148,7 +139,7 @@ class TestRun:
         command = shlex.split(cmd_str.encode('utf-8'))
         self.result['command'] = cmd_str
 
-        process = Popen(command, stdout=PIPE, stderr=PIPE) 
+        process = Popen(command, stdout=PIPE, stderr=PIPE)
         signal.alarm(timeout)
         try:
             stdout, stderr = map(to_unicode, process.communicate())
@@ -158,7 +149,7 @@ class TestRun:
             process.terminate()
             self.result['status'] = 'Timeout'
             self.result['summary'] = 't'
-            return
+            return self.result
 
         # collect test data
         self.result['exit_status'] = process.returncode
@@ -169,7 +160,7 @@ class TestRun:
         if self.result['exit_status'] != 0:
             self.result['status'] = 'ScriptTestError'
             self.result['summary'] = '!'
-            return
+            return self.result
 
         # collect report from either stderr or stdout
         summary, feedback = parse_test_report(stderr)
@@ -179,16 +170,15 @@ class TestRun:
         if not summary:
             self.result['status'] = 'Inconclusive'
             self.result['summary'] = '?'
-            return
+            return self.result
 
         self.result['summary'] = summary
         if summary == len(summary) * '.':
             self.result['status'] = 'Success'
         else:
             self.result['status'] = 'Fail'
-            
-        return
 
+        return self.result
 
     @unpack_results
     def run_iotest(self, timeout=TIMEOUT_DEFAULT):
@@ -202,7 +192,7 @@ class TestRun:
             ext = self.subject.filename.split('.')[-1]
             if ext not in extensions:
                 self.result['status'] = 'NoInterpreterError'
-                return
+                return self.result
             _assert(ext in extensions, "\nfatal: missing command for extension %s" % ext)
             command = config['run'][ext]
             cmd_str = "%s %s" % (command, self.subject.filename)
@@ -224,11 +214,11 @@ class TestRun:
 
         # loop until running the test
         while True:
-            process = Popen(command, stdin=PIPE, stdout=PIPE, stderr=PIPE) 
-            signal.alarm(timeout) 
+            process = Popen(command, stdin=PIPE, stdout=PIPE, stderr=PIPE)
+            signal.alarm(timeout)
             try:
 
-                # run subject as external process 
+                # run subject as external process
                 process_data = process.communicate(input=input_data)
                 stdout, stderr = map(to_unicode, process_data)
 
@@ -247,12 +237,12 @@ class TestRun:
                 # timeout... give up
                 process.terminate()
                 self.result['status'] = 'Timeout'
-                return
+                return self.result
 
             except OSError:
                 # external error... must run again!
                 process.terminate()
-      
+
         # 1. Did an ERROR ocurred during execution?
         if process.returncode != 0:
 
@@ -265,25 +255,24 @@ class TestRun:
                     self.result['status'] = error_code
                     break
 
-            return
-      
+            return self.result
+
         # 2. Was it a PERFECTLY SUCCESSFUL run?
         preprocessed_stdout = preprocess(stdout, self.testcase.ignore)
         if self.testcase.preprocessed_output  == preprocessed_stdout:
             self.result['status'] = 'Success'
-            return
-
+            return self.result
 
         # 3. Was it a NORMALIZED SUCCESSFUL run?
         normalized_stdout = preprocess(stdout, DEFAULT_OPS)
         if self.testcase.normalized_output == normalized_stdout:
             self.result['status'] = 'QuasiSuccess'
-            return
+            return self.result
 
         # 4. Doesn't the testcase specify TOKENS?
         if not self.testcase.tokens:
             self.result['status'] = 'Fail'
-            return
+            return self.result
 
         # set flags to use with methods re.*
         flags = re.DOTALL|re.UNICODE
@@ -294,26 +283,26 @@ class TestRun:
         regex = '(.*)%s(.*)' % ('(.*)'.join(self.testcase.tokens))
         if re.match(regex, preprocessed_stdout, flags=flags):
             self.result['status'] = 'AllTokensSequence'
-            return
+            return self.result
 
         # 6. Does the output have the TOKENS MULTISET?
         regex = '|'.join(self.testcase.tokens)
         found = re.findall(regex, preprocessed_stdout, flags=flags)
-        found_ms = Counter(found)                        
+        found_ms = Counter(found)
         tokens_ms = Counter(self.testcase.tokens)
         if found_ms >= tokens_ms:
             self.result['status'] = 'AllTokensMultiset'
-            return
+            return self.result
 
         # 7. Does the output have a proper SUBSET OF THE TOKENS?
         if found_ms <= tokens_ms and len(found_ms) > 0:
             self.result['status'] = 'MissingTokens'
-            return
+            return self.result
 
         # 8. otherwise...
         self.result['status'] = 'Fail'
-        return
-          
+        return self.result
+
 
 class TestSubject:
 
@@ -325,7 +314,6 @@ class TestSubject:
         self._results = None
         self._summaries = None
 
-
     def results(self):
         if not self._results:
             self._results = []
@@ -334,15 +322,12 @@ class TestSubject:
 
         return self._results
 
-
     def add_testrun(self, testrun):
         self.testruns.append(testrun)
         self._summaries = None
 
-
     def feedbacks(self):
         return [tr['feedback'] for tr in self.results() if tr.get('feedback')]
-
 
     def summaries(self, join_io=False):
         if not self._summaries:
@@ -359,15 +344,12 @@ class TestSubject:
 
         return self._summaries
 
-
     def verdict(self):
         return 'success' if all(c == '.' for c in ''.join(self.summaries())) else 'fail'
-
 
     def summary(self):
         status_codes = [tr['summary'] for tr in self.results()]
         return ''.join(status_codes)
-
 
 
 class TestCase():
@@ -420,7 +402,6 @@ class TestCase():
 
         # setup expression to match tokens (so we do it once for all subjects)
         self.tokens_expression = '|'.join(self.tokens) if self.tokens else ''
-
 
 
 def preprocess(text, operator_names):
@@ -477,14 +458,6 @@ def punctuation_to_white(text):
     return text.translate(table)
 
 
-def squeeze_all_whites(text):
-    return ' '.join(text.strip().splitlines())
-
-
-def strip_blanks(text):
-    return ' '.join(text.split())
-
-
 def strip_accents(text):
     # text must be a unicode object, not str
     try:
@@ -505,15 +478,10 @@ OPERATOR = {
     'punctuation': punctuation_to_white, # not default
     'whites': drop_whites, # not default
 }
+
 DEFAULT_OPS = ['case', 'accents', 'extra_whites']
 
 class CutTimeOut(Exception): pass
-
-def alarm_handler(signum, frame):
-    raise CutTimeOut
-
-signal.signal(signal.SIGALRM, alarm_handler)
-
 
 class StatusLine:
 
@@ -527,7 +495,6 @@ class StatusLine:
         self.stty_size = os.popen('stty size', 'r').read()
         self.columns = int(self.stty_size.split()[1]) - 10
 
-
     def set(self, line):
         if not self.terminal:
             return
@@ -538,7 +505,6 @@ class StatusLine:
         sys.stderr.write(line)
         sys.stderr.flush()
         self.lastline = line
-
 
     def clear(self):
         if not self.terminal:
@@ -563,187 +529,243 @@ def color(color, text):
     return color + text + reset
 
 
-def report_results(subjects, output):
+class Reporter(object):
+    VALID_REPORT_STYLES = ['summary', 'debug', 'failed', 'passed', 'worker']
 
-    if output == 'debug':
-        report = {}
-        for subject in subjects:
-            if all([r['status'] == 'Success' for r in subject.results()]) == True:
-                continue
-            print(color(LBLUE, "# %s: `%s`" % (subject.filename, subject.summary())))
-            fails = []
-            for res in subject.results():
-                if res['status'] == 'Success':
-                    continue
+    @staticmethod
+    def get(style, num_tests=0, options={}):
+        _assert(style is None or style in Reporter.VALID_REPORT_STYLES, 'invalid report style: {}'.format(style))
+        if style is None or style == 'summary':
+            return Reporter(options)
 
-                if res['type'] == 'io':
-                    name = '`%s`: ' % res['name'] if res['name'] else ''
-                    print(color(LCYAN, "\n## %s`%s` (`%s`)" % (name, res['status'], res['summary'])))
-                    if res['status'] == 'Timeout':
-                        print('- input')
-                        print(color(LCYAN, indent(res['input'])))
+        elif style == 'debug':
+            return DebugReporter(max_fails=1, options=options)
 
-                    else:
-                        print('### input:')
-                        print(color(LCYAN, indent(res['input'])))
-                        print(indent('(%s)' % color(LCYAN, repr(res['input'])[1:])))
+        elif style == 'failed':
+            fail_filter = lambda s: s.count('.') != len(s)
+            return FilterReporter(filtro=fail_filter, options=options)
 
-                        print('### output:')
-                        print(color(LCYAN, indent(res['output'])))
-                        print(indent('(%s)' % color(LCYAN,
-                        repr(res['output'])[1:])))
+        elif style == 'passed':
+            passed_filter = lambda s: s.count('.') == len(s)
+            return FilterReporter(filtro=passed_filter, options=options)
 
-                        print('### output diff')
-                        differ = difflib.Differ()
-                        diff = differ.compare(res['stdout'].splitlines(), res['output'].splitlines())
-                        for e in diff:
-                            if e[0] == '+':
-                                line = indent(color(LGREEN, "+ ") + color('\033[1;32;100m', e[2:]))
-                            elif e[0] == '-':
-                                line = indent(color(LRED, "- ") + color('\033[1;31;100m', e[2:]))
-                            else:
-                                line = indent(color('\033[2m', e))
-                            print(line.encode('utf-8'))
+        elif style == 'worker':
+            return WorkerReporter(options=options)
 
-                elif res['type'] == 'script':
-                    name = '`%s`: ' % res['name'] if res['name'] else ''
-                    print(color(LCYAN, "\n## %s`%s` (`%s`)" % (name, res['status'], res['summary'])))
-                    report = res['stderr'] or res['stdout']
-                    if report:
-                        print('### test script: `%s`' % res['command'])
-                        print(indent(report))
+    def __init__(self, status_line=True, options={}):
+        self.num_tests = 0
+        self.tests_performed = 0
+        self.current_subject = None
+        self.testresults = None
+        self.testcases = None
+        self.subjects = []
+        self.status_line = StatusLine() if status_line else None
+        self.options = options
 
-            print()
+    def update(self, subject, testcase, testresult):
+        if self.current_subject is None:
+            hasattr(self, 'before_all') and self.before_all()
+        if self.current_subject and subject != self.current_subject:
+            # end current_subject report
+            self.status_line and self.status_line.clear()
+            self.print_report()
+            hasattr(self, 'after_file') and self.after_file()
+            hasattr(self, 'between_files') and self.between_files()
 
-    elif output == 'debug':
-        report = {}
-        for subject in subjects:
-            fails = []
-            for res in subject.results():
-                if res['status'] != 'Success' and res['type'] == 'io':
-                    fails.append({
-                        'input': res['input'],
-                        'expected_output': res['output'],
-                        'observed_output': res['stdout'],
-                        'status': res['status']
-                    })
-                elif res['status'] != 'Success' and res['type'] == 'script':
-                    fails.append({
-                        'status': res['status'],
-                        'summary': res['summary'],
-                    })
+        if subject != self.current_subject:
+            # change to new subject
+            hasattr(self, 'before_file') and self.before_file()
+            self.current_subject = subject
+            self.testresults = []
+            self.testcases = []
+            self.subjects.append(subject)
 
-            if fails:
-                report[subject.filename] = fails
+        if subject:
+            # update data
+            self.testresults.append(testresult)
+            self.testcases.append(testcase)
+            self.tests_performed += 1
+            self._status(self.tests_performed)
 
-        print(data2json(report).encode('utf-8'))
+    def close(self):
+        self.status_line and self.status_line.clear()
+        self.print_report()
+        hasattr(self, 'after_file') and self.after_file()
+        hasattr(self, 'after_all') and self.after_all()
 
-    elif output == 'worker':
-        data = {
-            subject.filename: {
-                "summary": "".join(subject.summaries(join_io=True))
-            }
-            for subject in subjects
+    def _status(self, tests_performed=None):
+        if tests_performed is None:
+            self.status_line.clear()
+            return
+
+        if not self.status_line: return
+        self.status_line.set('%d of %d tests' % (tests_performed, self.num_tests))
+
+    def _summaries(self):
+        iosummaries = []
+        _summaries = []
+        for tr in self.testresults:
+            if tr['type'] == 'io':
+                iosummaries.append(tr['summary'])
+            else:
+                _summaries.append(tr['summary'])
+
+        if iosummaries:
+            _summaries.insert(0, ''.join(iosummaries))
+
+        return ''.join(_summaries)
+
+    def print_report(self):
+        summary = self._summaries()
+        line = '%s %s' % (summary, self.current_subject.filename)
+        print(line.encode('utf-8'), file=sys.stderr)
+
+
+class FilterReporter(Reporter):
+    def __init__(self, status_line=True, filtro=lambda s: True, options={}):
+        super(FilterReporter, self).__init__(status_line, options)
+        self.filtro = filtro
+
+    def print_report(self):
+        summary = self._summaries()
+        if not self.filtro(summary): return
+        self._filtered = True
+        line = '%s %s' % (summary, self.current_subject.filename)
+        print(line.encode('utf-8'), file=sys.stderr)
+
+
+class WorkerReporter(Reporter):
+    def __init__(self, status_line=True, options={}):
+        super(WorkerReporter, self).__init__(status_line, options)
+        self._report = {}
+
+    def print_report(self):
+        self._report[self.current_subject.filename] = {
+            "summary": "".join(self._summaries())
         }
 
-        print(data2json(data).encode('utf-8'))
+    def after_all(self):
+        print(data2json(self._report).encode('utf-8'))
 
-    elif output == 'json':
-        data = [{
-            'subject': subject.filename,
-            'tests': subject.results(),
-            'summary': "".join(subject.summaries(join_io=True)),
-            'verdict': subject.verdict()
-        } for subject in subjects]
 
-        print(data2json(data).encode('utf-8'))
+class DebugReporter(Reporter):
+    def __init__(self, status_line=True, max_fails=1, options={}):
+        super(DebugReporter, self).__init__(status_line, options)
+        self.max_fails = max_fails
 
-    elif output == 'tests':
-        _assert(len(subjects) == 1, "-o tests requires one single subjec")
-        data = {
-            "tests": [{
-                "input": test['input'],
-                "output": test['stdout'],
-                "cases": test['cases'],
-                "sha1": test.get('sha1', None),
-            } for test in subjects[0].results()]
-        }
+    def print_report(self):
+        summary = self._summaries()
+        line = '%s %s' % (summary, self.current_subject.filename)
+        print(line.encode('utf-8'), file=sys.stderr)
+        if summary.count('.') == len(summary): return
+        num_reported = 0
+        for i in range(len(self.testcases)):
+            if self.testresults[i]['summary'] == '.': continue
+            testresult = self.testresults[i]
+            if testresult['type'] == 'io':
+                print(LGREEN + "input: " + RESET + repr(testresult['input']))
+                print(LGREEN + "output: " + RESET + repr(testresult['output']))
+                if self.options.get('diff'):
+                    print(LGREEN + "diff:" + RESET)
+                    print(indent(DebugReporter.external_diff(testresult)))
+                if self.options.get('compare'):
+                    print(LGREEN + "compare:" + RESET)
+                    print(indent(DebugReporter.internal_diff(testresult).encode('utf-8')))
+            elif testresult['type'] == 'script':
+                cprint(LGREEN, 'script report:')
+                print(indent(testresult['stderr']))
+            else:
+                logging.warning('unrecognized test type')
+            num_reported += 1
+            if num_reported == self.max_fails: break
 
-        print(data2json(data).encode('utf-8'))
+    @staticmethod
+    def external_diff(result):
+        with codecs.open('oo', 'w', encoding='utf-8') as f:
+            f.write(result['stdout'])
+        with codecs.open('eo', 'w', encoding='utf-8') as f:
+            f.write(result['output'])
+        try:
+            check_output(["diff", "oo", "eo"])
+        except CalledProcessError as e:
+            return e.output
+        except OSError:
+            logging.error("diff: cannot run external diff command")
+        except:
+            raise
 
-    elif output == 'summary':
-        cwd = os.path.basename(os.path.normpath(os.getcwd()))
-        print("%s:" % cwd)
-        for subject in subjects:
-            print("    %s: %s" % (subject.filename, subject.verdict()))
-
-    return
+    @staticmethod
+    def internal_diff(result):
+        differ = difflib.Differ()
+        diff = differ.compare(result['stdout'].splitlines(), result['output'].splitlines())
+        result = ''
+        for e in diff:
+            if e[0] == '+':
+                line = color(LGREEN, "+ ") + color('\033[1;32;100m', e[2:])
+            elif e[0] == '-':
+                line = color(LRED, "- ") + color('\033[1;31;100m', e[2:])
+            else:
+                line = color('\033[2m', e)
+            result += line + '\n'
+        return result
 
 
 def parse_cli():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument('-t', '--timeout', type=int, default=5, help='stop execution at TIMEOUT seconds')
-    parser.add_argument('-o', '--output', choices=['raw', 'debug', 'json', 'tests', 'summary', 'worker'], help='set output type')
-    parser.add_argument('-s', '--spec-file', type=str, default=None, help='read specification from file (default: tst.yaml or tst.json)')
-    parser.add_argument('-x', '--extra-tests', type=str, default='*.yaml,*.json', help='specify files to search for additional tests')
+    parser.add_argument('-a', '--activity', type=str, default=None, help='read activity specification from file ACTIVITY\n(default: tst.yaml and tst.json)')
+    parser.add_argument('-t', '--test-files', type=str, default='*.yaml,*.json', help='read tests from TEST_FILES')
+    parser.add_argument('-T', '--timeout', type=int, default=5, help='stop execution at TIMEOUT seconds')
+
+    parser.add_argument('-d', '--diff', action="store_true", default=False, help='output failed testcases and expected output diff')
+    parser.add_argument('-c', '--compare', action="store_true", default=False, help='output failed testcases and expected output color comparison')
+
+    parser.add_argument('-f', '--format', type=str, help='output test results using FORMAT; alternatives\nare: debug (default) and worker')
     parser.add_argument('filename', nargs='*', default=[''])
     args = parser.parse_args()
 
-    # determine filenames
+    # identify answer files (files to be tested)
     if len(args.filename) == 1 and os.path.exists(args.filename[0]):
-        filenames = [args.filename[0]]
-
+        files2test = [args.filename[0]]
     elif len(args.filename) == 1:
         fn_pattern = '*%s*' % args.filename[0]
-        filenames = glob.glob(fn_pattern)
-
+        files2test = glob.glob(fn_pattern)
     else:
-        filenames = args.filename
+        files2test = args.filename
 
-    # identify extra tests patterns
-    extra_tests = args.extra_tests.split(",") if args.extra_tests else []
+    _assert(not (args.diff or args.compare) or args.format in [None, 'debug'], 'diff and compare implies debug format')
 
-    return filenames, args.timeout, args.output, args.spec_file, extra_tests
+    # identify test files (files containing tests)
+    patterns2scan = args.test_files.split(",") if args.test_files else []
+    test_files = []
+    for pattern in patterns2scan:
+        for filename in glob.glob(pattern):
+            if filename not in test_files:
+                test_files.append(filename)
 
-
-def debug(msg=''):
-    cwd = os.path.basename(os.path.normpath(os.getcwd()))
-    line = "tst: debug: dir='%s', msg='%s'" % (cwd, msg)
-    print(line.encode('utf-8'), file=sys.stderr)
-
-
-def tests_report(summary):
-    num_tests = len(summary)
-    successes = sum(1 for c in summary if c == '.')
-    fails = sum(1 for c in summary if c in '*F')
-    errors = num_tests - successes - fails
-
-    return num_tests, successes, fails, errors
+    options = {
+        "timeout": args.timeout,
+        "output": args.format,
+        "diff": args.diff,
+        "compare": args.compare
+    }
+    return args.activity, files2test, test_files, options
 
 
 def main():
 
-    # parse command line data
-    filenames, timeout, output_fmt, specfile, patterns2scan = parse_cli()
+    # parse command line
+    activity, files2test, test_files, options = parse_cli()
 
     # read specification file
-    tstjson = tst.read_specification(specfile, verbose=True)
-    specfile = tstjson.filename
+    tstjson = tst.read_specification(activity, verbose=True)
 
     # check for files required by specification
     for pattern in tstjson.get('require', []):
         _assert(glob.glob(pattern), "Missing required files for this test: %s" % pattern)
 
-    # identify files to scan for tests
-    files2scan = [specfile]
-    for pattern in patterns2scan:
-        for filename in glob.glob(pattern):
-            if filename not in files2scan:
-                files2scan.append(filename)
-
     # read tests
     tests = []
-    for filename in files2scan:
+    for filename in test_files:
         cprint(LCYAN, "Reading %s" % filename, end='')
         try:
             testsfile = JsonFile(filename, array2map="tests")
@@ -754,51 +776,93 @@ def main():
             #cprint(YELLOW, _msg.encode('utf-8'))
             pass
         except tst.jsonfile.CorruptedJsonFile as e:
-            _msg = " %s(corrupted json)" % LRED
+            _msg = " %s(invalid tst file)" % LRED
             cprint(YELLOW, _msg.encode('utf-8'))
 
     # make sure there are tests
     _assert(tests, '0 tests found')
-    
-    # filter filenames based on extensions and ignore_files
+
+    # filter files2test based on extensions and ignore_files
     config = tst.get_config()
     extensions = tstjson.get('extensions') or config['run'].keys() if 'run' in config else ['py']
-    ignore_files = tstjson.get('ignore', [])
-    filenames = [f for f in filenames if any(f.endswith(e) for e in extensions) and f not in ignore_files]
-    filenames.sort()
-    _assert(filenames, 'No files to test')
+    ignore_files = tstjson.get('ignore', []) + config.get('ignore', [])
+    files2test = [f for f in files2test if any(f.endswith(e) for e in extensions) and f not in ignore_files]
+    files2test.sort()
+    _assert(files2test, 'No files to test')
 
     # read subjects and testcases
-    subjects = [TestSubject(fn) for fn in filenames]
+    subjects = [TestSubject(fn) for fn in files2test]
     testcases = [TestCase(t) for t in tests]
 
-    # define output_fmt (use user's preference if any)
-    output_fmt = output_fmt or tst.get_config().get('default_output_format') or 'raw'
+    # identify style
+    if len(subjects) == 1 and options['output'] is None:
+        style = 'debug'
+    else:
+        style = options['output'] or tst.get_config().get('report')
 
-    # run every test case for every subject
-    status = StatusLine()
-    tests2go = len(subjects) * len(testcases)
-    tests_performed = 0
+    reporter = Reporter.get(style=style, options=options)
+    reporter.num_tests = len(subjects) * len(testcases)
     for subject in subjects:
         for testcase in testcases:
-            status.set('%d of %d tests' % (tests_performed, tests2go))
             testrun = TestRun(subject, testcase)
-            testrun.run(timeout=timeout)
+            testresult = testrun.run(timeout=options['timeout'])
             subject.add_testrun(testrun)
-            status.clear()
-            tests_performed += 1
+            reporter.update(subject, testcase, testresult)
+    reporter.close()
 
-        if output_fmt == 'raw':
-            summary = ''.join(subject.summaries(join_io=True))
-            line = '%s %s' % (summary, subject.filename)
-            print(line.encode('utf-8'), file=sys.stderr)
 
-    output_fmt and report_results(subjects, output_fmt)
+class ColorizingStreamHandler(logging.StreamHandler):
+    colors_map = {
+        logging.DEBUG: LBLUE,
+        logging.INFO: LCYAN,
+        logging.WARNING: YELLOW,
+        logging.ERROR: LRED,
+        logging.CRITICAL: CRITICAL
+    }
+
+    def emit(self, record):
+        try:
+            message = self.format(record)
+            self.stream.write(message + '\n')
+            self.flush()
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except:
+            self.handleError(record)
+
+    def format(self, record):
+        message = logging.StreamHandler.format(self, record)
+        if getattr(self.stream, 'isatty', lambda: None)():
+            parts = message.split('\n', 1)
+            color = self.colors_map.get(record.levelno, '')
+            parts[0] = color + parts[0] + RESET
+            message = '\n'.join(parts)
+        return message
 
 
 if __name__ == '__main__':
+    config = tst.get_config()
+
+    log = logging.getLogger()
+    log.setLevel(logging.DEBUG)
+
+    handler_file = logging.FileHandler(os.path.expanduser('~/.tst/logs'))
+    handler_file.setFormatter(logging.Formatter('%(asctime)s|%(name)s|%(levelname)s|%(message)s'))
+    log.addHandler(handler_file)
+
+    handler_console = ColorizingStreamHandler()
+    log.addHandler(handler_console)
+
     if len(sys.argv) > 1 and sys.argv[1] == '--one-line-help':
         print('run tests specified in tst.json')
         sys.exit(0)
 
-    main()
+    try:
+        main()
+    except (KeyboardInterrupt, SystemExit):
+        pass
+    except Exception:
+        log.critical('sorry... critical error')
+        log.removeHandler(handler_console)
+        log.exception('oops... an error occurred')
+        sys.exit(1)
