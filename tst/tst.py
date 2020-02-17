@@ -8,7 +8,7 @@ from builtins import str
 
 import sys
 import os
-import codecs
+import io
 import json
 import glob
 import datetime as dt
@@ -32,7 +32,7 @@ def get_config():
         if not os.path.isdir(CONFIGDIR):
             os.mkdir(CONFIGDIR)
 
-        with codecs.open(CONFIGFILE, encoding="utf-8", mode="w") as config_file:
+        with io.open(CONFIGFILE, encoding="utf-8", mode="w") as config_file:
             config_file.write(
                 "sites:\n"
                 "- name: demo\n"
@@ -121,7 +121,7 @@ def save_file(filename, content, mode):
     if not os.path.isdir(subdirs):
         os.makedirs(subdirs)
 
-    with codecs.open(filename, encoding="utf-8", mode="w") as f:
+    with io.open(filename, encoding="utf-8", mode="w") as f:
         f.write(content)
 
     os.chmod(filename, octal_mode(mode))
@@ -499,7 +499,7 @@ def save_assignment(activity, dir_name, etag, url, repo):
     if not os.path.exists(dirname):
         os.makedirs(dirname)
 
-    with codecs.open('./.tst/activity.json', mode='w', encoding='utf-8') as f:
+    with io.open('./.tst/activity.json', mode='w', encoding='utf-8') as f:
         f.write(data2json({
             "url": url,
             "name": activity.get('name'),
@@ -521,7 +521,7 @@ def save_assignment(activity, dir_name, etag, url, repo):
             continue
 
         try:
-            with codecs.open(file['name'], mode='w', encoding='utf-8') as f:
+            with io.open(file['name'], mode='w', encoding='utf-8') as f:
                 f.write(file['data'])
             cprint(LCYAN, "Adding file '%s'" % file['name'])
         except:

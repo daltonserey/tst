@@ -28,7 +28,7 @@ from __future__ import unicode_literals
 
 from builtins import str
 
-import codecs
+import io
 import sys
 import os
 import json
@@ -107,7 +107,7 @@ class JsonFile(object):
         # actually read data from file system
         if self.isjson:
             try:
-                with codecs.open(self.filename, mode='r', encoding='utf-8') as f:
+                with io.open(self.filename, mode='r', encoding='utf-8') as f:
                     self.data = json.loads(to_unicode(f.read()))
 
             except ValueError as e:
@@ -120,7 +120,7 @@ class JsonFile(object):
         else:
             import yaml
             try:
-                with codecs.open(self.filename, mode='r', encoding='utf-8') as f:
+                with io.open(self.filename, mode='r', encoding='utf-8') as f:
                     self.data = yaml.load(to_unicode(f.read()), Loader=yaml.FullLoader)
                     if self.data is None:
                         raise ValueError()
@@ -136,7 +136,7 @@ class JsonFile(object):
 
     def save(self):
         assert self.writable, "jsonfile: cannot save a non writable JsonFile"
-        with codecs.open(self.filename, mode="w", encoding='utf-8') as f:
+        with io.open(self.filename, mode="w", encoding='utf-8') as f:
             f.write(json.dumps(
                 self.data,
                 indent=2,
