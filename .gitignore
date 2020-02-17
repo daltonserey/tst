@@ -2,9 +2,10 @@
 # Created by
 # https://www.gitignore.io/api/osx,vim,appengine,python
 
-# local only docs
+# local only dirs and files
 specs
 TODO.md
+testdir
 
 # Development scripts directory
 .dev
