@@ -17,6 +17,7 @@ setup(name='tst',
         'bin/runjava',
         'tst/commands/tst-test',
       ],
+      python_requires='>=3.6',
       install_requires=[
         'pyyaml>=5.1',
         'requests>=2.6.1',

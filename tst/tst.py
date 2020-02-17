@@ -1,6 +1,10 @@
 # coding: utf-8
-from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
+from __future__ import unicode_literals
+
+from builtins import str
 
 import sys
 import os
@@ -15,9 +19,9 @@ import requests
 from cachecontrol import CacheControl
 from cachecontrol.caches.file_cache import FileCache
 
-from jsonfile import JsonFile, CorruptedJsonFile
-from colors import *
-from utils import cprint, _assert, is_posix_filename, data2json
+from .jsonfile import JsonFile, CorruptedJsonFile
+from .colors import *
+from .utils import cprint, _assert, is_posix_filename, data2json
 
 CONFIGDIR = os.path.expanduser('~/.tst/')
 LOG_FILE = os.path.expanduser('~/.tst/logs.txt')
@@ -85,8 +89,9 @@ def dirtype(path=""):
 
 def validate_tst_object(json):
     def is_valid_mode(mode):
+        # 2to3: isinstance(mode, basestring) and\
         return mode is None or\
-               isinstance(mode, basestring) and\
+               isinstance(mode, str) and\
                len(mode) <= 3 and\
                all(d in 'rwxo' for d in mode.lower())
 

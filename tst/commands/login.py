@@ -1,4 +1,7 @@
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
+from __future__ import unicode_literals
 
 import sys
 import os
@@ -31,7 +34,7 @@ def login(sitename):
     # open login url to user
     cprint(LGREEN, "Get a code at: %s" % login_url)
     webbrowser.open(login_url)
-    code = raw_input(LCYAN + "Code? " + RESET)
+    code = input(LCYAN + "Code? " + RESET)
 
     # exchange code for token
     cprint(RESET, "Validating code: %s" % code)

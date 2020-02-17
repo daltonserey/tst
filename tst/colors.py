@@ -1,3 +1,8 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
 YELLOW = '\033[1;33m'
 LRED = '\033[1;31m'
 LGREEN = '\033[1;32m'

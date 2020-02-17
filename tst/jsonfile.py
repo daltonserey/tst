@@ -21,8 +21,12 @@ f2 is f # True
 ```
 """
 
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
+
+from builtins import str
 
 import codecs
 import sys
@@ -30,13 +34,14 @@ import os
 import json
 
 def to_unicode(obj, encoding='utf-8'):
-    assert isinstance(obj, basestring), type(obj)
-    if isinstance(obj, unicode):
+    # 2to3: assert isinstance(obj, basestring), type(obj)
+    assert isinstance(obj, str), type(obj)
+    if isinstance(obj, str):
         return obj
 
     for encoding in ['utf-8', 'latin1']:
         try:
-            obj = unicode(obj, encoding)
+            obj = str(obj, encoding)
             return obj
         except UnicodeDecodeError:
             pass
