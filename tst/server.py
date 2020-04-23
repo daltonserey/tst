@@ -1,3 +1,10 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from builtins import str
+
 import sys
 import signal
 import json
@@ -106,7 +113,7 @@ class Server(object):
         # body
         response_lines = response.headers.splitlines()
         response.status_code = None
-        for i in xrange(len(response_lines)-1, -1, -1):
+        for i in range(len(response_lines)-1, -1, -1):
             if response_lines[i].startswith("HTTP"):
                 status_line = response_lines[i]
                 response.status_code = int(status_line.split()[1])

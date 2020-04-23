@@ -1,10 +1,15 @@
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
+from __future__ import unicode_literals
+
+from builtins import input
 
 import tst
 import sys
 import os
 
-from urlparse import urlparse
+from urllib.parse import urlparse
 
 from tst.colors import *
 from tst.utils import cprint
@@ -124,7 +129,7 @@ def checkout(site, key, target_dir, overwrite):
         cprint(YELLOW, "Directory argument not found")
         cprint(RESET, "(You can add directory as an additional argument)")
         while True:
-            destdir = raw_input("Provide directory name (default %s): " % destdir) or key
+            destdir = input("Provide directory name (default %s): " % destdir) or key
             if is_posix_filename(destdir): break
             cprint(YELLOW, "Invalid portable posix filename: '%s'" % destdir)
 
@@ -139,7 +144,7 @@ def checkout(site, key, target_dir, overwrite):
             cprint(LCYAN, fn)
 
         cprint(YELLOW, "Proceed (y/n)? ", end="")
-        if raw_input() != "y":
+        if input() != "y":
             cprint(LRED, "Aborting check out")
             sys.exit(1)
 

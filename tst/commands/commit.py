@@ -1,5 +1,10 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
 import hashlib
-import codecs
+import io
 import os
 import sys
 
@@ -23,7 +28,7 @@ def read_mode(filename):
 
 
 def read_content(filename):
-    with codecs.open(filename, encoding='utf-8') as f:
+    with io.open(filename, encoding='utf-8') as f:
         content = f.read()
 
     return content

@@ -7,6 +7,9 @@ specs
 TODO.md
 testdir
 
+# virtual environment (for testing)
+.venv
+
 # Development scripts directory
 .dev
 

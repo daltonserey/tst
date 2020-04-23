@@ -1,10 +1,14 @@
 # coding: utf-8
-from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
+from __future__ import unicode_literals
+
+from builtins import str
 
 import sys
 import os
-import codecs
+import io
 import json
 import glob
 import datetime as dt
@@ -15,9 +19,9 @@ import requests
 from cachecontrol import CacheControl
 from cachecontrol.caches.file_cache import FileCache
 
-from jsonfile import JsonFile, CorruptedJsonFile
-from colors import *
-from utils import cprint, _assert, is_posix_filename, data2json
+from .jsonfile import JsonFile, CorruptedJsonFile
+from .colors import *
+from .utils import cprint, _assert, is_posix_filename, data2json
 
 CONFIGDIR = os.path.expanduser('~/.tst/')
 LOG_FILE = os.path.expanduser('~/.tst/logs.txt')
@@ -28,7 +32,7 @@ def get_config():
         if not os.path.isdir(CONFIGDIR):
             os.mkdir(CONFIGDIR)
 
-        with codecs.open(CONFIGFILE, encoding="utf-8", mode="w") as config_file:
+        with io.open(CONFIGFILE, encoding="utf-8", mode="w") as config_file:
             config_file.write(
                 "sites:\n"
                 "- name: demo\n"
@@ -85,8 +89,9 @@ def dirtype(path=""):
 
 def validate_tst_object(json):
     def is_valid_mode(mode):
+        # 2to3: isinstance(mode, basestring) and\
         return mode is None or\
-               isinstance(mode, basestring) and\
+               isinstance(mode, str) and\
                len(mode) <= 3 and\
                all(d in 'rwxo' for d in mode.lower())
 
@@ -116,7 +121,7 @@ def save_file(filename, content, mode):
     if not os.path.isdir(subdirs):
         os.makedirs(subdirs)
 
-    with codecs.open(filename, encoding="utf-8", mode="w") as f:
+    with io.open(filename, encoding="utf-8", mode="w") as f:
         f.write(content)
 
     os.chmod(filename, octal_mode(mode))
@@ -494,7 +499,7 @@ def save_assignment(activity, dir_name, etag, url, repo):
     if not os.path.exists(dirname):
         os.makedirs(dirname)
 
-    with codecs.open('./.tst/activity.json', mode='w', encoding='utf-8') as f:
+    with io.open('./.tst/activity.json', mode='w', encoding='utf-8') as f:
         f.write(data2json({
             "url": url,
             "name": activity.get('name'),
@@ -516,7 +521,7 @@ def save_assignment(activity, dir_name, etag, url, repo):
             continue
 
         try:
-            with codecs.open(file['name'], mode='w', encoding='utf-8') as f:
+            with io.open(file['name'], mode='w', encoding='utf-8') as f:
                 f.write(file['data'])
             cprint(LCYAN, "Adding file '%s'" % file['name'])
         except:

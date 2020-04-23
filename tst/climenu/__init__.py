@@ -1,5 +1,10 @@
 # coding: utf-8
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
+from __future__ import unicode_literals
+
+from builtins import input, str
 
 import sys
 import curses
@@ -52,7 +57,7 @@ def menu_term(items, prompt=None):
 
     options_keys = [key for key, text in items]
     single_char_keys = all(len(k) == 1 for k in options_keys)
-    read_input = find_getch() if single_char_keys else raw_input
+    read_input = find_getch() if single_char_keys else input
     while True:
         print(prompt or '', end='')
         key = read_input()

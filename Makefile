@@ -1,5 +1,6 @@
 SHELL := /bin/bash
 PYCs := $(shell find . -type f -iname '*.pyc')
+PYTHONPATH := $(PKG_INSTALL_DIR)/$(PYTHON_PKG_DIR)
 
 install: build
 	python setup.py install --user --prefix= --record /tmp/tst-files.txt
@@ -17,7 +18,7 @@ clean:
 	rm -rf build
 	rm -rf dist
 	rm -rf tst.egg-info
-	[ $(PYCs) ] && rm -f $(PYCs) || true
+	[ "$(PYCs)" ] && rm -f $(PYCs) || true
 
 uptest: clean build
 	twine upload --repository-url https://test.pypi.org/legacy/ dist/* --skip-existing

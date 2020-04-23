@@ -6,6 +6,7 @@
 from __future__ import print_function
 from __future__ import unicode_literals
 from collections import Counter
+from builtins import str
 import os
 import re
 import sys
@@ -136,7 +137,7 @@ class TestRun:
         else:
             cmd_str = self.testcase.script
         cmd_str = re.sub(r'\bpython\b', 'python3', cmd_str)
-        command = shlex.split(cmd_str.encode('utf-8'))
+        command = shlex.split(cmd_str)
         self.result['command'] = cmd_str
 
         process = Popen(command, stdout=PIPE, stderr=PIPE)
@@ -200,7 +201,7 @@ class TestRun:
             # default is running through python
             cmd_str = '%s %s' % (PYTHON, self.subject.filename)
 
-        command = shlex.split(cmd_str.encode('utf-8'))
+        command = shlex.split(cmd_str)
 
         # encode test input data
         if self.testcase.input:
@@ -376,11 +377,11 @@ class TestCase():
             self.script = self.script or self.command
 
         # convert tokens to a list of strings, if necessary
-        if isinstance(self.tokens, basestring):
+        if isinstance(self.tokens, str):
             self.tokens = self.tokens.split()
 
         # convert ignore to a list of strings, if necessary
-        if isinstance(self.ignore, basestring):
+        if isinstance(self.ignore, str):
             self.ignore = self.ignore.split()
 
         # identify tokens within the expected output
@@ -391,7 +392,7 @@ class TestCase():
             self.output = re.sub(p, lambda m: m.group(0)[2:-2], self.output)
 
         # preprocess individual tokens
-        for i in xrange(len(self.tokens)):
+        for i in range(len(self.tokens)):
             self.tokens[i] = preprocess(self.tokens[i], self.ignore)
 
         # set up preprocessed output
@@ -461,17 +462,18 @@ def punctuation_to_white(text):
 def strip_accents(text):
     # text must be a unicode object, not str
     try:
-        nkfd_form = unicodedata.normalize('NFKD', unicode(text,'utf-8'))
+        nkfd_form = unicodedata.normalize('NFKD', text.decode('utf-8'))
         only_ascii = nkfd_form.encode('ASCII', 'ignore')
     except:
         nkfd_form = unicodedata.normalize('NFKD', text)
         only_ascii = nkfd_form.encode('ASCII', 'ignore')
 
-    return unicode(only_ascii)
+    return only_ascii.decode('utf-8')
 
 
 OPERATOR = {
-    'case': string.lower,
+    # 2to3: 'case': string.lower,
+    'case': lambda c: c.lower(),
     'accents': strip_accents,
     'extra_whites': squeeze_whites,
     'linebreaks': remove_linebreaks, # not default
@@ -565,6 +567,7 @@ class Reporter(object):
     def update(self, subject, testcase, testresult):
         if self.current_subject is None:
             hasattr(self, 'before_all') and self.before_all()
+
         if self.current_subject and subject != self.current_subject:
             # end current_subject report
             self.status_line and self.status_line.clear()
@@ -618,7 +621,7 @@ class Reporter(object):
     def print_report(self):
         summary = self._summaries()
         line = '%s %s' % (summary, self.current_subject.filename)
-        print(line.encode('utf-8'), file=sys.stderr)
+        print(line, file=sys.stderr)
 
 
 class FilterReporter(Reporter):
@@ -631,7 +634,7 @@ class FilterReporter(Reporter):
         if not self.filtro(summary): return
         self._filtered = True
         line = '%s %s' % (summary, self.current_subject.filename)
-        print(line.encode('utf-8'), file=sys.stderr)
+        print(line, file=sys.stderr)
 
 
 class WorkerReporter(Reporter):
@@ -645,7 +648,7 @@ class WorkerReporter(Reporter):
         }
 
     def after_all(self):
-        print(data2json(self._report).encode('utf-8'))
+        print(data2json(self._report))
 
 
 class DebugReporter(Reporter):
@@ -656,7 +659,7 @@ class DebugReporter(Reporter):
     def print_report(self):
         summary = self._summaries()
         line = '%s %s' % (summary, self.current_subject.filename)
-        print(line.encode('utf-8'), file=sys.stderr)
+        print(line, file=sys.stderr)
         if summary.count('.') == len(summary): return
         num_reported = 0
         for i in range(len(self.testcases)):
@@ -670,7 +673,7 @@ class DebugReporter(Reporter):
                     print(indent(DebugReporter.external_diff(testresult)))
                 if self.options.get('compare'):
                     print(LGREEN + "compare:" + RESET)
-                    print(indent(DebugReporter.internal_diff(testresult).encode('utf-8')))
+                    print(indent(DebugReporter.internal_diff(testresult)))
             elif testresult['type'] == 'script':
                 cprint(LGREEN, 'script report:')
                 print(indent(testresult['stderr']))
@@ -773,11 +776,11 @@ def main():
             tests.extend(testsfile["tests"])
         except KeyError as e:
             #_msg = " %s✗%s (no tests found)" % (LRED, YELLOW)
-            #cprint(YELLOW, _msg.encode('utf-8'))
+            #cprint(YELLOW, _msg)
             pass
         except tst.jsonfile.CorruptedJsonFile as e:
             _msg = " %s(invalid tst file)" % LRED
-            cprint(YELLOW, _msg.encode('utf-8'))
+            cprint(YELLOW, _msg)
 
     # make sure there are tests
     _assert(tests, '0 tests found')

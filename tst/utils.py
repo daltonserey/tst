@@ -1,22 +1,28 @@
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
+from __future__ import unicode_literals
+
+from builtins import str
 
 import sys
 import string
 import json
 import logging
 
-from colors import *
+from .colors import *
 
 
 def is_posix_filename(name, extra_chars=""):
-    CHARS = string.letters + string.digits + "._-" + extra_chars
+    CHARS = string.ascii_letters + string.digits + "._-" + extra_chars
     return all(c in CHARS for c in name)
 
 
 def cprint(color, msg, file=sys.stderr, end='\n'):
-    if type(msg) is unicode:
+    if type(msg) is str:
         data = msg
-    elif type(msg) is str:
+    # 2to3: elif type(msg) is str:
+    elif isinstance(msg, str):
         data = msg.__str__()
     else:
         data = str(msg)
@@ -34,13 +40,14 @@ def _assert(condition, msg):
 
 
 def to_unicode(obj, encoding='utf-8'):
-    assert isinstance(obj, basestring), type(obj)
-    if isinstance(obj, unicode):
+    # 2to3: assert isinstance(obj, basestring), type(obj)
+    #assert isinstance(obj, str), type(obj)
+    if isinstance(obj, str):
         return obj
 
     for encoding in ['utf-8', 'latin1']:
         try:
-            obj = unicode(obj, encoding)
+            obj = str(obj, encoding)
             return obj
         except UnicodeDecodeError:
             pass

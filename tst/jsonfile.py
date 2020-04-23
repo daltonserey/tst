@@ -21,22 +21,27 @@ f2 is f # True
 ```
 """
 
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import codecs
+from builtins import str
+
+import io
 import sys
 import os
 import json
 
 def to_unicode(obj, encoding='utf-8'):
-    assert isinstance(obj, basestring), type(obj)
-    if isinstance(obj, unicode):
+    # 2to3: assert isinstance(obj, basestring), type(obj)
+    assert isinstance(obj, str), type(obj)
+    if isinstance(obj, str):
         return obj
 
     for encoding in ['utf-8', 'latin1']:
         try:
-            obj = unicode(obj, encoding)
+            obj = str(obj, encoding)
             return obj
         except UnicodeDecodeError:
             pass
@@ -102,7 +107,7 @@ class JsonFile(object):
         # actually read data from file system
         if self.isjson:
             try:
-                with codecs.open(self.filename, mode='r', encoding='utf-8') as f:
+                with io.open(self.filename, mode='r', encoding='utf-8') as f:
                     self.data = json.loads(to_unicode(f.read()))
 
             except ValueError as e:
@@ -115,7 +120,7 @@ class JsonFile(object):
         else:
             import yaml
             try:
-                with codecs.open(self.filename, mode='r', encoding='utf-8') as f:
+                with io.open(self.filename, mode='r', encoding='utf-8') as f:
                     self.data = yaml.load(to_unicode(f.read()), Loader=yaml.FullLoader)
                     if self.data is None:
                         raise ValueError()
@@ -131,7 +136,7 @@ class JsonFile(object):
 
     def save(self):
         assert self.writable, "jsonfile: cannot save a non writable JsonFile"
-        with codecs.open(self.filename, mode="w", encoding='utf-8') as f:
+        with io.open(self.filename, mode="w", encoding='utf-8') as f:
             f.write(json.dumps(
                 self.data,
                 indent=2,

@@ -1,4 +1,7 @@
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
+from __future__ import unicode_literals
 
 import os
 import sys
@@ -48,19 +51,19 @@ def identify_and_run_command(args):
 def dispatcher(args):
     possible_command = args[0] if args else None
     if possible_command in ['--version', '-v', 'version']:
-        import version
+        import tst.commands.version as version
         version.main()
 
     elif possible_command == 'info':
-        import info
+        import tst.commands.info as info
         info.main()
 
     elif possible_command == 'login':
-        import login
+        import tst.commands.login as login
         login.main()
 
     elif possible_command == 'ls':
-        import ls
+        import tst.commands.ls as ls
         ls.main()
 
     elif possible_command == 'commit':
@@ -78,7 +81,7 @@ def dispatcher(args):
             sys.exit(1)
 
         elif dirtype in ["assignment", None]:
-            import commit
+            import tst.commands.commit as commit
             commit.main()
 
         else:
@@ -105,7 +108,7 @@ def dispatcher(args):
             cprint(LRED, "└───────────────────────────────────────────────┘")
 
         else:
-            import checkout
+            import tst.commands.checkout as checkout
             checkout.main()
 
     elif possible_command == 'update':
