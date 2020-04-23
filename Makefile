@@ -1,5 +1,6 @@
 SHELL := /bin/bash
 PYCs := $(shell find . -type f -iname '*.pyc')
+PYTHONPATH := $(PKG_INSTALL_DIR)/$(PYTHON_PKG_DIR)
 
 install: build
 	python setup.py install --user --prefix= --record /tmp/tst-files.txt
