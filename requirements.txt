@@ -1,0 +1,11 @@
+CacheControl==0.12.6
+certifi==2019.11.28
+chardet==3.0.4
+coverage==5.0.3
+idna==2.8
+lockfile==0.12.2
+msgpack==0.6.2
+PyYAML==5.3
+requests==2.22.0
+-e git+https://github.com/daltonserey/tst.git@8f2606c7c8159ccfa445e0a859b0f11d51da3230#egg=tst
+urllib3==1.25.8

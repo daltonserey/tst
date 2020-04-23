@@ -27,6 +27,9 @@ CONFIGDIR = os.path.expanduser('~/.tst/')
 LOG_FILE = os.path.expanduser('~/.tst/logs.txt')
 CONFIGFILE = CONFIGDIR + 'config.yaml'
 
+def coverit():
+    return 1
+
 def get_config():
     if not os.path.exists(CONFIGFILE):
         if not os.path.isdir(CONFIGDIR):
