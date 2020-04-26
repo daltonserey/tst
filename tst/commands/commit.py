@@ -52,5 +52,12 @@ def commit(filename, filetype, key, site):
     response = site.send_answer(data, key)
     if response.ok:
         cprint(LGREEN, 'File saved successfully')
+    elif response.status_code == 401:
+        cprint(LRED, 'Commit failed (%s)' % response.status_code)
+        cprint(LRED, 'run: tst login')
+    elif response.status_code == 412:
+        cprint(LRED, 'Commit failed (%s)' % response.status_code)
+        for msg in reversed(response.json()['messages']):
+            cprint(LRED, msg)
     else:
         cprint(LRED, 'Commit failed (%s)' % response.status_code)
