@@ -1,4 +1,4 @@
-# TST
+# tst [![Português](images/BR.png)](README.pt-BR.md) [![English](images/US.png)](README.md)
 
 TST is a set of command line tools that automate testing and
 verification of computer programming exercises/assignments. TST
@@ -20,19 +20,13 @@ TST tools were designed to be installed through pip in user space
 type:
 
 ```
-pip install --user tst
+pip3 install --user tst
 ```
 
-> ### Uninstall an older version
-> 
-> If you have an older version of tst installed, it is recommended
-> that you uninstall it before installing the new version. To do
-> this, simply remove the whole directory `~/.tst` before
-> running the new tst. 
+You may also want to install a _pre-release_ version. In such
+case, use the following command.
 
-
-## Documentation
-
-To be written.
-
+```
+pip3 install --user --pre tst
+```
 
