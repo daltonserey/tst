@@ -113,18 +113,36 @@ def existing_files(basedir, files):
 
 
 def checkout(site, key, target_dir, overwrite):
-    """checkout tst object from site/collection"""
+    """checkout activity/assignment from site/collection"""
 
     def is_valid_dir(dirtype):
         return dirtype in [None, "assignment"]
 
-    # fetch tst object
+    # fetch activity
     cprint(LGREEN, "Fetching %s from %s" % (key, site.name or site.url))
-    tst_object = site.get_activity(key) or site.get_directory(key)
-    _assert(tst_object, "Cannot checkout %s from site %s (%s)" % (key, site.name, str(site.last_error)))
+    activity, response = site.get_activity(key)
+    if response.status_code == 404:
+        activity, response = site.get_directory(key)
+
+    if response.status_code == 401:
+        cprint(LRED, 'Checkout failed (%s)' % site.last_response.status_code)
+        cprint(WHITE, 'run: tst login')
+        return
+
+    elif response.status_code == 404:
+        cprint(LRED, 'Checkout failed (%s)' % site.last_response.status_code)
+        cprint(LRED, 'Assignment not found')
+        return
+
+    elif response.status_code == 412:
+        cprint(LRED, 'Checkout failed (%s)' % site.last_response.status_code)
+        cprint(LRED, 'Error: %s' % site.last_response.json()['messages'][0])
+        return
+
+    _assert(activity, "CANNOT checkout %s from site %s (%s)" % (key, site.name, response.status_code))
 
     # set destination directory
-    destdir = target_dir or tst_object.get('dirname') or tst_object.get('name') or key
+    destdir = target_dir or activity.get('dirname') or activity.get('name') or key
     if not target_dir:
         cprint(YELLOW, "Directory argument not found")
         cprint(RESET, "(You can add directory as an additional argument)")
@@ -133,26 +151,25 @@ def checkout(site, key, target_dir, overwrite):
             if is_posix_filename(destdir): break
             cprint(YELLOW, "Invalid portable posix filename: '%s'" % destdir)
 
-
     _assert(not os.path.exists(destdir) or (os.path.isdir(destdir) and is_valid_dir(tst.dirtype(destdir))), "Invalid target directory: %s" % destdir)
 
     # check whether files exist
-    old_files = existing_files(destdir, tst_object['files'])
+    old_files = existing_files(destdir, activity['files'])
     if old_files and not overwrite:
         cprint(YELLOW, "If you proceed, these files will be overwriten")
         for fn in old_files:
             cprint(LCYAN, fn)
 
-        cprint(YELLOW, "Proceed (y/n)? ", end="")
+        cprint(YELLOW, "Proceed (y/N)? ", end="")
         if input() != "y":
-            cprint(LRED, "Aborting check out")
+            cprint(LRED, 'Aborting checkout')
             sys.exit(1)
 
     # save files
-    saved = tst.save_files(tst_object['files'], destdir)
+    saved = tst.save_files(activity['files'], destdir)
     cprint(LBLUE, "%d files saved to %s%s%s directory" % (saved, LCYAN, destdir, LBLUE))
-    if len(tst_object['files']) > saved:
-        cprint(YELLOW, "%d files were NOT saved" % (len(tst_object['files']) - saved))
+    if len(activity['files']) > saved:
+        cprint(YELLOW, "%d files were NOT saved" % (len(activity['files']) - saved))
 
     internal = [{
         "name": ".tst/assignment.json",
@@ -160,8 +177,8 @@ def checkout(site, key, target_dir, overwrite):
             "kind": "assignment",
             "site": site.name,
             "key": key,
-            "iid": tst_object.get('iid'),
-            "user": tst_object.get('user'),
+            "iid": activity.get('iid'),
+            "user": activity.get('user'),
         })
     }]
     tst.save_files(internal, destdir, verbose=False)
