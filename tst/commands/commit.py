@@ -57,7 +57,6 @@ def commit(filename, filetype, key, site):
         cprint(LRED, 'run: tst login')
     elif response.status_code == 412:
         cprint(LRED, 'Commit failed (%s)' % response.status_code)
-        for msg in reversed(response.json()['messages']):
-            cprint(LRED, msg)
+        cprint(LRED, 'Error: %s' % response.json()['messages'][0])
     else:
         cprint(LRED, 'Commit failed (%s)' % response.status_code)
