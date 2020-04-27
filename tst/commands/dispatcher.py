@@ -137,5 +137,5 @@ def main():
         args.pop(0) # pop dispatcher name
         config = tst.get_config()
         dispatcher(args) 
-    except (KeyboardInterrupt, SystemExit):
-        cprint(LRED, "\nuser interruption")
+    except KeyboardInterrupt:
+        cprint(LRED, "\nUser interruption")
