@@ -279,7 +279,7 @@ class Site:
         if not response.ok:
             self.last_error = response.status_code
             self.last_response = response
-            return None
+            return (None, response)
 
         self.save_cookies(response)
         response.encoding = 'utf-8'
@@ -291,12 +291,12 @@ class Site:
         except ValueError:
             #_assert(False, "Resource is not valid json")
             logging.warning('ValueError during resource processing (in get_activity())')
-            return None
+            return (None, response)
 
         except AssertionError as e:
             _assert(False, "Not a TST Object: %s" % e.message)
 
-        return resource
+        return (resource, response)
 
     def get_directory(self, key):
         s = self.get_session()
@@ -311,7 +311,7 @@ class Site:
         if not response.ok:
             self.last_error = response.status_code
             self.last_response = response
-            return None
+            return (None, response)
 
         response.encoding = 'utf-8'
         try:
@@ -368,10 +368,10 @@ class Site:
                 response.encoding = 'utf-8'
                 f['content'] = response.text
 
-        return {
+        return ({
             'kind': 'activity',
             'files': files,
-        }
+        }, response)
 
 
     def get_session(self, headers=None, cookies=None):
