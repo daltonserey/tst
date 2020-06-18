@@ -1,4 +1,3 @@
-# coding: utf-8
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -207,10 +206,33 @@ class Site:
         if urls is None:
             return None
 
-        return self.full_url(urls['login'])
+        return self.full_url(urls.get('login-url') or urls.get('login'))
+
+
+    def auth_url(self):
+        urls = self.urls()
+        if urls is None:
+            return None
+
+        auth_url = urls.get('auth-url')
+        if auth_url is None:
+            return None
+
+        return self.full_url(auth_url)
+
+
+    def access_url(self):
+        urls = self.urls()
+        if urls is None:
+            return None
+
+        return self.full_url(urls.get('access-url'))
 
 
     def full_url(self, url):
+        if url is None:
+            return None
+
         if url.startswith('http://') or url.startswith('https://'):
             return url
 
@@ -265,6 +287,25 @@ class Site:
             logging.info("saving new GOOGAPPUID cookie: %s" % new_googappuid)
             cookies_file[self.name] = {"GOOGAPPUID": new_googappuid}
             cookies_file.save()
+
+    def get(self, path):
+        s = self.get_session()
+        url = "%s%s" % (self.url, path) if path.startswith('/') else path
+        try:
+            response = s.get(url, allow_redirects=True)
+            logging.info('GET %s (%s)' % (url, response.status_code))
+        except requests.ConnectionError:
+            _assert(False, "Connection failed... check your internet connection")
+
+        if not response.ok:
+            self.last_error = response.status_code
+            self.last_response = response
+            return response
+
+        self.save_cookies(response)
+        response.encoding = 'utf-8'
+        return response
+
 
 
     def get_activity(self, key):
