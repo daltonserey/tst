@@ -10,7 +10,7 @@ vars:
 	echo PKG_PKG_DIR = $(PKG_PKG_DIR)
 
 install: build
-	python3 setup.py install --user --prefix= --record /tmp/tst-files.txt
+	pip install .
 
 build:
 	python3 setup.py sdist bdist_wheel
