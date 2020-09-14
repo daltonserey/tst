@@ -1,11 +1,8 @@
 from setuptools import setup, find_packages
 import codecs
 
-with codecs.open('VERSION', encoding='utf-8', mode='r') as fv:
-    version = fv.read().strip()
-
 setup(name='tst',
-      version=version,
+      version="0.10.1dev1",
       description='TST Student Testing',
       url='http://github.com/daltonserey/tst',
       author='Dalton Serey',
