@@ -87,29 +87,32 @@ def login(sitename):
         return login_old(sitename)
 
     # perform cli tools login; fetch auth and acces urls and login token
-    cprint(LGREEN, api_login_url)
     response = site.post(api_login_url, {"mac": str(get_mac())})
     response.encoding = 'utf-8'
     user_auth_url = response.json()['user-auth-url']
     api_access_url = response.json()['api-access-url']
 
     # open browser at authorization page
-    cprint(LGREEN, f"{user_auth_url}")
-    cprint(LGREEN, f"Hit ⟨Enter⟩ to open up the browser to login in {site.name}")
-    input()
-    if not webbrowser.open(user_auth_url):
-        cprint(LYELLOW, "Sorry, I cannot open the browser, visit:")
-        cprint(LYELLOW, user_auth_url)
+    cprint(LCYAN, f"Open up the browser to authorize login: (Y/n) ", end="")
+    if input() == "":
+        print(f"Waiting for your authorization…")
+        if not webbrowser.open(user_auth_url):
+            cprint(LYELLOW, "Sorry, I cannot open the browser, visit:")
+            cprint(LYELLOW, user_auth_url)
+    else:
+        print(f"Then, visit the url below:\n{user_auth_url}")
 
     # request access code
-    cprint(YELLOW, api_access_url)
     for i in range(3):
         response = site.get(f'{api_access_url}')
+        if response.status_code == 500:
+            cprint(LRED, "Login failed (timeout).")
+            sys.exit(1)
         authorization = response.json()
         if response.status_code == 200: break
 
     # check authorization
-    cprint(YELLOW, authorization)
+    #cprint(YELLOW, authorization)
     if 'authorized' not in authorization:
         cprint(LRED, 'Login not authorized')
         logging.info('login not authorized')
@@ -117,7 +120,7 @@ def login(sitename):
 
     # check whether the login worked
     if not 'tst_token' in authorization:
-        cprint(LRED, 'Login failed')
+        cprint(LRED, 'Login failed (not authorized)')
         logging.info('no tst_token in authorized login')
         return
 
@@ -127,6 +130,6 @@ def login(sitename):
     tokens.writable = True
     tokens.save()
 
-    msg = "Logged in %s as %s" % (site.name, authorization['email'])
+    msg = f"Logged in {site.name} as {YELLOW}{authorization['email']}{RESET}"
     cprint(LGREEN, msg)
     logging.info(msg)
