@@ -28,8 +28,8 @@ def main():
 
         latest_version = data['info']['version']
         if current != latest_version:
-            cprint(YELLOW, 'Latest version available: %s' % latest_version, file=sys.stdout)
-            cprint(RESET, '---\nUse `pip install --upgrade tst`')
-            cprint(RESET, ' or `pip install --upgrade --user tst`')
+            cprint(YELLOW, 'Latest stable version: %s' % latest_version, file=sys.stdout)
+            cprint(RESET, '---\n'
+                          'Use `pip install --upgrade --user tst` to install')
     except requests.ConnectionError:
         cprint(LRED, 'Cannot connect to pypi.org server')
