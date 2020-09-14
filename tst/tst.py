@@ -36,6 +36,9 @@ def get_config():
 
         with io.open(CONFIGFILE, encoding="utf-8", mode="w") as config_file:
             config_file.write(
+                "run:\n"
+                "  py: python3\n"
+                "  py2: python2\n\n"
                 "sites:\n"
                 "- name: demo\n"
                 "  url: https://raw.githubusercontent.com/daltonserey/tst-demo/master\n"
@@ -201,32 +204,49 @@ class Site:
                 self.url = s['url']
 
 
+    def api_login_url(self):
+        urls = self.urls()
+        if urls is None:
+            return None
+
+        return self.api_full_url(urls.get('login-url'))
+
+
+    def api_access_url(self):
+        urls = self.urls()
+        if urls is None:
+            return None
+
+        return self.api_full_url(urls.get('access-url'))
+
+
+    def api_full_url(self, url):
+        if url is None:
+            return None
+
+        if url.startswith('http://') or url.startswith('https://'):
+            return url
+
+        if url.startswith('/'):
+            return f"{self.urls()['api-url']}{url}"
+
+        return f"{self.urls['api-url']}/{url}"
+
+
     def login_url(self):
         urls = self.urls()
         if urls is None:
             return None
 
-        return self.full_url(urls.get('login-url') or urls.get('login'))
+        return self.full_url(urls.get('login'))
 
 
-    def auth_url(self):
+    def token_url(self):
         urls = self.urls()
         if urls is None:
             return None
 
-        auth_url = urls.get('auth-url')
-        if auth_url is None:
-            return None
-
-        return self.full_url(auth_url)
-
-
-    def access_url(self):
-        urls = self.urls()
-        if urls is None:
-            return None
-
-        return self.full_url(urls.get('access-url'))
+        return self.full_url(urls['token'])
 
 
     def full_url(self, url):
@@ -242,18 +262,10 @@ class Site:
         return self.url + '/' + url
 
 
-    def token_url(self):
-        urls = self.urls()
-        if urls is None:
-            return None
-
-        return self.full_url(urls['token'])
-
-
     def urls(self):
         s = self.get_session()
         try:
-            response = s.get(self.url, allow_redirects=True)
+            response = s.get(self.url + '/tst.json', allow_redirects=True)
         except requests.ConnectionError:
             _assert(False, "Connection failed... check your internet connection")
 

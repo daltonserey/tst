@@ -19,8 +19,12 @@ from tst.utils import cprint, data2json, _assert
 from tst.jsonfile import JsonFile
 
 def main():
-    sitename = sys.argv[2] if len(sys.argv) > 2 else '_DEFAULT'
-    login(sitename)
+    try:
+        sitename = sys.argv[2] if len(sys.argv) > 2 else '_DEFAULT'
+        login(sitename)
+    except Exception as e:
+        cprint(LRED, "ops!")
+        raise e
 
 
 def login_old(sitename):
@@ -74,48 +78,46 @@ def login(sitename):
     _assert(site is not None, "Site %s not found in config.yaml" % sitename)
 
     # check site login style
-    auth_url = site.auth_url()
-    access_url = site.access_url()
-    if not auth_url or not access_url:
+    api_login_url = site.api_login_url()
+    old_login_url = site.login_url();
+    _assert(api_login_url or old_login_url, "Site %s has no login url" % site.name)
+
+    # possibly switch to old style login function
+    if not api_login_url and old_login_url:
         return login_old(sitename)
 
-    # proceed with new login
-    login_url = site.login_url()
-    access_url = site.access_url()
-    #auth_url = site.auth_url()
-    #_assert(login_url and access_url and auth_url, "Site %s has no login urls" % site.name)
-
-    # request login token
-    #cprint(LGREEN, "Starting login at %s" % login_url)
-    response = site.post(login_url, {"mac": str(get_mac())})
+    # perform cli tools login; fetch auth and acces urls and login token
+    cprint(LGREEN, api_login_url)
+    response = site.post(api_login_url, {"mac": str(get_mac())})
     response.encoding = 'utf-8'
-    login_token = response.json()['code']
+    user_auth_url = response.json()['user-auth-url']
+    api_access_url = response.json()['api-access-url']
 
     # open browser at authorization page
-    web_url = 'http://tk0.tst-online.appspot.com/activate/#/code/%s' % login_token
+    cprint(LGREEN, f"{user_auth_url}")
     cprint(LGREEN, f"Hit ⟨Enter⟩ to open up the browser to login in {site.name}")
     input()
-    if not webbrowser.open(web_url):
+    if not webbrowser.open(user_auth_url):
         cprint(LYELLOW, "Sorry, I cannot open the browser, visit:")
-        cprint(LYELLOW, web_url)
+        cprint(LYELLOW, user_auth_url)
 
-    # request access
-    cprint(YELLOW, access_url)
+    # request access code
+    cprint(YELLOW, api_access_url)
     for i in range(3):
-        cprint('LCYAN', f'Tentando o get número {i} no site')
-        response = site.get(f'{access_url}?code={login_token}')
+        response = site.get(f'{api_access_url}')
         authorization = response.json()
         if response.status_code == 200: break
 
     # check authorization
-    if not authorization['authorized']:
-        cprint(LRED, 'Ooops! Not authorized')
+    cprint(YELLOW, authorization)
+    if 'authorized' not in authorization:
+        cprint(LRED, 'Login not authorized')
         logging.info('login not authorized')
         sys.exit(1)
 
     # check whether the login worked
     if not 'tst_token' in authorization:
-        cprint(LRED, 'Sorry, login failed')
+        cprint(LRED, 'Login failed')
         logging.info('no tst_token in authorized login')
         return
 
