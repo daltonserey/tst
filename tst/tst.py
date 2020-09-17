@@ -204,6 +204,15 @@ class Site:
                 self.url = s['url']
 
 
+    def api_url(self):
+        urls = self.urls()
+        assert urls, "no urls provided by site"
+        url = self.api_full_url(urls.get('api-url'))
+        if url.startswith("http://https"):
+            url = url[7:]
+        return url
+
+
     def api_login_url(self):
         urls = self.urls()
         if urls is None:
@@ -302,7 +311,7 @@ class Site:
 
     def get(self, path):
         s = self.get_session()
-        url = "%s%s" % (self.url, path) if path.startswith('/') else path
+        url = "%s%s" % (self.api_url(), path) if path.startswith('/') else path
         try:
             response = s.get(url, allow_redirects=True)
             logging.info('GET %s (%s)' % (url, response.status_code))
@@ -322,7 +331,7 @@ class Site:
 
     def get_activity(self, key):
         s = self.get_session()
-        url = "%s/%s" % (self.url, key)
+        url = "%s/%s" % (self.api_url(), key)
         try:
             response = s.get(url, allow_redirects=True)
             logging.info('GET %s (%s)' % (url, response.status_code))
@@ -353,7 +362,8 @@ class Site:
 
     def get_directory(self, key):
         s = self.get_session()
-        url = "%s/%s/tst.yaml" % (self.url, key)
+        api_url = self.api_url()
+        url = "%s/%s/tst.yaml" % (api_url, key)
         try:
             response = s.get(url, allow_redirects=True)
             logging.info('GET %s (%s)' % (url, response.status_code))
@@ -389,7 +399,7 @@ class Site:
         if 'text' in resource and is_single_line_string(resource['text']):
             files.append({
                 "name": resource['text'],
-                "content": '%s/%s/%s' % (self.url, key, resource['text']),
+                "content": '%s/%s/%s' % (api_url, key, resource['text']),
                 "mode": "ro"
             })
 
@@ -400,7 +410,7 @@ class Site:
             if filename not in files_filenames:
                 files.append({
                     'name': filename,
-                    'content': '%s/%s/%s' % (self.url, key, filename),
+                    'content': '%s/%s/%s' % (api_url, key, filename),
                     'mode': mode
                 })
             else:
@@ -410,7 +420,7 @@ class Site:
         ## fetch missing files
         for f in files:
             if f['content'].startswith('http://') or f['content'].startswith('https://'):
-                url = '%s/%s/%s' % (self.url, key, f['name'])
+                url = '%s/%s/%s' % (api_url, key, f['name'])
                 try:
                     response = s.get(url)
                     logging.info('GET %s (%s)' % (url, response.status_code))
@@ -460,7 +470,7 @@ class Site:
 
     def send_answer(self, answer, key):
         s = self.get_session()
-        url = "%s/%s/answers" % (self.url, key)
+        url = "%s/%s/answers" % (self.api_url(), key)
         data = data2json(answer).encode('utf-8')
         try:
             response = s.post(url, data=data, allow_redirects=True)
