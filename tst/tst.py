@@ -110,7 +110,12 @@ def validate_tst_object(json):
     assert all('name' in f for f in files), "missing name in file(s)"
     assert all(is_posix_filename(f['name'], "/") for f in files), "non posix portable file(s) name(s)"
     assert all(is_valid_mode(f.get('mode')) for f in files), "invalid mode in file(s)"
-    assert len(files) == len(set([f['name'] for f in files])), "repeated file names"
+    #assert len(files) == len(set([f['name'] for f in files])), "repeated file names"
+    if not (len(files) == len(set([f['name'] for f in files]))):
+        filenames = [f['name'] for f in files]
+        repeated = list(set([fn for fn in filenames if filenames.count(fn) > 1]))
+        msg = f"file repeated: {' '.join(repeated)}"
+        logging.warning(msg)
 
 
 def save_file(filename, content, mode):
