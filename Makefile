@@ -42,7 +42,7 @@ clean:
 	rm -rf tst.egg-info
 
 uptest: clean dist
-	twine upload --repository-url https://test.pypi.org/legacy/ dist/* --skip-existing
+	python -m twine upload --repository-url https://test.pypi.org/legacy/ dist/* --skip-existing
 
-upload: clean dist
+upload: venv dist
 	twine upload dist/*
