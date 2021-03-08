@@ -28,7 +28,7 @@ $(VENV)/bin/activate: setup.py requirements.txt
 
 install: venv $(INSTALLED)
 $(INSTALLED): $(shell find $(MODULE))
-	$(PIP) install .
+	$(PIP) install -e .
 	touch $(INSTALLED)
 
 dist: requirements.txt
