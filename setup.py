@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 import codecs
 
 setup(name='tst',
-      version="0.10.3.dev1",
+      version="0.11.0.dev1",
       description='TST Student Testing',
       url='http://github.com/daltonserey/tst',
       author='Dalton Serey',

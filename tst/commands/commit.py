@@ -60,3 +60,4 @@ def commit(filename, filetype, key, site):
         cprint(LRED, 'Error: %s' % response.json()['messages'][0])
     else:
         cprint(LRED, 'Commit failed (%s)' % response.status_code)
+        cprint(LRED, 'Error: %s' % response.json()['messages'][0])

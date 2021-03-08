@@ -148,7 +148,7 @@ def checkout(site, key, target_dir, overwrite):
         cprint(RESET, "(You can add directory as an additional argument)")
         while True:
             destdir = input("Provide directory name (default %s): " % destdir) or key
-            if is_posix_filename(destdir): break
+            if is_posix_filename(destdir, extra_chars="/"): break
             cprint(YELLOW, "Invalid portable posix filename: '%s'" % destdir)
 
     _assert(not os.path.exists(destdir) or (os.path.isdir(destdir) and is_valid_dir(tst.dirtype(destdir))), "Invalid target directory: %s" % destdir)

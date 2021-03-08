@@ -337,6 +337,8 @@ class Site:
     def get_activity(self, key):
         s = self.get_session()
         url = "%s/%s" % (self.api_url(), key)
+        #url = url.replace('api.','dev.api.')
+        #cprint(YELLOW, url)
         try:
             response = s.get(url, allow_redirects=True)
             logging.info('GET %s (%s)' % (url, response.status_code))
@@ -476,6 +478,8 @@ class Site:
     def send_answer(self, answer, key):
         s = self.get_session()
         url = "%s/%s/answers" % (self.api_url(), key)
+        #url = url.replace('api.', 'dev.api.')
+        #cprint(YELLOW, url)
         data = data2json(answer).encode('utf-8')
         try:
             response = s.post(url, data=data, allow_redirects=True)
