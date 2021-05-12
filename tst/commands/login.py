@@ -103,11 +103,13 @@ def login(sitename):
         print(f"Then, visit the url below:\n{user_auth_url}")
 
     # request access code
-    for i in range(3):
+    for i in range(10):
         response = site.get(f'{api_access_url}')
         if response.status_code == 500:
-            cprint(LRED, "Login failed (timeout).")
-            sys.exit(1)
+            cprint(LRED, "Login failed (timeout)")
+            cprint(LGREEN, "Trying again...")
+            #sys.exit(1)
+            continue
         authorization = response.json()
         if response.status_code == 200: break
 
