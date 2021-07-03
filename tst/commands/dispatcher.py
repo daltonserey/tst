@@ -5,11 +5,18 @@ from __future__ import unicode_literals
 
 import os
 import sys
+import logging
 from subprocess import check_call, CalledProcessError
 
 import tst
 from tst.colors import *
 from tst.utils import cprint
+
+log = logging.getLogger('dispatcher')
+handler_file = logging.FileHandler(os.path.expanduser('~/.tst/logs'))
+handler_file.setFormatter(logging.Formatter('%(asctime)s|%(name)s|%(levelname)s|%(message)s'))
+log.addHandler(handler_file)
+log.setLevel(logging.DEBUG)
 
 EXTERNALS = [
     "test",
