@@ -102,10 +102,10 @@ def parse_test_report(data):
 
 class TestRun:
 
-    def __init__(self, subject, testcase):
+    def __init__(self, subject, testcase, index=None):
         self.subject = subject
         self.testcase = testcase
-        self.result = {}
+        self.result = {"index": index}
         self.result['type'] = self.testcase.type
         self.result['name'] = self.testcase.name
 
@@ -155,8 +155,8 @@ class TestRun:
             self.result['status'] = 'ScriptTestError'
             self.result['summary'] = '!'
             self.result['error'] = f'{e}'
-            if stderr: self.result['stderr'] = stderr
-            if stdout: self.result['stdout'] = stdout
+            self.result['stderr'] = stderr if stderr else None
+            self.result['stdout'] = stdout if stdout else None
             log.removeHandler(handler_console)
             log.warning(f'test script error: CMD=`{cmd_str}` ERROR={e.__class__.__name__} MSG=`{e}`')
             log.addHandler(handler_console)
@@ -677,12 +677,15 @@ class DebugReporter(Reporter):
 
         num_reported = 0
         for i in range(len(self.testcases)):
-            if self.testresults[i]['summary'] == '.': continue
+            if self.testresults[i]['summary'] == len(self.testresults[i]['summary']) * '.': continue
             testresult = self.testresults[i]
+            if testresult['type'] is None: continue
+
+            print(LGREEN + f"test {testresult['index']}: {self.testcases[i].type}" + RESET)
             if testresult['type'] == 'io':
-                print(LGREEN + "input: " + RESET + repr(testresult['input']))
-                print(LGREEN + "output: " + RESET + repr(testresult['output']))
-                print(YELLOW + "stdout: " + RESET + repr(testresult['stdout']))
+                print(LGREEN + "/tmp/input: " + RESET + repr(testresult['input']))
+                print(LGREEN + "/tmp/output: " + RESET + repr(testresult['output']))
+                print(YELLOW + "/tmp/stdout: " + RESET + repr(testresult['stdout']))
 
                 if self.options.get('diff'):
                     print(DebugReporter.external_diff(testresult))
@@ -691,25 +694,33 @@ class DebugReporter(Reporter):
                     print(LGREEN + "compare:" + RESET)
                     print(indent(DebugReporter.internal_diff(testresult)))
 
-                print()
-
             elif testresult['type'] == 'script':
+                print(f"{LGREEN}command:{RESET} {testresult['command']}")
+                if testresult.get('error'):
+                    print(f'{YELLOW}script error:{RESET} {testresult["error"]}')
                 if testresult['stderr']:
-                    cprint(LGREEN, 'script test report:')
+                    cprint(LGREEN, 'script test report (stderr):')
                     print(indent(testresult['stderr']))
+                if testresult['stdout']:
+                    cprint(LGREEN, 'script test report (stdout):')
+                    print(indent(testresult['stdout']))
 
             elif testresult['type'] is None:
                 pass
 
             else:
                 log.warning('unrecognized test type')
+
+            if i < len(self.testcases) - 2: print()
+
             num_reported += 1
             #if num_reported == self.max_fails: break
 
     @staticmethod
     def external_diff(result):
-        open('/tmp/stdout', encoding='utf-8', mode="w").write(result['stdout'])
+        open('/tmp/input', encoding='utf-8', mode="w").write(result['input'])
         open('/tmp/output', encoding='utf-8', mode="w").write(result['output'])
+        open('/tmp/stdout', encoding='utf-8', mode="w").write(result['stdout'])
 
         try:
             command = tst.get_config().get('diff', 'diff').split() + ["/tmp/stdout", "/tmp/output"]
@@ -742,6 +753,7 @@ def parse_cli():
     parser.add_argument('-t', '--test-files', type=str, default='*.yaml,*.json', help='read tests from TEST_FILES')
     parser.add_argument('-T', '--timeout', type=int, default=5, help='stop execution at TIMEOUT seconds')
 
+    parser.add_argument('-n', '--ordinal-number', type=str, default='', help='ordinal of tests to run')
     parser.add_argument('-m', '--messages', action="store_true", default=False, help='print running messages')
     parser.add_argument('-e', '--script-errors', action="store_true", default=False, help='print script errors')
     parser.add_argument('-d', '--diff', action="store_true", default=False, help='output failed testcases and expected output diff')
@@ -779,22 +791,21 @@ def parse_cli():
         "format": args.subject_format,
         "report-style": args.report_style,
         "diff": args.diff,
-        "compare": args.compare
+        "compare": args.compare,
+        "number": [v for v in args.ordinal_number.split(",") if v.isdigit()]
     }
     return args.activity, files2test, test_files, options
 
 
 def print_script_errors(script_errors):
     for testresult in script_errors:
-        cprint(YELLOW, f"\nCOMMAND: ", end='')
-        cprint(LRED, f"{repr(testresult['command'])}")
-        cprint(YELLOW, f"ERROR: ", end='')
-        cprint(LRED, f"{repr(testresult['error'])}")
-        stderr = indent(testresult.get('stderr', '').strip())
-        stdout = indent(testresult.get('stdout', '').strip())
-        if stderr: cprint(YELLOW, f'STDERR:')
+        cprint(YELLOW, f"\ncommand:{RESET} {repr(testresult['command'])}")
+        cprint(YELLOW, f"script error:{RESET} {repr(testresult['error'])}")
+        stderr = indent((testresult.get('stderr') or '').strip())
+        stdout = indent((testresult.get('stdout') or '').strip())
+        if stderr: cprint(YELLOW, f'stderr:')
         if stderr: cprint(LRED, f'{stderr}')
-        if stdout: cprint(YELLOW, f'STDOUT:')
+        if stdout: cprint(YELLOW, f'stdout:')
         if stdout: cprint(LRED, f'{stdout}')
 
 def main():
@@ -850,13 +861,15 @@ def main():
 
     reporter = Reporter.get(style=style, options=options)
     reporter.num_tests = len(subjects) * len(testcases)
-    script_errors = []
+    count, script_errors = 0, []
     for subject in subjects:
         for suite, tests, level in test_suites:
             if not tests: continue
             testcases = [TestCase(t) for t in tests]
             for testcase in testcases:
-                testrun = TestRun(subject, testcase)
+                count += 1
+                if options['number'] and str(count) not in options['number']: continue
+                testrun = TestRun(subject, testcase, index=count)
                 testresult = testrun.run(timeout=options['timeout'])
                 ('error' in testresult) and script_errors.append(testresult)
                 subject.add_testrun(testrun)
@@ -867,14 +880,17 @@ def main():
             reporter.update(subject, testcase, {"type": None, "summary": " "})
 
     reporter.close()
-    if script_errors:
+
+    if script_errors and not options['errors'] and style != 'debug':
         cprint(YELLOW, f"{len(script_errors)} test scripts failed")
         hints.append('(use "tst --script-errors" or "tst -e" to print fails)')
 
     if options.get('errors'):
         print_script_errors(script_errors)
 
-    if len(subjects) > 1:
+    if len(subjects) == 1:
+        hints.append('(use "tst -n <n1>,<n2>..." to run only tests number <n1>, <n2> ...)')
+    else:
         hints.append('(use "tst <string>" to test only files matching string)')
 
     if hints:
