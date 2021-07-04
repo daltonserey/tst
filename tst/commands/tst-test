@@ -665,9 +665,16 @@ class DebugReporter(Reporter):
 
     def print_report(self):
         summary = self._summaries()
-        line = '%s%s' % (summary, self.current_subject.filename)
+        subject_format = self.options.get('format')
+        if subject_format and self.options['format'][0] == ':':
+            fnformat = self.options['format'][1:]
+            line = f'{self.current_subject.filename:{fnformat}} {summary}'
+        else:
+            line = f'{self.current_subject.filename} {summary}'
         print(line, file=sys.stderr)
+
         if summary.count('.') == len(summary): return
+
         num_reported = 0
         for i in range(len(self.testcases)):
             if self.testresults[i]['summary'] == '.': continue
@@ -675,37 +682,43 @@ class DebugReporter(Reporter):
             if testresult['type'] == 'io':
                 print(LGREEN + "input: " + RESET + repr(testresult['input']))
                 print(LGREEN + "output: " + RESET + repr(testresult['output']))
+                print(YELLOW + "stdout: " + RESET + repr(testresult['stdout']))
+
                 if self.options.get('diff'):
-                    print(LGREEN + "diff:" + RESET)
-                    print(indent(DebugReporter.external_diff(testresult)))
+                    print(DebugReporter.external_diff(testresult))
+
                 if self.options.get('compare'):
                     print(LGREEN + "compare:" + RESET)
                     print(indent(DebugReporter.internal_diff(testresult)))
+
+                print()
+
             elif testresult['type'] == 'script':
                 if testresult['stderr']:
                     cprint(LGREEN, 'script test report:')
                     print(indent(testresult['stderr']))
+
             elif testresult['type'] is None:
                 pass
+
             else:
                 log.warning('unrecognized test type')
             num_reported += 1
-            if num_reported == self.max_fails: break
+            #if num_reported == self.max_fails: break
 
     @staticmethod
     def external_diff(result):
-        with codecs.open('oo', 'w', encoding='utf-8') as f:
-            f.write(result['stdout'])
-        with codecs.open('eo', 'w', encoding='utf-8') as f:
-            f.write(result['output'])
+        open('/tmp/stdout', encoding='utf-8', mode="w").write(result['stdout'])
+        open('/tmp/output', encoding='utf-8', mode="w").write(result['output'])
+
         try:
-            check_output(["diff", "oo", "eo"])
-        except CalledProcessError as e:
-            return e.output
-        except OSError:
+            command = tst.get_config().get('diff', 'diff').split() + ["/tmp/stdout", "/tmp/output"]
+            process = Popen(command, stdout=PIPE, stderr=PIPE)
+            stdout, stderr = map(to_unicode, process.communicate())
+            process.wait()
+            return stdout.strip()
+        except (CalledProcessError, OSError):
             log.error("diff: cannot run external diff command")
-        except:
-            raise
 
     @staticmethod
     def internal_diff(result):
@@ -749,7 +762,7 @@ def parse_cli():
         files2test = args.filename
 
     _assert(not args.subject_format or args.subject_format[0] == ':', f"invalid format: {repr(args.subject_format)}")
-    _assert(not (args.diff or args.compare) or args.subject_format in [None, 'debug'], 'diff and compare implies debug format')
+    _assert(not (args.diff or args.compare) or args.report_style in [None, 'debug'], 'diff and compare implies debug format')
 
     # identify test files (files containing tests)
     patterns2scan = args.test_files.split(",") if args.test_files else []
