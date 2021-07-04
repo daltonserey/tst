@@ -48,8 +48,6 @@ STATUS_CODE = {
     'MissingTokens': '%',
     'Fail': 'F',
     'ScriptTestError': '!',
-    'Inconclusive': '?',
-    'UNKNOWN': '-',
     'NoInterpreterError': 'X',
 
     # Python ERROR codes
@@ -87,27 +85,18 @@ def unpack_results(run_method):
 
 def parse_test_report(data):
     if data and data[0] == '{':
-        # assume it's json
         try:
+            # assume it is json
             report = json.loads(data)
-            if 'summary' not in report:
-                return None, None
+            assert 'summary' in report, f'invalid json report: {repr(report)}'
             return report['summary'], report.get('feedback')
-        except:
+        except json.decoder.JSONDecodeError:
+            # it is not json
             pass
 
-    parts = data.split('\n', 2)
-    # TODO: Spaces should be accepted as summary lines.
-    #       Improve the specification of a valid summary line.
-    if ' ' in parts[0]:
-        return None, None
-
+    parts = data.split('\n', 1)
     summary = parts[0]
-    if len(parts) > 2:
-        feedback = parts[2]
-    else:
-        feedback = None
-
+    feedback = parts[1] if len(parts) > 1 else None
     return summary, feedback
 
 
@@ -138,39 +127,46 @@ class TestRun:
             cmd_str = self.testcase.script
         cmd_str = re.sub(r'\bpython\b', 'python3', cmd_str)
         command = shlex.split(cmd_str)
-        self.result['command'] = cmd_str
 
-        process = Popen(command, stdout=PIPE, stderr=PIPE)
-        signal.alarm(timeout)
+        self.result['command'] = cmd_str
+        stdout, stderr = None, None
         try:
+            process = Popen(command, stdout=PIPE, stderr=PIPE)
+            signal.alarm(timeout)
             stdout, stderr = map(to_unicode, process.communicate())
             signal.alarm(0) # reset the alarm
             process.wait()
-        except CutTimeOut: # program didn't stop within expected time
+            assert process.returncode == 0, f"script test error: exit code = {process.returncode}"
+
+            # collect test data
+            self.result['exit_status'] = process.returncode
+            self.result['stderr'] = stderr # comment out to remove from report
+            self.result['stdout'] = stdout # comment out to remove from report
+
+            # collect report from either stderr or stdout
+            summary, feedback = parse_test_report(stderr)
+            if not summary:
+                summary, feedback = parse_test_report(stdout)
+            assert not ' ' in summary and summary == summary.strip(), f'invalid summary: {repr(summary)}'
+            assert summary, f"script test error: empty summary"
+
+        except (FileNotFoundError, PermissionError, AssertionError) as e:
+            # the test script command itself failed (or it was not found)
+            self.result['status'] = 'ScriptTestError'
+            self.result['summary'] = '!'
+            self.result['error'] = f'{e}'
+            if stderr: self.result['stderr'] = stderr
+            if stdout: self.result['stdout'] = stdout
+            log.removeHandler(handler_console)
+            log.warning(f'test script error: CMD=`{cmd_str}` ERROR={e.__class__.__name__} MSG=`{e}`')
+            log.addHandler(handler_console)
+            return self.result
+
+        except CutTimeOut:
+            # test script running too long: possibly a loop in the subject
             process.terminate()
             self.result['status'] = 'Timeout'
             self.result['summary'] = 't'
-            return self.result
-
-        # collect test data
-        self.result['exit_status'] = process.returncode
-        self.result['stderr'] = stderr # comment out to remove from report
-        self.result['stdout'] = stdout # comment out to remove from report
-
-        # check for correct termination of the test script
-        if self.result['exit_status'] != 0:
-            self.result['status'] = 'ScriptTestError'
-            self.result['summary'] = '!'
-            return self.result
-
-        # collect report from either stderr or stdout
-        summary, feedback = parse_test_report(stderr)
-        if not summary:
-            summary, feedback = parse_test_report(stdout)
-
-        if not summary:
-            self.result['status'] = 'Inconclusive'
-            self.result['summary'] = '?'
             return self.result
 
         self.result['summary'] = summary
@@ -535,7 +531,16 @@ class Reporter(object):
     VALID_REPORT_STYLES = ['summary', 'debug', 'failed', 'passed', 'worker']
 
     @staticmethod
-    def get(style, num_tests=0, options={}):
+    def get(style, num_tests=0, options=None):
+        """
+        Factory method. The style argument specifies the type
+        that will be intantiated. If style is None, the base
+        class Reporter will be used. If can also be debug,
+        failed, passed or worker to create either DebugReporter,
+        FilterReporter (case of failed or passed) and
+        WorkerReporter.
+        """
+        options = options or {}
         _assert(style is None or style in Reporter.VALID_REPORT_STYLES, 'invalid report style: {}'.format(style))
         if style is None or style == 'summary':
             return Reporter(options)
@@ -554,15 +559,15 @@ class Reporter(object):
         elif style == 'worker':
             return WorkerReporter(options=options)
 
-    def __init__(self, status_line=True, options={}):
+    def __init__(self, options=None):
+        self.options = options or {}
         self.num_tests = 0
         self.tests_performed = 0
         self.current_subject = None
         self.testresults = None
         self.testcases = None
         self.subjects = []
-        self.status_line = StatusLine() if status_line else None
-        self.options = options
+        self.status_line = StatusLine()
 
     def update(self, subject, testcase, testresult):
         if self.current_subject is None:
@@ -587,8 +592,9 @@ class Reporter(object):
             # update data
             self.testresults.append(testresult)
             self.testcases.append(testcase)
-            self.tests_performed += 1
-            self._status(self.tests_performed)
+            if testresult['type']:
+                self.tests_performed += 1
+                self._status(self.tests_performed)
 
     def close(self):
         self.status_line and self.status_line.clear()
@@ -602,44 +608,44 @@ class Reporter(object):
             return
 
         if not self.status_line: return
-        self.status_line.set('%d of %d tests' % (tests_performed, self.num_tests))
+        self.status_line.set('test %d out of %d' % (tests_performed, self.num_tests))
 
     def _summaries(self):
-        iosummaries = []
         _summaries = []
         for tr in self.testresults:
-            if tr['type'] == 'io':
-                iosummaries.append(tr['summary'])
-            else:
-                _summaries.append(tr['summary'])
-
-        if iosummaries:
-            _summaries.insert(0, ''.join(iosummaries))
+            _summaries.append(tr['summary'])
 
         return ''.join(_summaries)
 
     def print_report(self):
         summary = self._summaries()
-        line = '%s %s' % (summary, self.current_subject.filename)
+        subject_format = self.options.get('format')
+        if subject_format and self.options['format'][0] == ':':
+            fnformat = self.options['format'][1:]
+            line = f'{self.current_subject.filename:{fnformat}} {summary}'
+        else:
+            line = f'{self.current_subject.filename} {summary}'
         print(line, file=sys.stderr)
 
 
 class FilterReporter(Reporter):
-    def __init__(self, status_line=True, filtro=lambda s: True, options={}):
-        super(FilterReporter, self).__init__(status_line, options)
+    def __init__(self, filtro=lambda s: True, options=None):
+        options = options or {}
+        super(FilterReporter, self).__init__(options)
         self.filtro = filtro
 
     def print_report(self):
         summary = self._summaries()
-        if not self.filtro(summary): return
+        if not self.filtro(re.sub("[ |]", "", summary)): return
         self._filtered = True
-        line = '%s %s' % (summary, self.current_subject.filename)
+        line = '%s%s' % (summary, self.current_subject.filename)
         print(line, file=sys.stderr)
 
 
 class WorkerReporter(Reporter):
-    def __init__(self, status_line=True, options={}):
-        super(WorkerReporter, self).__init__(status_line, options)
+    def __init__(self, options=None):
+        options = options or {}
+        super(WorkerReporter, self).__init__(options)
         self._report = {}
 
     def print_report(self):
@@ -652,13 +658,14 @@ class WorkerReporter(Reporter):
 
 
 class DebugReporter(Reporter):
-    def __init__(self, status_line=True, max_fails=1, options={}):
-        super(DebugReporter, self).__init__(status_line, options)
+    def __init__(self, max_fails=1, options=None):
+        options = options or {}
+        super(DebugReporter, self).__init__(options)
         self.max_fails = max_fails
 
     def print_report(self):
         summary = self._summaries()
-        line = '%s %s' % (summary, self.current_subject.filename)
+        line = '%s%s' % (summary, self.current_subject.filename)
         print(line, file=sys.stderr)
         if summary.count('.') == len(summary): return
         num_reported = 0
@@ -675,10 +682,13 @@ class DebugReporter(Reporter):
                     print(LGREEN + "compare:" + RESET)
                     print(indent(DebugReporter.internal_diff(testresult)))
             elif testresult['type'] == 'script':
-                cprint(LGREEN, 'script report:')
-                print(indent(testresult['stderr']))
+                if testresult['stderr']:
+                    cprint(LGREEN, 'script test report:')
+                    print(indent(testresult['stderr']))
+            elif testresult['type'] is None:
+                pass
             else:
-                logging.warning('unrecognized test type')
+                log.warning('unrecognized test type')
             num_reported += 1
             if num_reported == self.max_fails: break
 
@@ -693,7 +703,7 @@ class DebugReporter(Reporter):
         except CalledProcessError as e:
             return e.output
         except OSError:
-            logging.error("diff: cannot run external diff command")
+            log.error("diff: cannot run external diff command")
         except:
             raise
 
@@ -719,10 +729,13 @@ def parse_cli():
     parser.add_argument('-t', '--test-files', type=str, default='*.yaml,*.json', help='read tests from TEST_FILES')
     parser.add_argument('-T', '--timeout', type=int, default=5, help='stop execution at TIMEOUT seconds')
 
+    parser.add_argument('-m', '--messages', action="store_true", default=False, help='print running messages')
+    parser.add_argument('-e', '--script-errors', action="store_true", default=False, help='print script errors')
     parser.add_argument('-d', '--diff', action="store_true", default=False, help='output failed testcases and expected output diff')
     parser.add_argument('-c', '--compare', action="store_true", default=False, help='output failed testcases and expected output color comparison')
 
-    parser.add_argument('-f', '--format', type=str, help='output test results using FORMAT; alternatives\nare: debug (default) and worker')
+    parser.add_argument('-f', '--subject-format', type=str, help='set subject filename format')
+    parser.add_argument('-s', '--report-style', type=str, choices=['debug', 'passed', 'failed', 'worker'], help='choose report style')
     parser.add_argument('filename', nargs='*', default=[''])
     args = parser.parse_args()
 
@@ -735,7 +748,8 @@ def parse_cli():
     else:
         files2test = args.filename
 
-    _assert(not (args.diff or args.compare) or args.format in [None, 'debug'], 'diff and compare implies debug format')
+    _assert(not args.subject_format or args.subject_format[0] == ':', f"invalid format: {repr(args.subject_format)}")
+    _assert(not (args.diff or args.compare) or args.subject_format in [None, 'debug'], 'diff and compare implies debug format')
 
     # identify test files (files containing tests)
     patterns2scan = args.test_files.split(",") if args.test_files else []
@@ -747,15 +761,30 @@ def parse_cli():
 
     options = {
         "timeout": args.timeout,
-        "output": args.format,
+        "messages": args.messages,
+        "errors": args.script_errors,
+        "format": args.subject_format,
+        "report-style": args.report_style,
         "diff": args.diff,
         "compare": args.compare
     }
     return args.activity, files2test, test_files, options
 
 
-def main():
+def print_script_errors(script_errors):
+    for testresult in script_errors:
+        cprint(YELLOW, f"\nCOMMAND: ", end='')
+        cprint(LRED, f"{repr(testresult['command'])}")
+        cprint(YELLOW, f"ERROR: ", end='')
+        cprint(LRED, f"{repr(testresult['error'])}")
+        stderr = indent(testresult.get('stderr', '').strip())
+        stdout = indent(testresult.get('stdout', '').strip())
+        if stderr: cprint(YELLOW, f'STDERR:')
+        if stderr: cprint(LRED, f'{stderr}')
+        if stdout: cprint(YELLOW, f'STDOUT:')
+        if stdout: cprint(LRED, f'{stdout}')
 
+def main():
     # parse command line
     activity, files2test, test_files, options = parse_cli()
 
@@ -767,13 +796,16 @@ def main():
         _assert(glob.glob(pattern), "Missing required files for this test: %s" % pattern)
 
     # read tests
+    hints = []
     tests = []
+    test_suites = []
     for filename in test_files:
-        cprint(LCYAN, "Reading %s" % filename, end='')
+        options['messages'] and cprint(LCYAN, "Reading %s:" % filename, end='')
         try:
             testsfile = JsonFile(filename, array2map="tests")
-            cprint(LGREEN, " (%s tests)" % len(testsfile.get("tests", [])))
+            options['messages'] and cprint(LGREEN, " %s tests" % len(testsfile.get("tests", [])))
             tests.extend(testsfile["tests"])
+            test_suites.append((filename, testsfile["tests"], testsfile.get('level', 0)))
         except KeyError as e:
             #_msg = " %s✗%s (no tests found)" % (LRED, YELLOW)
             #cprint(YELLOW, _msg)
@@ -784,6 +816,8 @@ def main():
 
     # make sure there are tests
     _assert(tests, '0 tests found')
+    _assert(any(tests for _, tests, _ in test_suites), '0 tests found')
+    test_suites.sort(key=lambda ts: ts[2])
 
     # filter files2test based on extensions and ignore_files
     config = tst.get_config()
@@ -798,21 +832,41 @@ def main():
     testcases = [TestCase(t) for t in tests]
 
     # identify style
-    if len(subjects) == 1 and options['output'] is None:
-        style = 'debug'
-    else:
-        style = options['output'] or tst.get_config().get('report')
+    style = options['report-style']
+    style = style or tst.get_config().get('report-style') or ('debug' if len(subjects) == 1 else None)
 
     reporter = Reporter.get(style=style, options=options)
     reporter.num_tests = len(subjects) * len(testcases)
+    script_errors = []
     for subject in subjects:
-        for testcase in testcases:
-            testrun = TestRun(subject, testcase)
-            testresult = testrun.run(timeout=options['timeout'])
-            subject.add_testrun(testrun)
-            reporter.update(subject, testcase, testresult)
-    reporter.close()
+        for suite, tests, level in test_suites:
+            if not tests: continue
+            testcases = [TestCase(t) for t in tests]
+            for testcase in testcases:
+                testrun = TestRun(subject, testcase)
+                testresult = testrun.run(timeout=options['timeout'])
+                ('error' in testresult) and script_errors.append(testresult)
+                subject.add_testrun(testrun)
+                reporter.update(subject, testcase, testresult)
+            log.removeHandler(handler_console)
+            log.info(f"{subject.filename}: {reporter._summaries()}")
+            log.addHandler(handler_console)
+            reporter.update(subject, testcase, {"type": None, "summary": " "})
 
+    reporter.close()
+    if script_errors:
+        cprint(YELLOW, f"{len(script_errors)} test scripts failed")
+        hints.append('(use "tst --script-errors" or "tst -e" to print fails)')
+
+    if options.get('errors'):
+        print_script_errors(script_errors)
+
+    if len(subjects) > 1:
+        hints.append('(use "tst <string>" to test only files matching string)')
+
+    if hints:
+        print()
+        cprint(LCYAN, indent("\n".join(hints)) + "\n")
 
 class ColorizingStreamHandler(logging.StreamHandler):
     colors_map = {
@@ -846,12 +900,14 @@ class ColorizingStreamHandler(logging.StreamHandler):
 if __name__ == '__main__':
     config = tst.get_config()
 
-    log = logging.getLogger()
+    log = logging.getLogger('tst-test')
     log.setLevel(logging.DEBUG)
 
     handler_file = logging.FileHandler(os.path.expanduser('~/.tst/logs'))
     handler_file.setFormatter(logging.Formatter('%(asctime)s|%(name)s|%(levelname)s|%(message)s'))
     log.addHandler(handler_file)
+
+    log.info(f"CWD={os.getcwd()}")
 
     handler_console = ColorizingStreamHandler()
     log.addHandler(handler_console)
@@ -863,7 +919,7 @@ if __name__ == '__main__':
     try:
         main()
     except (KeyboardInterrupt, SystemExit):
-        pass
+        log.info('tst-test: user interrupted')
     except Exception:
         log.critical('sorry... critical error')
         log.removeHandler(handler_console)
