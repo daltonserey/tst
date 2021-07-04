@@ -149,6 +149,8 @@ class TestRun:
                 summary, feedback = parse_test_report(stdout)
             assert not ' ' in summary and summary == summary.strip(), f'invalid summary: {repr(summary)}'
             assert summary, f"script test error: empty summary"
+            self.result['summary'] = summary
+            self.result['feedback'] = feedback
 
         except (FileNotFoundError, PermissionError, AssertionError) as e:
             # the test script command itself failed (or it was not found)
@@ -685,7 +687,10 @@ class DebugReporter(Reporter):
             if testresult['type'] == 'io':
                 print(LGREEN + "/tmp/input: " + RESET + repr(testresult['input']))
                 print(LGREEN + "/tmp/output: " + RESET + repr(testresult['output']))
-                print(YELLOW + "/tmp/stdout: " + RESET + repr(testresult['stdout']))
+                print(LGREEN + "/tmp/stdout: " + RESET + repr(testresult['stdout']))
+                status_map = {v:k for k, v in STATUS_CODE.items()}
+                status = status_map.get(testresult["summary"])
+                print(LGREEN + f"summary:{RESET} {testresult['summary']} ({status})")
 
                 if self.options.get('diff'):
                     print(DebugReporter.external_diff(testresult))
@@ -694,16 +699,16 @@ class DebugReporter(Reporter):
                     print(LGREEN + "compare:" + RESET)
                     print(indent(DebugReporter.internal_diff(testresult)))
 
+
             elif testresult['type'] == 'script':
                 print(f"{LGREEN}command:{RESET} {testresult['command']}")
+                print(LGREEN + f"summary:{RESET} {testresult['summary']}")
+
                 if testresult.get('error'):
                     print(f'{YELLOW}script error:{RESET} {testresult["error"]}')
-                if testresult['stderr']:
-                    cprint(LGREEN, 'script test report (stderr):')
-                    print(indent(testresult['stderr']))
-                if testresult['stdout']:
-                    cprint(LGREEN, 'script test report (stdout):')
-                    print(indent(testresult['stdout']))
+                if testresult.get('feedback'):
+                    cprint(LGREEN, 'script test feedback/report:')
+                    print(indent(testresult['feedback']))
 
             elif testresult['type'] is None:
                 pass
