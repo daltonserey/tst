@@ -952,7 +952,7 @@ if __name__ == '__main__':
 
     try:
         main()
-    except (KeyboardInterrupt, SystemExit):
+    except KeyboardInterrupt:
         log.info('tst-test: user interrupted')
     except Exception:
         log.critical('sorry... critical error')
