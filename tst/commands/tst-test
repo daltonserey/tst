@@ -683,7 +683,7 @@ class DebugReporter(Reporter):
             testresult = self.testresults[i]
             if testresult['type'] is None: continue
 
-            print(LGREEN + f"test {testresult['index']}: {self.testcases[i].type}" + RESET)
+            print(LCYAN + f"\ntest {testresult['index']}: {self.testcases[i].type}" + RESET)
             if testresult['type'] == 'io':
                 print(LGREEN + "/tmp/input: " + RESET + repr(testresult['input']))
                 print(LGREEN + "/tmp/output: " + RESET + repr(testresult['output']))
@@ -715,8 +715,6 @@ class DebugReporter(Reporter):
 
             else:
                 log.warning('unrecognized test type')
-
-            if i < len(self.testcases) - 2: print()
 
             num_reported += 1
             #if num_reported == self.max_fails: break
