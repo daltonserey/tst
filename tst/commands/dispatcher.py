@@ -31,8 +31,9 @@ def run_external_command(command, args):
     script_name = os.path.expanduser("tst-%s" % command)
     args.insert(0, script_name)
     try:
-        check_call(args)
-    except CalledProcessError:
+        exit = check_call(args)
+    except CalledProcessError as e:
+        sys.exit(e.returncode)
         pass
     except OSError:
         print("tst: couldn't run command '%s'" % command, file=sys.stderr)
