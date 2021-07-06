@@ -39,12 +39,9 @@ REDIRECTED = os.fstat(0) != os.fstat(1)
 
 STATUS_CODE = {
     # TST test codes
-    'DefaultError': 'e',
+    'Error': 'e',
     'Timeout': 't',
     'Success': '.',
-    'QuasiSuccess': '*',
-    'AllTokensSequence': '@',
-    'AllTokensMultiset': '&',
     'MissingTokens': '%',
     'Fail': 'F',
     'ScriptTestError': '!',
@@ -107,7 +104,6 @@ class TestRun:
         self.testcase = testcase
         self.result = {"index": index}
         self.result['type'] = self.testcase.type
-        self.result['name'] = self.testcase.name
 
     def run(self, timeout=TIMEOUT_DEFAULT):
         if self.testcase.type == 'io':
@@ -208,10 +204,8 @@ class TestRun:
             input_data = ''
         self.result['input'] = self.testcase.input
         self.result['output'] = self.testcase.output
-        self.result['cases'] = self.testcase.cases
-        self.result['sha1'] = self.testcase.sha1
 
-        # loop until running the test
+        # run the test (loop until succeeding)
         while True:
             process = Popen(command, stdin=PIPE, stdout=PIPE, stderr=PIPE)
             signal.alarm(timeout)
@@ -239,16 +233,16 @@ class TestRun:
                 return self.result
 
             except OSError:
-                # external error... must run again!
+                # external error... try running again!
                 process.terminate()
 
-        # 1. Did an ERROR ocurred during execution?
+        # check for ERROR during execution
         if process.returncode != 0:
 
-            # set default status
-            self.result['status'] = 'DefaultError'
+            # set generic error status
+            self.result['status'] = 'Error'
 
-            # try use error code from stderr, if available
+            # try being more specific for known python errors
             for error_code in STATUS_CODE:
                 if error_code in stderr:
                     self.result['status'] = error_code
@@ -256,49 +250,20 @@ class TestRun:
 
             return self.result
 
-        # 2. Was it a PERFECTLY SUCCESSFUL run?
+        # check for a perfecs match
         preprocessed_stdout = preprocess(stdout, self.testcase.ignore)
-        if self.testcase.preprocessed_output  == preprocessed_stdout:
+        if self.testcase.preprocessed_output == preprocessed_stdout:
             self.result['status'] = 'Success'
             return self.result
 
-        # 3. Was it a NORMALIZED SUCCESSFUL run?
-        normalized_stdout = preprocess(stdout, DEFAULT_OPS)
-        if self.testcase.normalized_output == normalized_stdout:
-            self.result['status'] = 'QuasiSuccess'
-            return self.result
+        # check for partial (regex based) match
+        if self.testcase.match:
+            stdout_regex = stdout
+            if self.testcase.re.match(stdout_regex):
+                self.result['status'] = 'Success'
+                return self.result
 
-        # 4. Doesn't the testcase specify TOKENS?
-        if not self.testcase.tokens:
-            self.result['status'] = 'Fail'
-            return self.result
-
-        # set flags to use with methods re.*
-        flags = re.DOTALL|re.UNICODE
-        if 'case' in self.testcase.ignore:
-            flags = flags|re.IGNORECASE
-
-        # 5. Does the output have ALL EXPECTED TOKENS IN SEQUENCE?
-        regex = '(.*)%s(.*)' % ('(.*)'.join(self.testcase.tokens))
-        if re.match(regex, preprocessed_stdout, flags=flags):
-            self.result['status'] = 'AllTokensSequence'
-            return self.result
-
-        # 6. Does the output have the TOKENS MULTISET?
-        regex = '|'.join(self.testcase.tokens)
-        found = re.findall(regex, preprocessed_stdout, flags=flags)
-        found_ms = Counter(found)
-        tokens_ms = Counter(self.testcase.tokens)
-        if found_ms >= tokens_ms:
-            self.result['status'] = 'AllTokensMultiset'
-            return self.result
-
-        # 7. Does the output have a proper SUBSET OF THE TOKENS?
-        if found_ms <= tokens_ms and len(found_ms) > 0:
-            self.result['status'] = 'MissingTokens'
-            return self.result
-
-        # 8. otherwise...
+        # or fail...
         self.result['status'] = 'Fail'
         return self.result
 
@@ -356,42 +321,56 @@ class TestCase():
     def __init__(self, test):
 
         # get data from tst.json
-        self.name = test.get('name')
         self.input = test.get('input', '')
-        self.output = test.get('output', '')
-        self.cases = test.get('cases', None)
-        self.sha1 = test.get('sha1', None)
-        self.tokens = test.get('tokens', [])
+        self.output = test.get('output')
+        self.match = test.get('match')
+        self.tokens = test.get('tokens')
         self.ignore = test.get('ignore', [])
         self.script = test.get('script')
-        self.command = test.get('command')
-        self.files = test.get('files')
-        self.type = test.get('type') or ('script' if self.script or self.command else 'io')
+        self.type = test.get('type') or ('script' if self.script else 'io')
         if self.type == 'script':
-            _assert(self.command or self.script, "script tests must have a command")
-            _assert(not self.command or not self.script, "script tests cannot have both script and command")
+            _assert(self.script, "script tests must have a script")
             _assert(not self.input and not self.output, "script tests cannot have input/output")
             _assert(not self.tokens, "script tests cannot have tokens")
-            self.script = self.script or self.command
 
-        # convert tokens to a list of strings, if necessary
-        if isinstance(self.tokens, str):
-            self.tokens = self.tokens.split()
+        # check
+        if self.output:
+            _assert(not self.match and not self.tokens, "cannot be used together: output, match, tokens")
+        if self.tokens:
+            _assert(not self.match and not self.output, "cannot be used together: output, match, tokens")
+        if self.match:
+            _assert(not self.output and not self.tokens, "cannot be used together: output, match, tokens")
+        _assert(not self.match or isinstance(self.match, str), "match must be a string")
+        _assert(self.tokens is None, "tokens based io tests is disabled: requires revision")
+
 
         # convert ignore to a list of strings, if necessary
         if isinstance(self.ignore, str):
             self.ignore = self.ignore.split()
 
+        # compile the re object
+        if self.match and 'case' in self.ignore:
+            self.re = re.compile(self.match, re.IGNORECASE | re.MULTILINE | re.DOTALL)
+        elif self.match and 'case' not in self.ignore:
+            self.re = re.compile(self.match, re.MULTILINE | re.DOTALL)
+        else:
+            self.re = None
+
+        # convert tokens to a list of strings, if necessary
+        if isinstance(self.tokens, str):
+            self.tokens = self.tokens.split()
+
         # identify tokens within the expected output
-        if not self.tokens and '{{' in self.output:
+        if not self.tokens and self.output and '{{' in self.output:
             p = r'{{(.*?)}}' # r'{{.*?}}|\[\[.*?\]\]'
             self.tokens = re.findall(p, self.output)
             # remove tokens' markup from expected output
             self.output = re.sub(p, lambda m: m.group(0)[2:-2], self.output)
 
         # preprocess individual tokens
-        for i in range(len(self.tokens)):
-            self.tokens[i] = preprocess(self.tokens[i], self.ignore)
+        if self.tokens:
+            for i in range(len(self.tokens)):
+                self.tokens[i] = preprocess(self.tokens[i], self.ignore)
 
         # set up preprocessed output
         self.preprocessed_output = preprocess(self.output, self.ignore)
@@ -399,11 +378,9 @@ class TestCase():
         # set up normalized output
         self.normalized_output = preprocess(self.output, DEFAULT_OPS)
 
-        # setup expression to match tokens (so we do it once for all subjects)
-        self.tokens_expression = '|'.join(self.tokens) if self.tokens else ''
-
 
 def preprocess(text, operator_names):
+    if text is None: return None
 
     # add whites if punctuation is used
     if 'punctuation' in operator_names and 'whites' not in operator_names:
@@ -721,7 +698,7 @@ class DebugReporter(Reporter):
 
     @staticmethod
     def external_diff(result):
-        open('/tmp/input', encoding='utf-8', mode="w").write(result['input'])
+        open('/tmp/input', encoding='utf-8', mode="w").write(result['input'] or '')
         open('/tmp/output', encoding='utf-8', mode="w").write(result['output'])
         open('/tmp/stdout', encoding='utf-8', mode="w").write(result['stdout'])
 
@@ -838,7 +815,7 @@ def main():
             #cprint(YELLOW, _msg)
             pass
         except tst.jsonfile.CorruptedJsonFile as e:
-            _msg = " %s(invalid tst file)" % LRED
+            _msg = f"{LRED}invalid tst file: {filename}{RESET}"
             cprint(YELLOW, _msg)
 
     # make sure there are tests
