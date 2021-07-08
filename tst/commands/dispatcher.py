@@ -12,6 +12,7 @@ import tst
 from tst.colors import *
 from tst.utils import cprint
 
+config = tst.get_config()
 log = logging.getLogger('dispatcher')
 handler_file = logging.FileHandler(os.path.expanduser('~/.tst/logs'))
 handler_file.setFormatter(logging.Formatter('%(asctime)s|%(name)s|%(levelname)s|%(message)s'))
@@ -143,7 +144,6 @@ def main():
     try:
         args = sys.argv[:]
         args.pop(0) # pop dispatcher name
-        config = tst.get_config()
         dispatcher(args) 
     except KeyboardInterrupt:
         cprint(LRED, "\nUser interruption")
