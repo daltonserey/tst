@@ -141,6 +141,17 @@ def dispatcher(args):
 
 
 def main():
+    if os.name != "posix":
+        osplatform = f"{os.name}/{sys.platform}"
+        cprint(LRED, "┌────────────────────────────────────────────────────┐")
+        cprint(LRED, "│ Ops... sorry,                                      │")
+        cprint(LRED, "│ tst was designed to run on unix like sysyems       │")
+        cprint(LRED, "│ (unix, linux, macos, etc.)                         │")
+        cprint(LRED, "│                                                    │")
+        cprint(LRED, f"│ It seems your system is: {osplatform:26.26}│")
+        cprint(LRED, "└────────────────────────────────────────────────────┘")
+        sys.exit(1)
+        
     try:
         args = sys.argv[:]
         args.pop(0) # pop dispatcher name
