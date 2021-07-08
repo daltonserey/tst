@@ -204,6 +204,7 @@ class TestRun:
             input_data = ''
         self.result['input'] = self.testcase.input
         self.result['output'] = self.testcase.output
+        self.result['match'] = self.testcase.match
 
         # run the test (loop until succeeding)
         while True:
@@ -663,8 +664,9 @@ class DebugReporter(Reporter):
             print(LCYAN + f"\ntest {testresult['index']}: {self.testcases[i].type}" + RESET)
             if testresult['type'] == 'io':
                 print(LGREEN + "/tmp/input: " + RESET + repr(testresult['input']))
-                print(LGREEN + "/tmp/output: " + RESET + repr(testresult['output']))
+                testresult['output'] and print(LGREEN + "/tmp/output: " + RESET + repr(testresult['output']))
                 print(LGREEN + "/tmp/stdout: " + RESET + repr(testresult['stdout']))
+                testresult['match'] and print(LGREEN + "match: " + RESET + testresult['match'])
                 status_map = {v:k for k, v in STATUS_CODE.items()}
                 status = status_map.get(testresult["summary"])
                 print(LGREEN + f"summary:{RESET} {testresult['summary']} ({status})")

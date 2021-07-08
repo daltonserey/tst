@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 import codecs
 
 setup(name='tst',
-      version="0.12.0",
+      version="0.12.1",
       description='TST Student Testing',
       url='http://github.com/daltonserey/tst',
       author='Dalton Serey',
@@ -16,7 +16,7 @@ setup(name='tst',
       ],
       python_requires='>=3.6',
       install_requires=[
-        'pyyaml>=5.1',
+        'pyyaml>=5.4.1',
         'requests>=2.6.1',
         'cachecontrol[filecache]'
       ],
