@@ -49,7 +49,7 @@ def identify_and_run_command(args):
     elif args and find_executable('tst-%s' % args[0]):
         command_name = args.pop(0)
         run_external_command(command_name, args)
-            
+
     else: # neither internal, nor external command!?
         command_name = DEFAULT_COMMAND
         run_external_command(command_name, args)
@@ -143,18 +143,18 @@ def dispatcher(args):
 def main():
     if os.name != "posix":
         osplatform = f"{os.name}/{sys.platform}"
-        cprint(LRED, "┌────────────────────────────────────────────────────┐")
-        cprint(LRED, "│ Ops... sorry,                                      │")
-        cprint(LRED, "│ tst was designed to run on unix like sysyems       │")
-        cprint(LRED, "│ (unix, linux, macos, etc.)                         │")
-        cprint(LRED, "│                                                    │")
-        cprint(LRED, f"│ It seems your system is: {osplatform:26.26}│")
-        cprint(LRED, "└────────────────────────────────────────────────────┘")
+        print("┌────────────────────────────────────────────────────┐")
+        print("│ Ops... sorry,                                      │")
+        print("│ tst was designed to run on unix like sysyems       │")
+        print("│ (unix, linux, macos, etc.)                         │")
+        print("│                                                    │")
+        print(f"│ It seems your system is: {osplatform:26.26}│")
+        print("└────────────────────────────────────────────────────┘")
         sys.exit(1)
-        
+
     try:
         args = sys.argv[:]
         args.pop(0) # pop dispatcher name
-        dispatcher(args) 
+        dispatcher(args)
     except KeyboardInterrupt:
         cprint(LRED, "\nUser interruption")
