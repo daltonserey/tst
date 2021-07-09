@@ -13,6 +13,8 @@ from urllib.parse import urlparse
 
 from tst.colors import *
 from tst.utils import cprint
+from tst.utils import indent
+from tst.utils import print_hints
 from tst.utils import _assert
 from tst.utils import is_posix_filename
 from tst.utils import data2json
@@ -134,20 +136,23 @@ def checkout(site, key, target_dir, overwrite):
         cprint(LRED, 'Assignment not found')
         return
 
-    elif response.status_code == 412:
+    elif response.status_code in [400, 412]:
         cprint(LRED, 'Checkout failed (%s)' % site.last_response.status_code)
         cprint(LRED, 'Error: %s' % site.last_response.json()['messages'][0])
         return
 
     _assert(activity, "CANNOT checkout %s from site %s (%s)" % (key, site.name, response.status_code))
 
-    # set destination directory
-    destdir = target_dir or activity.get('dirname') or activity.get('name') or key
+    # prepare hints
+    hints = []
+
+    # target_dir can be defined from the server with dirname
+    target_dir = target_dir or activity.get('dirname')
+    destdir = str(target_dir or next((activity.get(p) for p in ['name', 'id', 'iid'] if activity.get(p)), None) or key)
     if not target_dir:
-        cprint(YELLOW, "Directory argument not found")
-        cprint(RESET, "(You can add directory as an additional argument)")
+        hints.append("use tst checkout <key> <dir> to save activity to directory <dir>")
         while True:
-            destdir = input("Provide directory name (default %s): " % destdir) or key
+            destdir = input("Type directory name (default '%s'): " % destdir) or destdir
             if is_posix_filename(destdir, extra_chars="/"): break
             cprint(YELLOW, "Invalid portable posix filename: '%s'" % destdir)
 
@@ -162,7 +167,7 @@ def checkout(site, key, target_dir, overwrite):
 
         cprint(YELLOW, "Proceed (y/N)? ", end="")
         if input() != "y":
-            cprint(LRED, 'Aborting checkout')
+            cprint(YELLOW, 'Checkout canceled by user')
             sys.exit(1)
 
     # save files
@@ -174,11 +179,15 @@ def checkout(site, key, target_dir, overwrite):
     internal = [{
         "name": ".tst/assignment.json",
         "content": data2json({
-            "kind": "assignment",
             "site": site.name,
             "key": key,
             "iid": activity.get('iid'),
             "user": activity.get('user'),
+            "dirname": activity.get('dirname'),
+            "full_resource": activity['_response'].json()
         })
     }]
+
+    print_hints(hints)
+
     tst.save_files(internal, destdir, verbose=False)

@@ -75,11 +75,6 @@ def dirtype(path=""):
     elif os.path.exists(path + '/.tst/collection.json'):
         return "collection"
 
-    # user content (old format)
-    elif os.path.exists(path + '/.tst/tst.json'):
-        kind = JsonFile(path + "/.tst/tst.json").get("kind", "")
-        return "old:" + kind
-
     # corrupted/incomplete content
     elif os.path.isdir(path + '/.tst') and not path == os.path.expanduser('~'):
         return "corrupted"
@@ -102,15 +97,12 @@ def validate_tst_object(json):
 
     assert 'files' in json, "missing files property"
     assert type(json) is dict, "json is not an object"
-    assert 'kind' in json, "missing kind property"
-    assert json['kind'] in ["assignment", "activity", "collection"], "unrecognized kind"
 
     files = json['files']
     assert all('content' in f for f in files), "missing content in file(s)"
     assert all('name' in f for f in files), "missing name in file(s)"
     assert all(is_posix_filename(f['name'], "/") for f in files), "non posix portable file(s) name(s)"
     assert all(is_valid_mode(f.get('mode')) for f in files), "invalid mode in file(s)"
-    #assert len(files) == len(set([f['name'] for f in files])), "repeated file names"
     if not (len(files) == len(set([f['name'] for f in files]))):
         filenames = [f['name'] for f in files]
         repeated = list(set([fn for fn in filenames if filenames.count(fn) > 1]))
@@ -363,7 +355,7 @@ class Site:
             return (None, response)
 
         except AssertionError as e:
-            _assert(False, "Not a TST Object: %s" % e.message)
+            _assert(False, "Invalid activity: %s" % str(e))
 
         return (resource, response)
 
@@ -439,7 +431,6 @@ class Site:
                 f['content'] = response.text
 
         return ({
-            'kind': 'activity',
             'files': files,
         }, response)
 

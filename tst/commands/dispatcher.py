@@ -27,7 +27,6 @@ EXTERNALS = [
 ]
 DEFAULT_COMMAND = "test"
 
-
 def run_external_command(command, args):
     script_name = os.path.expanduser("tst-%s" % command)
     args.insert(0, script_name)
@@ -156,5 +155,8 @@ def main():
         args = sys.argv[:]
         args.pop(0) # pop dispatcher name
         dispatcher(args)
+    except AssertionError as e:
+        cprint(LRED, e)
+
     except KeyboardInterrupt:
         cprint(LRED, "\nUser interruption")
