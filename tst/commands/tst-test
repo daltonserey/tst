@@ -23,8 +23,12 @@ import logging
 
 from tst.jsonfile import JsonFile
 import tst
-from tst.utils import _assert, data2json
-from tst.utils import cprint, to_unicode
+from tst.utils import _assert
+from tst.utils import data2json
+from tst.utils import to_unicode
+from tst.utils import cprint
+from tst.utils import indent
+from tst.utils import print_hints
 from tst.colors import *
 
 from subprocess import Popen, PIPE, check_output, CalledProcessError
@@ -493,12 +497,6 @@ class StatusLine:
         self.lastline = ''
 
 
-def indent(text):
-    lines = text.splitlines()
-    text = "\n".join(["    %s" % l for l in lines])
-    return text
-
-
 def color(color, text):
     reset = RESET
     if REDIRECTED:
@@ -865,19 +863,17 @@ def main():
 
     if script_errors and not options['errors'] and style != 'debug':
         cprint(YELLOW, f"{len(script_errors)} test scripts failed")
-        hints.append('(use "tst --script-errors" or "tst -e" to print fails)')
+        hints.append('use "tst --script-errors" or "tst -e" to print fails')
 
     if options.get('errors'):
         print_script_errors(script_errors)
 
     if len(subjects) == 1:
-        hints.append('(use "tst -n <n1>,<n2>..." to run only tests number <n1>, <n2> ...)')
+        hints.append('use "tst -n <n1>,<n2>..." to run only tests number <n1>, <n2> ...')
     else:
-        hints.append('(use "tst <string>" to test only files matching string)')
+        hints.append('use "tst <string>" to test only files matching string')
 
-    if hints:
-        print()
-        cprint(LCYAN, indent("\n".join(hints)) + "\n")
+    print_hints(hints)
 
 class ColorizingStreamHandler(logging.StreamHandler):
     colors_map = {

@@ -13,6 +13,20 @@ import logging
 from .colors import *
 
 
+def indent(text):
+    lines = text.splitlines()
+    text = "\n".join(["    %s" % l for l in lines])
+    return text
+
+
+def print_hints(hints):
+    if hints:
+        print(file=sys.stderr)
+        for h in hints:
+            cprint(LCYAN, indent("(%s)" % h), file=sys.stderr)
+        print(file=sys.stderr)
+
+
 def is_posix_filename(name, extra_chars=""):
     CHARS = string.ascii_letters + string.digits + "._-" + extra_chars
     return all(c in CHARS for c in name)
