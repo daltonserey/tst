@@ -5,12 +5,12 @@ from __future__ import unicode_literals
 
 from builtins import input
 
-import tst
 import sys
 import os
 
 from urllib.parse import urlparse
 
+import tst
 from tst.colors import *
 from tst.utils import cprint
 from tst.utils import indent
@@ -50,7 +50,7 @@ def process_args(args):
     if len(args) == 0:
         ## no args: use current directory
         cwd = os.getcwd()
-        _assert(tst.dirtype(cwd) == "assignment", "This directory is not a tst activity")
+        _assert(tst.dirtype(cwd) == "assignment", f"error: no activity in {cwd}")
         args.append(os.path.basename(cwd))
         args.append(".")
 
@@ -104,6 +104,72 @@ def process_args(args):
     return site, data['key'], data['destdir'], overwrite
 
 
+def save_file(filename, content, mode):
+    def octal_mode(mode):
+        return {
+            (False , False): 0o444,
+            (False ,  True): 0o555,
+            (True  , False): 0o644,
+            (True  ,  True): 0o755
+        }["w" in mode, "x" in mode]
+
+    subdirs = os.path.dirname(filename)
+    if not os.path.isdir(subdirs):
+        os.makedirs(subdirs)
+
+    with open(filename, encoding="utf-8", mode="w") as f:
+        f.write(content)
+
+    os.chmod(filename, octal_mode(mode))
+
+
+def save_selected_files(savetable, verbose=True):
+    for i in range(len(savetable)):
+        line = savetable[i]
+        if line[2] == 'unchanged':
+            savetable[i][3] = 'skipped'
+            continue
+
+        try:
+            filename = line[1]
+            if os.path.exists(filename):
+                os.chmod(filename, 0o644)
+
+            mode = line[0].get('mode', '644')
+            save_file(filename, line[0]['content'], mode)
+            savetable[i][3] = 'saved'
+
+        except (IOError, OSError) as e:
+            savetable[i][3] = 'failed'
+            assert False, f"CRITICAL ERROR: failed saving file '{line[1]}'"
+
+
+def get_save_table(files, basedir):
+    """
+    Return a table that helps saving files to FS.
+    Each line of the table has 4 columns:
+    - the file itself
+    - the filename to be saved to
+    - the situation wrt to current FS: notfound, unchanged, changed
+    - an empty cell to write the final status after saving
+    """
+    savetable = []
+    for f in files:
+        save_name = "%s/%s" % (basedir, f['name'])
+        if not os.path.exists(save_name):
+            savetable.append([f, save_name, 'notfound', None])
+        else:
+            # a version of the file already exists
+            old_contents = open(save_name, encoding='utf-8').read()
+            new_contents = f['content']
+            if old_contents == new_contents:
+                savetable.append([f, save_name, 'unchanged', None])
+            else:
+                savetable.append([f, save_name, 'changed', None])
+
+    return savetable
+
+
 def existing_files(basedir, files):
     filenames = []
     for f in files:
@@ -114,7 +180,7 @@ def existing_files(basedir, files):
     return filenames
 
 
-def checkout(site, key, target_dir, overwrite):
+def checkout(site, key, target_dir, overwrite_allowed):
     """checkout activity/assignment from site/collection"""
 
     def is_valid_dir(dirtype):
@@ -158,36 +224,40 @@ def checkout(site, key, target_dir, overwrite):
 
     _assert(not os.path.exists(destdir) or (os.path.isdir(destdir) and is_valid_dir(tst.dirtype(destdir))), "Invalid target directory: %s" % destdir)
 
-    # check whether files exist
-    old_files = existing_files(destdir, activity['files'])
-    if old_files and not overwrite:
-        cprint(YELLOW, "If you proceed, these files will be overwriten")
-        for fn in old_files:
-            cprint(LCYAN, fn)
+    # analyze what must be saved to FS
+    savetable = get_save_table(activity['files'], destdir)
+    num_to_overwrite = 0
+    for line in savetable:
+        if line[2] == 'changed':
+            num_to_overwrite += 1
+            if not overwrite_allowed: cprint(LRED, f"{line[1]}")
 
-        cprint(YELLOW, "Proceed (y/N)? ", end="")
+    if num_to_overwrite and not overwrite_allowed:
+        cprint(YELLOW, "These files must be overwritten! Confirm? (y/N)? ", end="")
         if input() != "y":
             cprint(YELLOW, 'Checkout canceled by user')
             sys.exit(1)
 
-    # save files
-    saved = tst.save_files(activity['files'], destdir)
-    cprint(LBLUE, "%d files saved to %s%s%s directory" % (saved, LCYAN, destdir, LBLUE))
-    if len(activity['files']) > saved:
-        cprint(YELLOW, "%d files were NOT saved" % (len(activity['files']) - saved))
+    # save 'notfound' and 'changed' files
+    save_selected_files(savetable)
+    num_skipped, num_saved = 0, 0
+    for line in savetable:
+        if line[3] == 'skipped':
+            cprint(RESET, f"U {line[1]}")
+            num_skipped += 1
+        elif line[3] == 'saved':
+            cprint(LCYAN, f"W {line[1]}")
+            num_saved += 1
 
-    internal = [{
-        "name": ".tst/assignment.json",
-        "content": data2json({
+    cprint(LGREEN, f"{num_saved} file(s) saved")
+
+    content = data2json({
             "site": site.name,
             "key": key,
             "iid": activity.get('iid'),
             "user": activity.get('user'),
             "dirname": activity.get('dirname'),
-            "full_resource": activity['_response'].json()
+            "full_resource": activity['_response'].json() if '_response' in activity else None
         })
-    }]
-
+    save_file(f'{destdir}/.tst/assignment.json', content, "rw")
     print_hints(hints)
-
-    tst.save_files(internal, destdir, verbose=False)

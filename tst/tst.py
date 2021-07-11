@@ -110,50 +110,6 @@ def validate_tst_object(json):
         logging.warning(msg)
 
 
-def save_file(filename, content, mode):
-    def octal_mode(mode):
-        return {
-            (False , False): 0o444,
-            (False ,  True): 0o555,
-            (True  , False): 0o644,
-            (True  ,  True): 0o755
-        }["w" in mode, "x" in mode]
-
-    subdirs = os.path.dirname(filename)
-    if not os.path.isdir(subdirs):
-        os.makedirs(subdirs)
-
-    with io.open(filename, encoding="utf-8", mode="w") as f:
-        f.write(content)
-
-    os.chmod(filename, octal_mode(mode))
-
-
-def save_files(files, basedir, verbose=True):
-    saved = 0
-    for f in files:
-        filename = basedir + "/" + f['name']
-        mode = f.get('mode', '644')
-
-        try:
-            if os.path.exists(filename):
-                os.chmod(filename, 0o644)
-
-            verbose and cprint(LGREEN, "W %s" % filename)
-            save_file(filename, f['content'], mode)
-            saved += 1
-
-        except IOError as e:
-            cprint(LRED, e)
-            cprint(LRED, "Failed saving file: '%s'" % f['name'])
-
-        except OSError as e:
-            cprint(YELLOW, e)
-            cprint(LRED, "Failed setting file mode: '%s'" % f['name'])
-
-    return saved
-
-
 def parse_file_spec(fspec):
 
     # normalize fspec
