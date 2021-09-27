@@ -661,15 +661,15 @@ class DebugReporter(Reporter):
 
             print(LCYAN + f"\ntest {testresult['index']}: {self.testcases[i].type}" + RESET)
             if testresult['type'] == 'io':
-                print(LGREEN + "/tmp/input: " + RESET + repr(testresult['input']))
-                testresult['output'] and print(LGREEN + "/tmp/output: " + RESET + repr(testresult['output']))
-                print(LGREEN + "/tmp/stdout: " + RESET + repr(testresult['stdout']))
+                print(LGREEN + "input: " + RESET + repr(testresult['input']))
+                testresult['output'] and print(LGREEN + "output: " + RESET + repr(testresult['output']))
                 testresult['match'] and print(LGREEN + "match: " + RESET + testresult['match'])
+                print(LGREEN + "stdout: " + RESET + repr(testresult['stdout']))
                 status_map = {v:k for k, v in STATUS_CODE.items()}
                 status = status_map.get(testresult["summary"])
                 print(LGREEN + f"summary:{RESET} {testresult['summary']} ({status})")
 
-                if self.options.get('diff'):
+                if testresult['output'] and self.options.get('diff'):
                     print(DebugReporter.external_diff(testresult))
 
                 if self.options.get('compare'):
@@ -699,8 +699,8 @@ class DebugReporter(Reporter):
     @staticmethod
     def external_diff(result):
         open('/tmp/input', encoding='utf-8', mode="w").write(result['input'] or '')
-        open('/tmp/output', encoding='utf-8', mode="w").write(result['output'])
-        open('/tmp/stdout', encoding='utf-8', mode="w").write(result['stdout'])
+        open('/tmp/output', encoding='utf-8', mode="w").write(result['output'] or '')
+        open('/tmp/stdout', encoding='utf-8', mode="w").write(result['stdout'] or '')
 
         try:
             command = tst.get_config().get('diff', 'diff').split() + ["/tmp/stdout", "/tmp/output"]
