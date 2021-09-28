@@ -801,15 +801,17 @@ def main():
 
     # read tests
     hints = []
-    tests = []
+    number_of_tests = 0
     test_suites = []
     for filename in test_files:
         options['messages'] and cprint(LCYAN, "Reading %s:" % filename, end='')
         try:
             testsfile = JsonFile(filename, array2map="tests")
             options['messages'] and cprint(LGREEN, " %s tests" % len(testsfile.get("tests", [])))
-            tests.extend(testsfile["tests"])
-            test_suites.append((filename, testsfile["tests"], testsfile.get('level', 0)))
+            number_of_tests += len(testsfile['tests'])
+            #test_suites.append((filename, testsfile["tests"], testsfile.get('level', 0)))
+            test_cases = [TestCase(t) for t in testsfile["tests"]]
+            test_suites.append((filename, test_cases, testsfile.get('level', 0)))
         except KeyError as e:
             #_msg = " %s✗%s (no tests found)" % (LRED, YELLOW)
             #cprint(YELLOW, _msg)
@@ -819,7 +821,7 @@ def main():
             cprint(YELLOW, _msg)
 
     # make sure there are tests
-    _assert(tests, '0 tests found')
+    _assert(number_of_tests, '0 tests found')
     _assert(any(tests for _, tests, _ in test_suites), '0 tests found')
     test_suites.sort(key=lambda ts: ts[2])
 
@@ -831,21 +833,19 @@ def main():
     files2test.sort()
     _assert(files2test, 'No files to test')
 
-    # read subjects and testcases
+    # read subjects
     subjects = [TestSubject(fn) for fn in files2test]
-    testcases = [TestCase(t) for t in tests]
 
     # identify style
     style = options['report-style']
     style = style or tst.get_config().get('report-style') or ('debug' if len(subjects) == 1 else None)
 
     reporter = Reporter.get(style=style, options=options)
-    reporter.num_tests = len(subjects) * len(testcases)
+    reporter.num_tests = len(subjects) * number_of_tests
     count, script_errors = 0, []
     for subject in subjects:
-        for suite, tests, level in test_suites:
-            if not tests: continue
-            testcases = [TestCase(t) for t in tests]
+        for suite, testcases, level in test_suites:
+            if not testcases: continue
             for testcase in testcases:
                 count += 1
                 if options['number'] and str(count) not in options['number']: continue
