@@ -2,8 +2,8 @@ from setuptools import setup, find_packages
 import codecs
 
 setup(name='tst',
-      version="0.12.5.dev0",
-      description='TST Student Testing',
+      version="0.13.0.dev0",
+      description='TST Simple Test Runner',
       url='http://github.com/daltonserey/tst',
       author='Dalton Serey',
       author_email='daltonserey@gmail.com',
