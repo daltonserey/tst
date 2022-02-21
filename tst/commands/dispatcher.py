@@ -1,8 +1,3 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import os
 import sys
 import logging
@@ -22,8 +17,6 @@ log.setLevel(logging.DEBUG)
 EXTERNALS = [
     "test",
     "status",
-    "new",
-    "delete",
 ]
 DEFAULT_COMMAND = "test"
 
@@ -66,74 +59,9 @@ def dispatcher(args):
         import tst.commands.info as info
         info.main()
 
-    elif possible_command == 'login':
-        import tst.commands.login as login
-        login.main()
-
     elif possible_command == 'ls':
         import tst.commands.ls as ls
         ls.main()
-
-    elif possible_command == 'commit':
-        dirtype = tst.dirtype()
-        if dirtype == "old:activity":
-            cprint(LRED, "┌──────────────────────────────────────────────────────────┐")
-            cprint(LRED, "│ Oops...                                                  │")
-            cprint(LRED, "│                                                          │")
-            cprint(LRED, "│ This directory contains an activity in an old format. It │")
-            cprint(LRED, "│ is no longer supported, however. Consider discarding     │")
-            cprint(LRED, "│ this directory and performing a new checkout of the same │")
-            cprint(LRED, "│ activity from the source site to have it updated to the  │")
-            cprint(LRED, "│ latest version and current format.                       │")
-            cprint(LRED, "└──────────────────────────────────────────────────────────┘")
-            sys.exit(1)
-
-        elif dirtype in ["assignment", None]:
-            import tst.commands.commit as commit
-            commit.main()
-
-        else:
-            cprint(LRED, "No assignment found in this directory")
-            sys.exit(1)
-
-    elif possible_command == 'checkout':
-        dirtype = tst.dirtype()
-        if dirtype == "old:activity":
-            cprint(YELLOW, "┌─────────────────────────────────────────────────────────┐")
-            cprint(YELLOW, "│ IMPORTANT                                               │")
-            cprint(YELLOW, "│                                                         │")
-            cprint(YELLOW, "│ This is an old style activity. The old checkout command │")
-            cprint(YELLOW, "│ will be used.                                           │")
-            cprint(YELLOW, "└─────────────────────────────────────────────────────────┘")
-            run_external_command("checkout", args[1:])
-
-        elif dirtype not in [None, "assignment"]:
-            cprint(LRED, "┌───────────────────────────────────────────────┐")
-            cprint(LRED, "│ checkout cannot be executed in this directory │")
-            cprint(LRED, "│                                               │")
-            cprint(LRED, "│ Currently, the checkout command must be used  │")
-            cprint(LRED, "│ in a non tst directory.                       │")
-            cprint(LRED, "└───────────────────────────────────────────────┘")
-
-        else:
-            import tst.commands.checkout as checkout
-            checkout.main()
-
-    elif possible_command == 'update':
-        cprint(LRED, "┌─────────────────────────────────────┐")
-        cprint(LRED, "│ update is deprecated                │")
-        cprint(LRED, "│                                     │")
-        cprint(LRED, "│ Use pip to update tst:              │")
-        cprint(LRED, "│ $ pip install tst --upgrade --user  │")
-        cprint(LRED, "└─────────────────────────────────────┘")
-
-    elif possible_command == 'config':
-        cprint(LRED, "┌────────────────────────────────────────────────────┐")
-        cprint(LRED, "│ config is deprecated                               │")
-        cprint(LRED, "│                                                    │")
-        cprint(LRED, "│ Edit ~/.tst/config.yaml directly to configure tst. │")
-        cprint(LRED, "│ See documentation to see existing options.         │")
-        cprint(LRED, "└────────────────────────────────────────────────────┘")
 
     else:
         command = identify_and_run_command(args)
