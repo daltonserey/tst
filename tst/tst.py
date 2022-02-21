@@ -38,7 +38,9 @@ def get_config():
             config_file.write(
                 "run:\n"
                 "  py: python3\n"
-                "  py2: python2\n\n"
+                "  py2: python2\n"
+                "  js: node\n"
+                "  mjs: node\n\n"
                 "sites:\n"
                 "- name: demo\n"
                 "  url: https://raw.githubusercontent.com/daltonserey/tst-demo/master\n"

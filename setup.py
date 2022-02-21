@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 import codecs
 
 setup(name='tst',
-      version="0.13.0.dev2",
+      version="0.13.3",
       description='TST Simple Test Runner',
       url='http://github.com/daltonserey/tst',
       author='Dalton Serey',

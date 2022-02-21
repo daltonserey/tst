@@ -28,7 +28,6 @@ from tst.utils import data2json
 from tst.utils import to_unicode
 from tst.utils import cprint
 from tst.utils import indent
-from tst.utils import print_hints
 from tst.colors import *
 
 from subprocess import Popen, PIPE, check_output, CalledProcessError
@@ -800,7 +799,6 @@ def main():
         _assert(glob.glob(pattern), "Missing required files for this test: %s" % pattern)
 
     # read tests
-    hints = []
     number_of_tests = 0
     test_suites = []
     for filename in test_files:
@@ -863,17 +861,9 @@ def main():
 
     if script_errors and not options['errors'] and style != 'debug':
         cprint(YELLOW, f"{len(script_errors)} test scripts failed")
-        hints.append('use "tst --script-errors" or "tst -e" to print fails')
 
     if options.get('errors'):
         print_script_errors(script_errors)
-
-    if len(subjects) == 1:
-        hints.append('use "tst -n <n1>,<n2>..." to run only tests number <n1>, <n2> ...')
-    else:
-        hints.append('use "tst <string>" to test only files matching string')
-
-    print_hints(hints)
 
 class ColorizingStreamHandler(logging.StreamHandler):
     colors_map = {
