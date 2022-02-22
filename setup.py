@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(name='tst',
-      version="0.13.5",
+      version="0.13.6.dev0",
       description='TST Simple Test Runner',
       url='http://github.com/daltonserey/tst',
       author='Dalton Serey',

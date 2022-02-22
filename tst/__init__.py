@@ -1,5 +1,4 @@
 from .utils import _assert, cprint
-import tst.popargs
 from .colors import *
 
 from .tst import coverit

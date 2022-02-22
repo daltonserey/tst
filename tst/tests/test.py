@@ -4,18 +4,6 @@ import os
 import tst
 from tst.jsonfile import JsonFile
 
-import contextlib
-
-@contextlib.contextmanager
-def monkey_patch(module, fn_name, patch):
-    unpatch = getattr(module, fn_name)
-    setattr(module, fn_name)
-    try:
-        yield
-    finally:
-        setattr(module, fn_name, unpatch)
-
-
 class TestMethods(unittest.TestCase):
 
     @classmethod

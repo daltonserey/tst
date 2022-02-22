@@ -265,8 +265,6 @@ class TestSubject:
 
     def __init__(self, filename):
         self.filename = filename
-        self._io_results = ''
-        self.analyzer_results = ''
         self.testruns = []
         self._results = None
         self._summaries = None
@@ -282,21 +280,6 @@ class TestSubject:
     def add_testrun(self, testrun):
         self.testruns.append(testrun)
         self._summaries = None
-
-    def summaries(self, join_io=False):
-        if not self._summaries:
-            iosummaries = []
-            self._summaries = []
-            for tr in self.results():
-                if join_io and tr['type'] == 'io':
-                    iosummaries.append(tr['summary'])
-                else:
-                    self._summaries.append(tr['summary'])
-
-            if iosummaries:
-                self._summaries.insert(0, ''.join(iosummaries))
-
-        return self._summaries
 
     def summary(self):
         status_codes = [tr['summary'] for tr in self.results()]
@@ -349,7 +332,7 @@ class TestCase():
 
         # identify tokens within the expected output
         if not self.tokens and self.output and '{{' in self.output:
-            p = r'{{(.*?)}}' # r'{{.*?}}|\[\[.*?\]\]'
+            p = r'{{(.*?)}}'
             self.tokens = re.findall(p, self.output)
             # remove tokens' markup from expected output
             self.output = re.sub(p, lambda m: m.group(0)[2:-2], self.output)
@@ -361,9 +344,6 @@ class TestCase():
 
         # set up preprocessed output
         self.preprocessed_output = preprocess(self.output, self.ignore)
-
-        # set up normalized output
-        self.normalized_output = preprocess(self.output, DEFAULT_OPS)
 
 
 def preprocess(text, operator_names):
@@ -434,7 +414,6 @@ def strip_accents(text):
 
 
 OPERATOR = {
-    # 2to3: 'case': string.lower,
     'case': lambda c: c.lower(),
     'accents': strip_accents,
     'extra_whites': squeeze_whites,
@@ -443,7 +422,6 @@ OPERATOR = {
     'whites': drop_whites, # not default
 }
 
-DEFAULT_OPS = ['case', 'accents', 'extra_whites']
 
 class CutTimeOut(Exception): pass
 
@@ -593,7 +571,6 @@ class FilterReporter(Reporter):
     def print_report(self):
         summary = self._summaries()
         if not self.filtro(re.sub("[ |]", "", summary)): return
-        self._filtered = True
         line = '%s%s' % (summary, self.current_subject.filename)
         print(line, file=sys.stderr)
 
@@ -626,7 +603,6 @@ class DebugReporter(Reporter):
 
         if summary.count('.') == len(summary): return
 
-        num_reported = 0
         for i in range(len(self.testcases)):
             if self.testresults[i]['summary'] == len(self.testresults[i]['summary']) * '.': continue
             testresult = self.testresults[i]
@@ -666,8 +642,6 @@ class DebugReporter(Reporter):
             else:
                 log.warning('unrecognized test type')
 
-            num_reported += 1
-            #if num_reported == self.max_fails: break
 
     @staticmethod
     def external_diff(result):
@@ -776,7 +750,6 @@ def main():
             testsfile = JsonFile(filename, array2map="tests")
             options['messages'] and cprint(LGREEN, " %s tests" % len(testsfile.get("tests", [])))
             number_of_tests += len(testsfile['tests'])
-            #test_suites.append((filename, testsfile["tests"], testsfile.get('level', 0)))
             test_cases = [TestCase(t) for t in testsfile["tests"]]
             test_suites.append((filename, test_cases, testsfile.get('level', 0)))
 
@@ -785,8 +758,6 @@ def main():
             cprint(YELLOW, _msg)
 
         except KeyError as e:
-            #_msg = " %s✗%s (no tests found)" % (LRED, YELLOW)
-            #cprint(YELLOW, _msg)
             pass
 
     # make sure there are tests
@@ -814,7 +785,8 @@ def main():
     reporter.num_tests = len(subjects) * number_of_tests
     count, script_errors = 0, []
     for subject in subjects:
-        for suite, testcases, level in test_suites:
+        for ts in test_suites:
+            testcases = ts[1]
             if not testcases: continue
             for testcase in testcases:
                 count += 1

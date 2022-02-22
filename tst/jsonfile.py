@@ -62,7 +62,6 @@ class JsonFile(object):
         self.filename = filename
         self.writable = writable
         self.isjson = filename.endswith("json")
-        self.isyaml = filename.endswith("yaml") or filename.endswith("yml")
         
         if os.path.exists(filename):
             self.load(failmsg=failmsg, exit_on_fail=exit_on_fail)
@@ -125,16 +124,6 @@ class JsonFile(object):
                     print(failmsg or DEFAULT_FAIL_MESSAGE, file=sys.stderr)
 
                 raise CorruptedJsonFile("unrecognized file")
-
-
-    def save(self):
-        assert self.writable, "jsonfile: cannot save a non writable JsonFile"
-        with io.open(self.filename, mode="w", encoding='utf-8') as f:
-            f.write(json.dumps(
-                self.data,
-                indent=2,
-                separators=(',', ': ')
-            ))
 
 
     def get(self, key, default=None):

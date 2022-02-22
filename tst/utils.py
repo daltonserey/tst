@@ -14,19 +14,6 @@ def indent(text):
     return text
 
 
-def print_hints(hints):
-    if hints:
-        print(file=sys.stderr)
-        for h in hints:
-            cprint(LCYAN, indent("(%s)" % h), file=sys.stderr)
-        print(file=sys.stderr)
-
-
-def is_posix_filename(name, extra_chars=""):
-    CHARS = string.ascii_letters + string.digits + "._-" + extra_chars
-    return all(c in CHARS for c in name)
-
-
 def cprint(color, msg, file=sys.stderr, end='\n'):
     if type(msg) is str:
         data = msg
