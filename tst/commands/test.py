@@ -579,12 +579,8 @@ class Reporter(object):
 
     def print_report(self):
         summary = self._summaries()
-        subject_format = self.options.get('format')
-        if subject_format and self.options['format'][0] == ':':
-            fnformat = self.options['format'][1:]
-            line = f'{self.current_subject.filename:{fnformat}} {summary}'
-        else:
-            line = f'{self.current_subject.filename} {summary}'
+        width = min(self.options["max_fn_width"], os.get_terminal_size()[0] - len(summary) - 1)
+        line = f'{self.current_subject.filename:{width}.{width}s} {summary}'
         print(line, file=sys.stderr)
 
 
@@ -625,12 +621,7 @@ class DebugReporter(Reporter):
 
     def print_report(self):
         summary = self._summaries()
-        subject_format = self.options.get('format')
-        if subject_format and self.options['format'][0] == ':':
-            fnformat = self.options['format'][1:]
-            line = f'{self.current_subject.filename:{fnformat}} {summary}'
-        else:
-            line = f'{self.current_subject.filename} {summary}'
+        line = f'{self.current_subject.filename} {summary}'
         print(line, file=sys.stderr)
 
         if summary.count('.') == len(summary): return
@@ -721,7 +712,6 @@ def parse_cli():
     parser.add_argument('-d', '--diff', action="store_true", default=False, help='output failed testcases and expected output diff')
     parser.add_argument('-c', '--compare', action="store_true", default=False, help='output failed testcases and expected output color comparison')
 
-    parser.add_argument('-f', '--subject-format', type=str, help='set subject filename format')
     parser.add_argument('-s', '--report-style', type=str, choices=['debug', 'passed', 'failed', 'worker'], help='choose report style')
     parser.add_argument('filename', nargs='*', default=[''])
     args = parser.parse_args()
@@ -735,7 +725,6 @@ def parse_cli():
     else:
         files2test = args.filename
 
-    _assert(not args.subject_format or args.subject_format[0] == ':', f"invalid format: {repr(args.subject_format)}")
     _assert(not (args.diff or args.compare) or args.report_style in [None, 'debug'], 'diff and compare implies debug format')
 
     # identify test files (files containing tests)
@@ -750,7 +739,6 @@ def parse_cli():
         "timeout": args.timeout,
         "messages": args.messages,
         "errors": args.script_errors,
-        "format": args.subject_format,
         "report-style": args.report_style,
         "diff": args.diff,
         "compare": args.compare,
@@ -816,6 +804,7 @@ def main():
     files2test = [f for f in files2test if any(f.endswith(e) for e in extensions) and f not in ignore_files]
     files2test.sort()
     _assert(files2test, 'No files to test')
+    options["max_fn_width"] = max(len(fn) for fn in files2test)
 
     # read subjects
     subjects = [TestSubject(fn) for fn in files2test]
