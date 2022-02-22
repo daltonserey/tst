@@ -7,10 +7,11 @@ PYTHONPATH := $(PKG_INSTALL_DIR)/$(PYTHON_PKG_DIR)
 VENV?=venv
 INSTALLED=$(VENV)/installed
 PYTHON=$(VENV)/bin/python3
+TWINE=$(VENV)/bin/twine
 PIP=$(PYTHON) -m pip
 
 help:
-	@echo "uso: make [venv | test | vars | install]"
+	@echo "uso: make [ venv | clean | test | vars | install ]"
 
 vars:
 	echo SHELL = $(SHELL)
@@ -36,13 +37,16 @@ dist: requirements.txt
 	python3 setup.py build -e"/usr/bin/env python3"
 
 clean:
+	python3 setup.py clean --all
+	find . -type f -name "*.pyc" -exec rm '{}' +
+	find . -type d -name "__pycache__" -exec rmdir '{}' +
 	rm -rf venv
 	rm -rf build
 	rm -rf dist
-	rm -rf tst.egg-info
+	rm -rf *.egg-info .coverage
 
 uptest: clean dist
-	python -m twine upload --repository-url https://test.pypi.org/legacy/ dist/* --skip-existing
+	$(PYTHON) -m twine upload --repository-url https://test.pypi.org/legacy/ dist/* --skip-existing
 
 upload: venv dist
-	twine upload dist/*
+	$(PYTHON) -m twine upload dist/*
