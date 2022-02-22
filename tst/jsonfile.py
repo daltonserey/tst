@@ -27,6 +27,7 @@ import io
 import sys
 import os
 import json
+import yaml
 
 def to_unicode(obj, encoding='utf-8'):
     # 2to3: assert isinstance(obj, basestring), type(obj)
@@ -113,20 +114,17 @@ class JsonFile(object):
                 raise CorruptedJsonFile("corrupted specification file")
 
         else:
-            import yaml
             try:
-                with io.open(self.filename, mode='r', encoding='utf-8') as f:
-                    self.data = yaml.load(to_unicode(f.read()), Loader=yaml.FullLoader)
+                with open(self.filename, mode='r', encoding='utf-8') as f:
+                    self.data = yaml.load(f.read(), Loader=yaml.FullLoader)
                     if self.data is None:
                         raise ValueError()
 
-            except (ValueError, yaml.scanner.ScannerError) as e:
+            except (yaml.parser.ParserError, yaml.scanner.ScannerError, ValueError) as e:
                 if exit_on_fail or failmsg:
                     print(failmsg or DEFAULT_FAIL_MESSAGE, file=sys.stderr)
-                    sys.exit()
 
                 raise CorruptedJsonFile("unrecognized file")
-
 
 
     def save(self):

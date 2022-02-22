@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(name='tst',
-      version="0.13.4.dev4",
+      version="0.13.4.dev5",
       description='TST Simple Test Runner',
       url='http://github.com/daltonserey/tst',
       author='Dalton Serey',
@@ -11,7 +11,6 @@ setup(name='tst',
       include_package_data=True,
       scripts=[
         'bin/runjava',
-        'tst/commands/tst-test',
       ],
       python_requires='>=3.6',
       install_requires=[

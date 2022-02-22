@@ -1,7 +1,3 @@
-#!/usr/bin/env python3
-# TST test
-# (c) 2012-2016 Dalton Serey, UFCG
-
 from builtins import str
 import os
 import re
@@ -57,7 +53,7 @@ STATUS_CODE = {
     'NameError': 'n',
 }
 
-def alarm_handler(signum, frame):
+def alarm_handler(_1, _2):
     raise CutTimeOut
 
 signal.signal(signal.SIGALRM, alarm_handler)
@@ -774,6 +770,7 @@ def print_script_errors(script_errors):
         if stdout: cprint(YELLOW, f'stdout:')
         if stdout: cprint(LRED, f'{stdout}')
 
+
 def main():
     # parse command line
     activity, files2test, test_files, options = parse_cli()
@@ -797,13 +794,15 @@ def main():
             #test_suites.append((filename, testsfile["tests"], testsfile.get('level', 0)))
             test_cases = [TestCase(t) for t in testsfile["tests"]]
             test_suites.append((filename, test_cases, testsfile.get('level', 0)))
+
+        except tst.jsonfile.CorruptedJsonFile as e:
+            _msg = f"{LRED}invalid tst file: {filename}{RESET}"
+            cprint(YELLOW, _msg)
+
         except KeyError as e:
             #_msg = " %s✗%s (no tests found)" % (LRED, YELLOW)
             #cprint(YELLOW, _msg)
             pass
-        except tst.jsonfile.CorruptedJsonFile as e:
-            _msg = f"{LRED}invalid tst file: {filename}{RESET}"
-            cprint(YELLOW, _msg)
 
     # make sure there are tests
     _assert(number_of_tests, '0 tests found')
@@ -881,31 +880,11 @@ class ColorizingStreamHandler(logging.StreamHandler):
         return message
 
 
-if __name__ == '__main__':
-    config = tst.get_config()
-
-    log = logging.getLogger('tst-test')
-    log.setLevel(logging.DEBUG)
-
-    handler_file = logging.FileHandler(os.path.expanduser('~/.tst/logs'))
-    handler_file.setFormatter(logging.Formatter('%(asctime)s|%(name)s|%(levelname)s|%(message)s'))
-    log.addHandler(handler_file)
-
-    log.info(f"CWD={os.getcwd()}")
-
-    handler_console = ColorizingStreamHandler()
-    log.addHandler(handler_console)
-
-    if len(sys.argv) > 1 and sys.argv[1] == '--one-line-help':
-        print('run tests specified in tst.json')
-        sys.exit(0)
-
-    try:
-        main()
-    except KeyboardInterrupt:
-        log.info('tst-test: user interrupted')
-    except Exception:
-        log.critical('sorry... critical error')
-        log.removeHandler(handler_console)
-        log.exception('oops... an error occurred')
-        sys.exit(1)
+log = logging.getLogger('tst-test')
+log.setLevel(logging.DEBUG)
+handler_file = logging.FileHandler(os.path.expanduser('~/.tst/logs'))
+handler_file.setFormatter(logging.Formatter('%(asctime)s|%(name)s|%(levelname)s|%(message)s'))
+log.addHandler(handler_file)
+log.info(f"CWD={os.getcwd()}")
+handler_console = ColorizingStreamHandler()
+log.addHandler(handler_console)

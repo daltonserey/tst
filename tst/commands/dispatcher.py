@@ -2,6 +2,7 @@ import os
 import sys
 import logging
 from subprocess import check_call, CalledProcessError
+from distutils.spawn import find_executable
 
 import tst
 from tst.colors import *
@@ -14,11 +15,6 @@ handler_file.setFormatter(logging.Formatter('%(asctime)s|%(name)s|%(levelname)s|
 log.addHandler(handler_file)
 log.setLevel(logging.DEBUG)
 
-EXTERNALS = [
-    "test",
-    "status",
-]
-DEFAULT_COMMAND = "test"
 
 def run_external_command(command, args):
     script_name = os.path.expanduser("tst-%s" % command)
@@ -32,39 +28,22 @@ def run_external_command(command, args):
         print("tst: couldn't run command '%s'" % command, file=sys.stderr)
 
 
-def identify_and_run_command(args):
-    from distutils.spawn import find_executable
-    if args and (args[0] in EXTERNALS):
-        command_name = args.pop(0)
-        run_external_command(command_name, args)
-
-    elif args and find_executable('tst-%s' % args[0]):
-        command_name = args.pop(0)
-        run_external_command(command_name, args)
-
-    else: # neither internal, nor external command!?
-        command_name = DEFAULT_COMMAND
-        run_external_command(command_name, args)
-
-    return command_name
-
-
 def dispatcher(args):
-    possible_command = args[0] if args else None
-    if possible_command in ['--version', '-v', 'version']:
+    args.pop(0) # pop script name
+
+    first_arg = args[0] if args else None
+    if first_arg in ['--version', '-v', 'version']:
         import tst.commands.version as version
         version.main()
 
-    elif possible_command == 'info':
-        import tst.commands.info as info
-        info.main()
-
-    elif possible_command == 'ls':
-        import tst.commands.ls as ls
-        ls.main()
+    elif find_executable(f'tst-{first_arg}'):
+        cprint(YELLOW, f"external command: tst-{first_arg}")
+        command_name = args.pop(0)
+        run_external_command(command_name, args)
 
     else:
-        command = identify_and_run_command(args)
+        import tst.commands.test as test
+        test.main()
 
 
 def main():
@@ -81,10 +60,16 @@ def main():
 
     try:
         args = sys.argv[:]
-        args.pop(0) # pop dispatcher name
         dispatcher(args)
+
     except AssertionError as e:
         cprint(LRED, e)
 
     except KeyboardInterrupt:
         cprint(LRED, "\nUser interruption")
+
+    except Exception as e:
+        cprint(LRED, "ops! critical error")
+        log.error(e)
+        cprint(LRED, e.__class__.__name__)
+
