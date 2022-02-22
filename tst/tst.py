@@ -67,18 +67,4 @@ def read_specification(filename=None, verbose=False):
             _assert(False, "Corrupted specification file")
         return specification
 
-    # neither tst.yaml, nor tst.json exist
-    candidates = glob.glob("*.yaml")
-    if len(candidates) == 0:
-        candidates = glob.glob("*.json")
-
-    if len(candidates) == 1:
-        cprint(YELLOW, "Using %s as specification file" % candidates[0])
-        try:
-            specification = JsonFile(candidates[0], array2map="tests")
-        except:
-            _assert(False, "Invalid specification file")
-        return specification
-
-    cprint(LRED, "No tst tests found")
-    sys.exit(1)
+    return {}

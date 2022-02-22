@@ -811,7 +811,7 @@ def main():
 
     # identify style
     style = options['report-style']
-    style = style or tst.get_config().get('report-style') or ('debug' if len(subjects) == 1 else None)
+    style = style or tst.get_config().get('report-style')
 
     reporter = Reporter.get(style=style, options=options)
     reporter.num_tests = len(subjects) * number_of_tests
