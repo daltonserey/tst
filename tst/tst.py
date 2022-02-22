@@ -40,13 +40,7 @@ def get_config():
     return JsonFile(CONFIGFILE)
 
 
-def read_specification(filename=None, verbose=False):
-    # deal with a custom specification file name
-    if filename:
-        _assert(os.path.exists(filename), "File %s not found" % filename)
-        cprint(LCYAN, "Reading specification file: %s" % filename)
-        return JsonFile(filename, array2map="tests")
-
+def read_specification(verbose=False):
     # deal with default specification file names
     tstyaml_exists = os.path.exists('tst.yaml')
     tstjson_exists = os.path.exists('tst.json')

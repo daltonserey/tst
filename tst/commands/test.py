@@ -702,11 +702,9 @@ class DebugReporter(Reporter):
 
 def parse_cli():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument('-a', '--activity', type=str, default=None, help='read activity specification from file ACTIVITY\n(default: tst.yaml and tst.json)')
     parser.add_argument('-t', '--test-files', type=str, default='*.yaml,*.json', help='read tests from TEST_FILES')
     parser.add_argument('-T', '--timeout', type=int, default=5, help='stop execution at TIMEOUT seconds')
 
-    parser.add_argument('-n', '--ordinal-number', type=str, default='', help='ordinal of tests to run')
     parser.add_argument('-m', '--messages', action="store_true", default=False, help='print running messages')
     parser.add_argument('-e', '--script-errors', action="store_true", default=False, help='print script errors')
     parser.add_argument('-d', '--diff', action="store_true", default=False, help='output failed testcases and expected output diff')
@@ -742,9 +740,8 @@ def parse_cli():
         "report-style": args.report_style,
         "diff": args.diff,
         "compare": args.compare,
-        "number": [v for v in args.ordinal_number.split(",") if v.isdigit()]
     }
-    return args.activity, files2test, test_files, options
+    return files2test, test_files, options
 
 
 def print_script_errors(script_errors):
@@ -761,10 +758,10 @@ def print_script_errors(script_errors):
 
 def main():
     # parse command line
-    activity, files2test, test_files, options = parse_cli()
+    files2test, test_files, options = parse_cli()
 
     # read specification file
-    tstjson = tst.read_specification(activity, verbose=True)
+    tstjson = tst.read_specification(verbose=True)
 
     # check for files required by specification
     for pattern in tstjson.get('require', []):
@@ -821,7 +818,6 @@ def main():
             if not testcases: continue
             for testcase in testcases:
                 count += 1
-                if options['number'] and str(count) not in options['number']: continue
                 testrun = TestRun(subject, testcase, index=count)
                 testresult = testrun.run(timeout=options['timeout'])
                 ('error' in testresult) and script_errors.append(testresult)
