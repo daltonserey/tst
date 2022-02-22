@@ -810,8 +810,8 @@ def main():
     subjects = [TestSubject(fn) for fn in files2test]
 
     # identify style
-    style = options['report-style']
-    style = style or tst.get_config().get('report-style')
+    style = options['report-style'] or tst.get_config().get('report-style')
+    style = "debug" if options['diff'] or options['compare'] else style
 
     reporter = Reporter.get(style=style, options=options)
     reporter.num_tests = len(subjects) * number_of_tests
