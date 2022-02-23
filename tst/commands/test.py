@@ -679,7 +679,6 @@ def parse_cli():
     parser.add_argument('-t', '--test-files', type=str, default='*.yaml,*.json', help='read tests from TEST_FILES')
     parser.add_argument('-T', '--timeout', type=int, default=5, help='stop execution at TIMEOUT seconds')
 
-    parser.add_argument('-m', '--messages', action="store_true", default=False, help='print running messages')
     parser.add_argument('-e', '--script-errors', action="store_true", default=False, help='print script errors')
     parser.add_argument('-d', '--diff', action="store_true", default=False, help='output failed testcases and expected output diff')
     parser.add_argument('-c', '--compare', action="store_true", default=False, help='output failed testcases and expected output color comparison')
@@ -709,7 +708,6 @@ def parse_cli():
 
     options = {
         "timeout": args.timeout,
-        "messages": args.messages,
         "errors": args.script_errors,
         "report-style": args.report_style,
         "diff": args.diff,
@@ -745,10 +743,8 @@ def main():
     number_of_tests = 0
     test_suites = []
     for filename in test_files:
-        options['messages'] and cprint(LCYAN, "Reading %s:" % filename, end='')
         try:
             testsfile = JsonFile(filename, array2map="tests")
-            options['messages'] and cprint(LGREEN, " %s tests" % len(testsfile.get("tests", [])))
             number_of_tests += len(testsfile['tests'])
             test_cases = [TestCase(t) for t in testsfile["tests"]]
             test_suites.append((filename, test_cases, testsfile.get('level', 0)))
