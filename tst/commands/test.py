@@ -553,7 +553,7 @@ class Reporter(object):
         for tr in self.testresults:
             _summaries.append(tr['summary'])
 
-        return ''.join(_summaries)
+        return ''.join(_summaries).strip()
 
     def print_report(self):
         summary = self._summaries()
@@ -682,7 +682,7 @@ def parse_cli():
     parser.add_argument('-d', '--diff', action="store_true", default=False, help='output failed testcases and expected output diff')
     parser.add_argument('-c', '--compare', action="store_true", default=False, help='output failed testcases and expected output color comparison')
 
-    parser.add_argument('-s', '--report-style', type=str, choices=['debug', 'passed', 'failed', 'json'], help='choose report style')
+    parser.add_argument('-f', '--output-format', type=str, choices=['debug', 'passed', 'failed', 'json'], help='choose output format')
     parser.add_argument('filename', nargs='*', default=[''])
     args = parser.parse_args()
 
@@ -695,7 +695,7 @@ def parse_cli():
     else:
         files2test = args.filename
 
-    _assert(not (args.diff or args.compare) or args.report_style in [None, 'debug'], 'diff and compare implies debug format')
+    _assert(not (args.diff or args.compare) or args.output_format in [None, 'debug'], 'diff and compare implies debug format')
 
     # identify test files (files containing tests)
     patterns2scan = args.test_files.split(",") if args.test_files else []
@@ -707,7 +707,7 @@ def parse_cli():
 
     options = {
         "timeout": args.timeout,
-        "report-style": args.report_style,
+        "output-format": args.output_format,
         "diff": args.diff,
         "compare": args.compare,
     }
@@ -760,7 +760,7 @@ def main():
     subjects = [TestSubject(fn) for fn in files2test]
 
     # identify style
-    style = options['report-style'] or tst.get_config().get('report-style')
+    style = options['output-format'] or tst.get_config().get('output-format')
     style = "debug" if options['diff'] or options['compare'] else style
 
     reporter = Reporter.get(style=style, options=options)
