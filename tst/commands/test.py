@@ -466,7 +466,7 @@ def color(color, text):
 
 
 class Reporter(object):
-    VALID_REPORT_STYLES = ['summary', 'debug', 'failed', 'passed', 'worker']
+    VALID_REPORT_STYLES = ['summary', 'debug', 'failed', 'passed', 'json']
 
     @staticmethod
     def get(style, num_tests=0, options=None):
@@ -474,9 +474,9 @@ class Reporter(object):
         Factory method. The style argument specifies the type
         that will be intantiated. If style is None, the base
         class Reporter will be used. If can also be debug,
-        failed, passed or worker to create either DebugReporter,
+        failed, passed or json to create either DebugReporter,
         FilterReporter (case of failed or passed) and
-        WorkerReporter.
+        JsonReporter.
         """
         options = options or {}
         _assert(style is None or style in Reporter.VALID_REPORT_STYLES, 'invalid report style: {}'.format(style))
@@ -494,8 +494,8 @@ class Reporter(object):
             passed_filter = lambda s: s.count('.') == len(s)
             return FilterReporter(filtro=passed_filter, options=options)
 
-        elif style == 'worker':
-            return WorkerReporter(options=options)
+        elif style == 'json':
+            return JsonReporter(options=options)
 
     def __init__(self, options=None):
         self.options = options or {}
@@ -575,10 +575,10 @@ class FilterReporter(Reporter):
         print(line, file=sys.stderr)
 
 
-class WorkerReporter(Reporter):
+class JsonReporter(Reporter):
     def __init__(self, options=None):
         options = options or {}
-        super(WorkerReporter, self).__init__(options)
+        super(JsonReporter, self).__init__(options)
         self._report = {}
 
     def print_report(self):
@@ -682,7 +682,7 @@ def parse_cli():
     parser.add_argument('-d', '--diff', action="store_true", default=False, help='output failed testcases and expected output diff')
     parser.add_argument('-c', '--compare', action="store_true", default=False, help='output failed testcases and expected output color comparison')
 
-    parser.add_argument('-s', '--report-style', type=str, choices=['debug', 'passed', 'failed', 'worker'], help='choose report style')
+    parser.add_argument('-s', '--report-style', type=str, choices=['debug', 'passed', 'failed', 'json'], help='choose report style')
     parser.add_argument('filename', nargs='*', default=[''])
     args = parser.parse_args()
 
