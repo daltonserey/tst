@@ -679,7 +679,6 @@ def parse_cli():
     parser.add_argument('-t', '--test-files', type=str, default='*.yaml,*.json', help='read tests from TEST_FILES')
     parser.add_argument('-T', '--timeout', type=int, default=5, help='stop execution at TIMEOUT seconds')
 
-    parser.add_argument('-e', '--script-errors', action="store_true", default=False, help='print script errors')
     parser.add_argument('-d', '--diff', action="store_true", default=False, help='output failed testcases and expected output diff')
     parser.add_argument('-c', '--compare', action="store_true", default=False, help='output failed testcases and expected output color comparison')
 
@@ -708,24 +707,11 @@ def parse_cli():
 
     options = {
         "timeout": args.timeout,
-        "errors": args.script_errors,
         "report-style": args.report_style,
         "diff": args.diff,
         "compare": args.compare,
     }
     return files2test, test_files, options
-
-
-def print_script_errors(script_errors):
-    for testresult in script_errors:
-        cprint(YELLOW, f"\ncommand:{RESET} {repr(testresult['command'])}")
-        cprint(YELLOW, f"script error:{RESET} {repr(testresult['error'])}")
-        stderr = indent((testresult.get('stderr') or '').strip())
-        stdout = indent((testresult.get('stdout') or '').strip())
-        if stderr: cprint(YELLOW, f'stderr:')
-        if stderr: cprint(LRED, f'{stderr}')
-        if stdout: cprint(YELLOW, f'stdout:')
-        if stdout: cprint(LRED, f'{stdout}')
 
 
 def main():
@@ -798,11 +784,6 @@ def main():
 
     reporter.close()
 
-    if script_errors and not options['errors'] and style != 'debug':
-        cprint(YELLOW, f"{len(script_errors)} test scripts failed")
-
-    if options.get('errors'):
-        print_script_errors(script_errors)
 
 class ColorizingStreamHandler(logging.StreamHandler):
     colors_map = {
