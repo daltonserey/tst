@@ -1,26 +1,30 @@
 from setuptools import setup, find_packages
 
-setup(name='tst',
-      version="0.13.6.dev1",
-      description='TST Simple Test Runner',
-      url='http://github.com/daltonserey/tst',
-      author='Dalton Serey',
-      author_email='daltonserey@gmail.com',
-      license='MIT',
-      packages=find_packages(),
-      include_package_data=True,
-      scripts=[
+setup(
+    name='tst',
+    version="0.14.0",
+    description='TST Simple Test Runner',
+    url='http://github.com/daltonserey/tst',
+    author='Dalton Serey',
+    author_email='daltonserey@gmail.com',
+    maintainer='Dalton Serey',
+    maintainer_email='daltonserey@gmail.com',
+    license='MIT',
+    packages=find_packages(),
+    include_package_data=True,
+    scripts=[
         'bin/runjava',
-      ],
-      python_requires='>=3.6',
-      install_requires=[
+    ],
+    python_requires='>=3.6',
+    install_requires=[
         'pyyaml>=5.4.1',
         'requests>=2.6.1',
         'cachecontrol[filecache]'
-      ],
-      entry_points = {
+    ],
+    entry_points = {
         'console_scripts': [
             'tst=tst.commands:main',
         ]
-      },
-      zip_safe=False)
+    },
+    zip_safe=False
+)
