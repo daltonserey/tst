@@ -679,8 +679,8 @@ def parse_cli():
     parser.add_argument('-t', '--test-files', type=str, default='*.yaml,*.json', help='read tests from TEST_FILES')
     parser.add_argument('-T', '--timeout', type=int, default=5, help='stop execution at TIMEOUT seconds')
 
-    parser.add_argument('-d', '--diff', action="store_true", default=False, help='output failed testcases and expected output diff')
-    parser.add_argument('-c', '--compare', action="store_true", default=False, help='output failed testcases and expected output color comparison')
+    parser.add_argument('-d', '--diff', action="store_true", default=False, help='print failed testcases and output diff')
+    parser.add_argument('-c', '--compare', action="store_true", default=False, help='print colored report of output diff')
 
     parser.add_argument('-f', '--output-format', type=str, choices=['debug', 'passed', 'failed', 'json'], help='choose output format')
     parser.add_argument('filename', nargs='*', default=[''])
@@ -718,8 +718,8 @@ def main():
     # parse command line
     files2test, test_files, options = parse_cli()
 
-    # read specification file
-    tstjson = tst.read_specification(verbose=True)
+    # read optional specification file
+    tstjson = tst.read_specification(verbose=False)
 
     # check for files required by specification
     for pattern in tstjson.get('require', []):
@@ -736,8 +736,7 @@ def main():
             test_suites.append((filename, test_cases, testsfile.get('level', 0)))
 
         except tst.jsonfile.CorruptedJsonFile as e:
-            _msg = f"{LRED}invalid tst file: {filename}{RESET}"
-            cprint(YELLOW, _msg)
+            cprint(YELLOW, f"invalid json/yaml: {filename}")
 
         except KeyError as e:
             pass
@@ -758,6 +757,8 @@ def main():
 
     # read subjects
     subjects = [TestSubject(fn) for fn in files2test]
+
+    _assert(not (options["diff"] or options["compare"]) or len(subjects) == 1, "option --diff/--compare cannot be used with multiple subjects")
 
     # identify style
     style = options['output-format'] or tst.get_config().get('output-format')
