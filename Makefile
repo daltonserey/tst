@@ -4,6 +4,7 @@
 SHELL := /bin/bash
 PYCs := $(shell find . -type f -iname '*.pyc')
 PYTHONPATH := $(PKG_INSTALL_DIR)/$(PYTHON_PKG_DIR)
+SYS_PYTHON=python3
 VENV?=venv
 INSTALLED=$(VENV)/installed
 PYTHON=$(VENV)/bin/python3
@@ -11,7 +12,7 @@ TWINE=$(VENV)/bin/twine
 PIP=$(PYTHON) -m pip
 
 help:
-	@echo "uso: make [ venv | clean | test | vars | install ]"
+	@echo "uso: make [ help | venv | clean | install | upload ]"
 
 vars:
 	echo SHELL = $(SHELL)
@@ -22,8 +23,9 @@ vars:
 
 venv: $(VENV)/bin/activate
 $(VENV)/bin/activate: setup.py requirements.txt
-	test -d $(VENV) || python3 -m venv $(VENV)
+	test -d $(VENV) || $(SYS_PYTHON) -m venv $(VENV)
 	$(PIP) install --upgrade pip
+	$(PIP) install wheel
 	$(PIP) install --requirement requirements.txt
 	touch $(VENV)/bin/activate
 
@@ -32,12 +34,12 @@ $(INSTALLED): $(shell find $(MODULE))
 	$(PIP) install -e .
 	touch $(INSTALLED)
 
-dist: requirements.txt
-	python3 setup.py sdist bdist_wheel
-	python3 setup.py build -e"/usr/bin/env python3"
+dist: venv requirements.txt
+	$(PYTHON) setup.py sdist bdist_wheel
+	$(PYTHON) setup.py build -e"/usr/bin/env python3"
 
 clean:
-	python3 setup.py clean --all
+	$(PYTHON) setup.py clean --all
 	find . -type f -name "*.pyc" -exec rm '{}' +
 	find . -type d -name "__pycache__" -exec rmdir '{}' +
 	rm -rf venv
@@ -48,5 +50,8 @@ clean:
 uptest: clean dist
 	$(PYTHON) -m twine upload --repository-url https://test.pypi.org/legacy/ dist/* --skip-existing
 
-upload: venv dist
+$(VENV)/bin/twine:
+	$(PIP) install twine
+
+upload: dist $(VENV)/bin/twine
 	$(PYTHON) -m twine upload dist/*
