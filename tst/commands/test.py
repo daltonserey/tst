@@ -752,7 +752,7 @@ def main():
             testsfile.data['tests'].append({'type': 'script', 'script': 'python acceptance_tests.py {}'})
         for f in files2test:
             if f.startswith("test_") and f.endswith(".py"):
-                testsfile.data['tests'].append({'type': 'script', 'script': 'pytest --tst {} --clean'})
+                testsfile.data['tests'].append({'type': 'script', 'script': f'pytest {f} --tst {{}} --clean'})
         number_of_tests += len(testsfile.data['tests'])
         test_cases = [TestCase(t) for t in testsfile["tests"]]
         test_suites.append((filename, test_cases, testsfile.get('level', 0)))
