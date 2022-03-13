@@ -741,6 +741,22 @@ def main():
         except KeyError as e:
             pass
 
+    # add AUTOTESTS if there are not test_files
+    if not test_files:
+        filename = ".tst-autotest.yaml"
+        testsfile = JsonFile(filename)
+        testsfile.data = {'tests': []}
+        if "public_tests.py" in files2test:
+            testsfile.data['tests'].append({'type': 'script', 'script': 'python public_tests.py {}'})
+        if "acceptance_tests.py" in files2test:
+            testsfile.data['tests'].append({'type': 'script', 'script': 'python acceptance_tests.py {}'})
+        for f in files2test:
+            if f.startswith("test_") and f.endswith(".py"):
+                testsfile.data['tests'].append({'type': 'script', 'script': 'pytest --tst {} --clean'})
+        number_of_tests += len(testsfile.data['tests'])
+        test_cases = [TestCase(t) for t in testsfile["tests"]]
+        test_suites.append((filename, test_cases, testsfile.get('level', 0)))
+
     # make sure there are tests
     _assert(number_of_tests, '0 tests found')
     _assert(any(tests for _, tests, _ in test_suites), '0 tests found')
