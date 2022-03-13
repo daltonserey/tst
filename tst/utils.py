@@ -7,11 +7,6 @@ import logging
 
 from .colors import *
 
-def __is_test_file(fn):
-    return fn.startswith("test_") and fn.endswith(".py") \
-           or fn.endswith("_test.py")
-
-
 def indent(text):
     lines = text.splitlines()
     text = "\n".join(["    %s" % l for l in lines])
