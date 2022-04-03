@@ -1,8 +1,12 @@
 from setuptools import setup, find_packages
 
+
+
+
+
 setup(
     name='tst',
-    version="0.14.0",
+    version="0.15.1",
     description='TST Simple Test Runner',
     url='http://github.com/daltonserey/tst',
     author='Dalton Serey',
@@ -11,6 +15,7 @@ setup(
     maintainer_email='daltonserey@gmail.com',
     license='MIT',
     packages=find_packages(),
+    py_modules = ['undertst'],
     include_package_data=True,
     scripts=[
         'bin/runjava',
