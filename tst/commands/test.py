@@ -557,7 +557,10 @@ class Reporter(object):
 
     def print_report(self):
         summary = self._summaries()
-        width = min(self.options["max_fn_width"], os.get_terminal_size()[0] - len(summary) - 1)
+        if sys.stdout.isatty():
+            width = min(self.options["max_fn_width"], os.get_terminal_size()[0] - len(summary) - 1)
+        else:
+            width = self.options["max_fn_width"]
         line = f'{self.current_subject.filename:{width}.{width}s} {summary}'
         print(line, file=sys.stderr)
 

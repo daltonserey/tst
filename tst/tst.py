@@ -7,6 +7,7 @@ import json
 import glob
 import pkg_resources
 import logging
+import subprocess
 
 from .jsonfile import JsonFile, CorruptedJsonFile
 from .colors import *
@@ -18,6 +19,21 @@ CONFIGFILE = CONFIGDIR + 'config.yaml'
 
 def coverit():
     return 1
+
+
+def run_test(subjects, test_suite):
+    command = f"tst -f json -t {test_suite} {' '.join(subjects)}"
+    try:
+        output = subprocess.check_output(command.split(), stderr=subprocess.STDOUT)
+        results = json.loads(output)
+        return [results[s] for s in subjects]
+
+    except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
+        print("error running tst -----------")
+        print(e)
+        print("-----------------------------")
+        sys.exit()
+        
 
 def get_config():
     if not os.path.exists(CONFIGFILE):
