@@ -42,10 +42,7 @@ clean:
 	$(PYTHON) setup.py clean --all
 	find . -type f -name "*.pyc" -exec rm '{}' +
 	find . -type d -name "__pycache__" -exec rmdir '{}' +
-	rm -rf *.egg-info .coverage
-	rm -rf dist
-	rm -rf build
-	rm -rf venv
+	rm -rf dist build venv *.egg-info .coverage
 
 uptest: clean dist
 	$(PYTHON) -m twine upload --repository-url https://test.pypi.org/legacy/ dist/* --skip-existing
