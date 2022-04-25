@@ -51,6 +51,7 @@ STATUS_CODE = {
     'ValueError': 'v',
     'TypeError': 'y',
     'NameError': 'n',
+    '[Errno 2]': '?'
 }
 
 def alarm_handler(_1, _2):
@@ -690,7 +691,7 @@ def parse_cli():
     args = parser.parse_args()
 
     # identify answer files (files to be tested)
-    if len(args.filename) == 1 and os.path.exists(args.filename[0]):
+    if len(args.filename) == 1: # and os.path.exists(args.filename[0]):
         files2test = [args.filename[0]]
     elif len(args.filename) == 1:
         fn_pattern = '*%s*' % args.filename[0]
@@ -785,7 +786,7 @@ def main():
 
     reporter = Reporter.get(style=style, options=options)
     reporter.num_tests = len(subjects) * number_of_tests
-    count, script_errors = 0, []
+    count = 0
     for subject in subjects:
         for ts in test_suites:
             testcases = ts[1]
@@ -794,7 +795,6 @@ def main():
                 count += 1
                 testrun = TestRun(subject, testcase, index=count)
                 testresult = testrun.run(timeout=options['timeout'])
-                ('error' in testresult) and script_errors.append(testresult)
                 subject.add_testrun(testrun)
                 reporter.update(subject, testcase, testresult)
             log.removeHandler(handler_console)
