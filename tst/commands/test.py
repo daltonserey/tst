@@ -718,6 +718,33 @@ def parse_cli():
     return files2test, test_files, options
 
 
+def process_interaction_tests(testsfile):
+    for test in testsfile:
+        if 'interaction' not in test: continue
+
+        _in, _out = [], []
+        for i, part in enumerate(test['interaction']):
+            if type(part) is str:
+                if i % 2 == 0:
+                    _out.append(part)
+                else:
+                    _in.append(part)
+
+            if type(part) is dict:
+                if "out" in part:
+                    _out.append(part["out"])
+                elif "in" in part:
+                    _in.append(part["in"])
+
+        test["input"] = "".join(_in)
+        if not test.get("match"):
+            test["output"] = "".join(_out)
+        else:
+            test["match"] = ".*" + ".*".join(_out) + ".*"
+
+        del test["interaction"]
+
+
 def main():
     # parse command line
     files2test, test_files, options = parse_cli()
@@ -735,6 +762,7 @@ def main():
     for filename in test_files:
         try:
             testsfile = JsonFile(filename, array2map="tests")
+            process_interaction_tests(testsfile.data["tests"])
             number_of_tests += len(testsfile['tests'])
             test_cases = [TestCase(t) for t in testsfile["tests"]]
             test_suites.append((filename, test_cases, testsfile.get('level', 0)))
