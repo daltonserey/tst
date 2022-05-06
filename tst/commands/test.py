@@ -691,7 +691,7 @@ def parse_cli():
     args = parser.parse_args()
 
     # identify answer files (files to be tested)
-    if len(args.filename) == 1: # and os.path.exists(args.filename[0]):
+    if len(args.filename) == 1 and os.path.exists(args.filename[0]):
         files2test = [args.filename[0]]
     elif len(args.filename) == 1:
         fn_pattern = '*%s*' % args.filename[0]
@@ -772,6 +772,15 @@ def main():
     ignore_files = tstjson.get('ignore', []) + config.get('ignore', [])
     files2test = [f for f in files2test if any(f.endswith(e) for e in extensions) and f not in ignore_files]
     files2test.sort()
+
+    # identify style
+    style = options['output-format'] or tst.get_config().get('output-format')
+    style = "debug" if options['diff'] or options['compare'] else style
+    if style == "json" and not files2test:
+        # TODO: fix this special case
+        print({})
+        sys.exit(1)
+        
     _assert(files2test, 'No files to test')
     options["max_fn_width"] = max(len(fn) for fn in files2test)
 
@@ -779,10 +788,6 @@ def main():
     subjects = [TestSubject(fn) for fn in files2test]
 
     _assert(not (options["diff"] or options["compare"]) or len(subjects) == 1, "option --diff/--compare cannot be used with multiple subjects")
-
-    # identify style
-    style = options['output-format'] or tst.get_config().get('output-format')
-    style = "debug" if options['diff'] or options['compare'] else style
 
     reporter = Reporter.get(style=style, options=options)
     reporter.num_tests = len(subjects) * number_of_tests
