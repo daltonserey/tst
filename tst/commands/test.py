@@ -737,7 +737,8 @@ def process_interaction_tests(testsfile):
                     _in.append(part["in"])
 
         test["input"] = "".join(_in)
-        if not test.get("match"):
+
+        if not test.get("match_output"):
             test["output"] = "".join(_out)
         else:
             test["match"] = ".*" + ".*".join(_out) + ".*"

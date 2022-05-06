@@ -25,6 +25,6 @@ def main():
         if current != latest_version:
             cprint(YELLOW, 'Latest stable version: %s' % latest_version, file=sys.stdout)
             cprint(RESET, '---\n'
-                          'Use `pip install --upgrade --user tst` to install')
+                          'Use `pip install --upgrade tst` to install')
     except requests.ConnectionError:
         cprint(LRED, 'Cannot connect to pypi.org server')
