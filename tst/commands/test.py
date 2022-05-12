@@ -736,7 +736,10 @@ def process_interaction_tests(testsfile):
                 elif "in" in part:
                     _in.append(part["in"])
 
-        test["input"] = "".join(_in)
+        if not test.get("add_newlines"):
+            test["input"] = "".join(_in)
+        else:
+            test["input"] = "\n".join(_in) + "\n"
 
         if not test.get("match_output"):
             test["output"] = "".join(_out)
