@@ -680,7 +680,7 @@ class DebugReporter(Reporter):
 
 def parse_cli():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument('-t', '--test-files', type=str, default='*.yaml,*.json', help='read tests from TEST_FILES')
+    parser.add_argument('-t', '--test-sources', type=str, default='*.yaml,*.json', help='read tests from TEST_SOURCES')
     parser.add_argument('-T', '--timeout', type=int, default=5, help='stop execution at TIMEOUT seconds')
 
     parser.add_argument('-d', '--diff', action="store_true", default=False, help='print failed testcases and output diff')
@@ -702,12 +702,12 @@ def parse_cli():
     _assert(not (args.diff or args.compare) or args.output_format in [None, 'debug'], 'diff and compare implies debug format')
 
     # identify test files (files containing tests)
-    patterns2scan = args.test_files.split(",") if args.test_files else []
-    test_files = []
+    patterns2scan = args.test_sources.split(",") if args.test_sources else []
+    test_sources = []
     for pattern in patterns2scan:
         for filename in glob.glob(pattern):
-            if filename not in test_files:
-                test_files.append(filename)
+            if filename not in test_sources:
+                test_sources.append(filename)
 
     options = {
         "timeout": args.timeout,
@@ -715,7 +715,7 @@ def parse_cli():
         "diff": args.diff,
         "compare": args.compare,
     }
-    return files2test, test_files, options
+    return files2test, test_sources, options
 
 
 def process_interaction_tests(testsfile):
@@ -751,7 +751,7 @@ def process_interaction_tests(testsfile):
 
 def main():
     # parse command line
-    files2test, test_files, options = parse_cli()
+    files2test, test_sources, options = parse_cli()
 
     # read optional specification file
     tstjson = tst.read_specification(verbose=False)
@@ -763,7 +763,7 @@ def main():
     # read tests
     number_of_tests = 0
     test_suites = []
-    for filename in test_files:
+    for filename in test_sources:
         try:
             testsfile = JsonFile(filename, array2map="tests")
             process_interaction_tests(testsfile.data["tests"])
@@ -777,7 +777,7 @@ def main():
         except KeyError as e:
             pass
 
-    # add AUTOTESTS if there are not test_files
+    # add AUTOTESTS if there are not test_sources
     if not number_of_tests:
         filename = ".tst-autotest.yaml"
         testsfile = JsonFile(filename)
