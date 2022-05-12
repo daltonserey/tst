@@ -692,12 +692,12 @@ def parse_cli():
 
     # identify answer files (files to be tested)
     if len(args.filename) == 1 and os.path.exists(args.filename[0]):
-        files2test = [args.filename[0]]
+        filenames = [args.filename[0]]
     elif len(args.filename) == 1:
         fn_pattern = '*%s*' % args.filename[0]
-        files2test = glob.glob(fn_pattern)
+        filenames = glob.glob(fn_pattern)
     else:
-        files2test = args.filename
+        filenames = args.filename
 
     _assert(not (args.diff or args.compare) or args.output_format in [None, 'debug'], 'diff and compare implies debug format')
 
@@ -715,7 +715,7 @@ def parse_cli():
         "diff": args.diff,
         "compare": args.compare,
     }
-    return files2test, test_sources, options
+    return filenames, test_sources, options
 
 
 def process_interaction_tests(testsfile):
@@ -751,7 +751,7 @@ def process_interaction_tests(testsfile):
 
 def main():
     # parse command line
-    files2test, test_sources, options = parse_cli()
+    filenames, test_sources, options = parse_cli()
 
     # read optional specification file
     tstjson = tst.read_specification(verbose=False)
@@ -782,11 +782,11 @@ def main():
         filename = ".tst-autotest.yaml"
         testsfile = JsonFile(filename)
         testsfile.data = {'tests': []}
-        if "public_tests.py" in files2test:
+        if "public_tests.py" in filenames:
             testsfile.data['tests'].append({'type': 'script', 'script': 'python public_tests.py {}'})
-        if "acceptance_tests.py" in files2test:
+        if "acceptance_tests.py" in filenames:
             testsfile.data['tests'].append({'type': 'script', 'script': 'python acceptance_tests.py {}'})
-        for f in files2test:
+        for f in filenames:
             if f.startswith("test_") and f.endswith(".py"):
                 testsfile.data['tests'].append({'type': 'script', 'script': f'pytest {f} --tst {{}} --clean'})
         number_of_tests += len(testsfile.data['tests'])
@@ -798,26 +798,26 @@ def main():
     _assert(any(tests for _, tests, _ in test_suites), '0 tests found')
     test_suites.sort(key=lambda ts: ts[2])
 
-    # filter files2test based on extensions and ignore_files
+    # filter filenames based on extensions and ignore_files
     config = tst.get_config()
     extensions = tstjson.get('extensions') or config['run'].keys() if 'run' in config else ['py']
     ignore_files = tstjson.get('ignore', []) + config.get('ignore', [])
-    files2test = [f for f in files2test if any(f.endswith(e) for e in extensions) and f not in ignore_files]
-    files2test.sort()
+    filenames = [f for f in filenames if any(f.endswith(e) for e in extensions) and f not in ignore_files]
+    filenames.sort()
 
     # identify style
     style = options['output-format'] or tst.get_config().get('output-format')
     style = "debug" if options['diff'] or options['compare'] else style
-    if style == "json" and not files2test:
+    if style == "json" and not filenames:
         # TODO: fix this special case
         print({})
         sys.exit(1)
         
-    _assert(files2test, 'No files to test')
-    options["max_fn_width"] = max(len(fn) for fn in files2test)
+    _assert(filenames, 'No files to test')
+    options["max_fn_width"] = max(len(fn) for fn in filenames)
 
     # read subjects
-    subjects = [TestSubject(fn) for fn in files2test]
+    subjects = [TestSubject(fn) for fn in filenames]
 
     _assert(not (options["diff"] or options["compare"]) or len(subjects) == 1, "option --diff/--compare cannot be used with multiple subjects")
 
