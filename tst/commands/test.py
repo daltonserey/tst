@@ -775,7 +775,7 @@ def main():
             pass
 
     # add AUTOTESTS if there are not test_files
-    if not test_files:
+    if not number_of_tests:
         filename = ".tst-autotest.yaml"
         testsfile = JsonFile(filename)
         testsfile.data = {'tests': []}
