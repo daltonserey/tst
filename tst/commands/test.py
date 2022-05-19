@@ -294,54 +294,45 @@ class TestCase():
         # get data from tst.json
         self.input = test.get('input', '')
         self.output = test.get('output')
-        self.match = test.get('match')
-        self.tokens = test.get('tokens')
+        
+        # set match
+        if 'match' in test:
+            _assert(self.output is None, "cannot set match and output")
+            self.match = test['match']
+            _assert(isinstance(self.match, str), "match must be a string")
+        else:
+            self.match = None
+
+        if 'tokens' in test:
+            _assert(self.output is None, "cannot set match and tokens")
+            _assert(self.match is None, "cannot set match and tokens")
+            if type(test["tokens"]) is str:
+                tokens = test["tokens"].split()
+            else:
+                tokens = test["tokens"]
+            _assert(all(type(e) is str for e in tokens), "tokens must be a sequence of strings"), 
+            self.match = ".*" + r"\b.*\b".join(tokens) + ".*"
+
+
         self.ignore = test.get('ignore', [])
         self.script = test.get('script')
         self.type = test.get('type') or ('script' if self.script else 'io')
         if self.type == 'script':
             _assert(self.script, "script tests must have a script")
             _assert(not self.input and not self.output, "script tests cannot have input/output")
-            _assert(not self.tokens, "script tests cannot have tokens")
-
-        # check
-        if self.output:
-            _assert(not self.match and not self.tokens, "cannot be used together: output, match, tokens")
-        if self.tokens:
-            _assert(not self.match and not self.output, "cannot be used together: output, match, tokens")
-        if self.match:
-            _assert(not self.output and not self.tokens, "cannot be used together: output, match, tokens")
-        _assert(not self.match or isinstance(self.match, str), "match must be a string")
-        _assert(self.tokens is None, "tokens based io tests is disabled: requires revision")
-
+            _assert(not self.match, "script tests cannot have tokens/match")
 
         # convert ignore to a list of strings, if necessary
         if isinstance(self.ignore, str):
             self.ignore = self.ignore.split()
 
-        # compile the re object
+        # compile the regex object
         if self.match and 'case' in self.ignore:
             self.re = re.compile(self.match, re.IGNORECASE | re.MULTILINE | re.DOTALL)
         elif self.match and 'case' not in self.ignore:
             self.re = re.compile(self.match, re.MULTILINE | re.DOTALL)
         else:
             self.re = None
-
-        # convert tokens to a list of strings, if necessary
-        if isinstance(self.tokens, str):
-            self.tokens = self.tokens.split()
-
-        # identify tokens within the expected output
-        if not self.tokens and self.output and '{{' in self.output:
-            p = r'{{(.*?)}}'
-            self.tokens = re.findall(p, self.output)
-            # remove tokens' markup from expected output
-            self.output = re.sub(p, lambda m: m.group(0)[2:-2], self.output)
-
-        # preprocess individual tokens
-        if self.tokens:
-            for i in range(len(self.tokens)):
-                self.tokens[i] = preprocess(self.tokens[i], self.ignore)
 
         # set up preprocessed output
         self.preprocessed_output = preprocess(self.output, self.ignore)
