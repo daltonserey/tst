@@ -244,7 +244,7 @@ class TestRun:
 
             return self.result
 
-        # check for a perfecs match
+        # check for a perfect match
         preprocessed_stdout = preprocess(stdout, self.testcase.ignore)
         if self.testcase.preprocessed_output == preprocessed_stdout:
             self.result['status'] = 'Success'
@@ -304,15 +304,20 @@ class TestCase():
             self.match = None
 
         if 'tokens' in test:
-            _assert(self.output is None, "cannot set match and tokens")
+            _assert(self.output is None, "cannot set output and tokens")
             _assert(self.match is None, "cannot set match and tokens")
             if type(test["tokens"]) is str:
                 tokens = test["tokens"].split()
             else:
                 tokens = test["tokens"]
             _assert(all(type(e) is str for e in tokens), "tokens must be a sequence of strings"), 
-            self.match = ".*" + r"\b.*\b".join(tokens) + ".*"
+            self.match = ".*\\b" + "\\b.*\\b".join([re.escape(tk) for tk in tokens]) + "\\b.*"
 
+        if 'tokens-regex' in test:
+            _assert(self.output is None, "cannot set output and tokens-regex")
+            _assert(self.match is None, "cannot set match and tokens-regex")
+            _assert(all(type(e) is str for e in test["tokens-regex"]), "tokens-regex must be a sequence of strings"), 
+            self.match = ".*" + ".*".join(test["tokens-regex"]) + ".*"
 
         self.ignore = test.get('ignore', [])
         self.script = test.get('script')
@@ -709,35 +714,68 @@ def parse_cli():
     return filenames, test_sources, options
 
 
-def process_interaction_tests(testsfile):
-    for test in testsfile:
-        if 'interaction' not in test: continue
+def validate_part_test(test):
+    VALID_PARTS_TEST_PROPERTIES = "parts strict delim tokens ignore tokens-regex match".split()
 
-        _in, _out = [], []
-        for i, part in enumerate(test['interaction']):
-            if type(part) is str:
-                if i % 2 == 0:
-                    _out.append(part)
-                else:
-                    _in.append(part)
+    assert 'parts' in test
+    _assert(all(prop in VALID_PARTS_TEST_PROPERTIES for prop in test), "erro 1")
+    _assert(all(type(p) is dict for p in test["parts"]), "erro 2")
+    _assert(all(len(p.keys()) == 1 for p in test["parts"]), "erro 3")
 
-            if type(part) is dict:
-                if "out" in part:
-                    _out.append(part["out"])
-                elif "in" in part:
-                    _in.append(part["in"])
+    if "tokens" in test:
+        _assert("tokens-regex" not in test, "error in test spec")
+        _assert("match" not in test, "error in test spec")
+        _assert(all(next(k for k in p.keys()) == 'in' for p in test["parts"]), "error in test spec")
 
-        if not test.get("add_newlines"):
-            test["input"] = "".join(_in)
-        else:
-            test["input"] = "\n".join(_in) + "\n"
+    if "tokens-regex" in test:
+        _assert("tokens" not in test, "error in test spec")
+        _assert("match" not in test, "error in test spec")
+        _assert(all(next(k for k in p.keys()) == 'in' for p in test["parts"]), "error in test spec")
 
-        if not test.get("match_output"):
-            test["output"] = "".join(_out)
-        else:
-            test["match"] = ".*" + ".*".join(_out) + ".*"
+    if "match" in test:
+        _assert("tokens" not in test, "error in test spec")
+        _assert("tokens-regex" not in test, "error in test spec")
+        _assert(all(next(k for k in p.keys()) == 'in' for p in test["parts"]))
 
-        del test["interaction"]
+
+def create_test_from_parts(test):
+    validate_part_test(test)
+    new_test = { "_original": test }
+
+    # collect explicit input and output parts
+    _in_parts, _out_parts = [], []
+    for i, part in enumerate(test['parts']):
+        if "out" in part:
+            _out_parts.append(part["out"])
+        elif "in" in part:
+            _in_parts.append(part["in"])
+
+    new_test["input"] = "".join(_in_parts)
+
+    if "tokens" in test:
+        new_test["tokens"] = test["tokens"]
+
+    elif "tokens-regex" in test:
+        new_test["tokens-regex"] = test["tokens-regex"]
+
+    elif "match" in test:
+        new_test["match"] = test["match"]
+
+    elif "strict" in test:
+        new_test["match"] = "^" + "".join([re.escape(p) for p in _out_parts]) + "$"
+
+    else:
+        delim = test.get("delim") or ".*"
+        new_test["match"] = delim + delim.join([re.escape(p) for p in _out_parts]) + delim
+
+    return new_test
+
+
+def pre_process_parts(testsfile):
+    for i in range(len(testsfile)):
+        test = testsfile[i]
+        if 'parts' not in test: continue
+        testsfile[i] = create_test_from_parts(test)
 
 
 def main():
@@ -757,7 +795,7 @@ def main():
     for filename in test_sources:
         try:
             testsfile = JsonFile(filename, array2map="tests")
-            process_interaction_tests(testsfile.data["tests"])
+            pre_process_parts(testsfile.data["tests"])
             number_of_tests += len(testsfile['tests'])
             test_cases = [TestCase(t) for t in testsfile["tests"]]
             test_suites.append((filename, test_cases, testsfile.get('level', 0)))
