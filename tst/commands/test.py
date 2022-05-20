@@ -721,6 +721,7 @@ def validate_part_test(test):
     _assert(all(prop in VALID_PARTS_TEST_PROPERTIES for prop in test), "erro 1")
     _assert(all(type(p) is dict for p in test["parts"]), "erro 2")
     _assert(all(len(p.keys()) == 1 for p in test["parts"]), "erro 3")
+    _assert(set(next(k for k in p.keys()) for p in test["parts"]).issubset({'in', 'out'}), "erro 4")
 
     if "tokens" in test:
         _assert("tokens-regex" not in test, "error in test spec")
@@ -751,6 +752,9 @@ def create_test_from_parts(test):
             _in_parts.append(part["in"])
 
     new_test["input"] = "".join(_in_parts)
+
+    if 'ignore' in test:
+        new_test['ignore'] = test['ignore']
 
     if "tokens" in test:
         new_test["tokens"] = test["tokens"]
