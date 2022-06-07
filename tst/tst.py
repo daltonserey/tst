@@ -4,7 +4,6 @@ import sys
 import os
 import io
 import json
-import glob
 import pkg_resources
 import logging
 import subprocess
@@ -78,3 +77,39 @@ def read_specification(verbose=False):
         return specification
 
     return {}
+
+
+def read_specification():
+    # default specification
+    spec = {
+        "extensions": ["py"], # deprecated
+        "require": [],
+        "filenames": "*.py",
+        "subjects": "*.py",
+        "ignore": ["tst.yaml", "tst.json", "*_tests.yaml", "*_tests.py", "test_*.py", "*_test.py"],
+        "test-command": { ".py": "python3" }
+    }
+
+    config = get_config()
+    spec.update(config.data)
+
+    try:
+        tstjson = JsonFile('tst.json', array2map="tests")
+        spec.update(tstjson.data)
+    except CorruptedJsonFile:
+        _assert(False, "Corrupted specification file: tst.json")
+
+    try:
+        tstyaml = JsonFile('tst.yaml', array2map="tests")
+        spec.update(tstyaml.data)
+    except CorruptedJsonFile:
+        _assert(False, "Corrupted specification file: tst.yaml")
+
+    # validate spec
+    _assert(type(spec["require"]) is list, "require must be a list of strings")
+    _assert(all(type(e) is str for e in spec["require"]), "require elements must be strings")
+    _assert(type(spec["subjects"]) is str, "subjects must be a glob pattern")
+    _assert(type(spec["ignore"]) is list, "ignore must be a list of strings")
+    _assert(all(type(e) is str for e in spec["ignore"]), "ignore elements must be strings")
+
+    return spec

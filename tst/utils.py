@@ -7,12 +7,6 @@ import logging
 
 from .colors import *
 
-def indent(text):
-    lines = text.splitlines()
-    text = "\n".join(["    %s" % l for l in lines])
-    return text
-
-
 def cprint(color, msg, file=sys.stderr, end='\n'):
     if type(msg) is str:
         data = msg
@@ -48,21 +42,3 @@ def to_unicode(obj, encoding='utf-8'):
             pass
 
     assert False, "tst: non-recognized encoding"
-
-
-def data2json(data):
-    def date_handler(obj):
-        if hasattr(obj, 'isoformat'):
-            return obj.isoformat()
-        elif hasattr(obj, 'email'):
-            return obj.email()
-
-        return obj
-
-    return json.dumps(
-        data,
-        default=date_handler,
-        indent=2,
-        separators=(',', ': '),
-        sort_keys=True,
-        ensure_ascii=False)
