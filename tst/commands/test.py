@@ -45,7 +45,7 @@ STATUS_CODE = {
     'Fail': 'F',
     'ScriptTestError': '!',
     'NoInterpreterError': 'X',
-    'FilenameMismatch': '^',
+    'FilenameMismatch': '_',
 
     # Python ERROR codes
     'AttributeError': 'a',
@@ -113,7 +113,7 @@ class TestRun:
     def run(self, timeout=TIMEOUT_DEFAULT):
         if not self.result['fnmatch']:
             self.result['status'] = 'FilenameMismatch'
-            self.result['summary'] = '^'
+            self.result['summary'] = STATUS_CODE[self.result['status']]
             return self.result
 
         if self.testcase.type == 'io':
@@ -489,6 +489,40 @@ def get_options_from_cli_and_context(directory, spec):
     return options
 
 
+def process_session_tests(testsfile):
+    for test in testsfile:
+        if 'session' not in test: continue
+
+        input_parts, output_parts = [], []
+        for i, part in enumerate(test['session']):
+            if type(part) is str:
+                if i % 2 == 0:
+                    output_parts.append(str(part))
+                else:
+                    input_part = str(part)
+                    if input_part[-1] != "\n":
+                        input_part += "\n"
+                    input_parts.append(input_part)
+
+            if type(part) is dict:
+                if "out" in part:
+                    output_parts.append(str(part["out"]))
+                elif "in" in part:
+                    input_part = str(part["in"])
+                    if input_part[-1] != "\n":
+                        input_part += "\n"
+                    input_parts.append(input_part)
+
+        test["input"] = "".join(input_parts)
+
+        if test.get("strict"):
+            test["output"] = "".join(output_parts)
+        else:
+            test["match"] = ".*" + ".*".join(output_parts) + ".*"
+
+        del test["session"]
+
+
 def collect_test_cases(test_sources):
     # collect tests...
     all_test_cases = []
@@ -500,7 +534,8 @@ def collect_test_cases(test_sources):
             # collect io test suite
             testsfile = JsonFile(tspath, array2map="tests")
             level = testsfile.get('level', 0)
-            pre_process_parts(testsfile.data["tests"])
+            process_session_tests(testsfile.data["tests"])
+            #pre_process_parts(testsfile.data["tests"])
             test_cases = [TestCase(t, tspath, level) for t in testsfile["tests"]]
             all_test_cases.extend(test_cases)
 
@@ -610,7 +645,7 @@ def run_tests_in_parallel(test_cases, test_suites, subjects, options):
     subject_threads = []
     last_subject = None
     for i, (subject, testcase) in enumerate(itertools.product(subjects, test_cases)):
-        if not fnmatch(subject, testcase.fnmatch or "*.py"): continue
+        #if not fnmatch(subject, testcase.fnmatch or "*.py"): continue
         testrun = TestRun(TestSubject(subject), testcase, index=i)
         test_thread = threading.Thread(target=test_runner, args=(testrun, q))
         threads.append(test_thread)
