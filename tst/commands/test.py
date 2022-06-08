@@ -103,10 +103,10 @@ def parse_test_report(data):
 
 class TestRun:
 
-    def __init__(self, subject, testcase, index=None):
+    def __init__(self, subject, testcase):
         self.subject = subject
         self.testcase = testcase
-        self.result = {"index": index}
+        self.result = {}
         self.result['type'] = self.testcase.type
         self.result['fnmatch'] = fnmatch(subject.filename, testcase.fnmatch or "*.py")
 
@@ -299,7 +299,7 @@ class TestSubject:
 
 class TestCase():
 
-    def __init__(self, test, test_suite, level):
+    def __init__(self, test, test_suite, level, index):
 
         # get data from tst.json
         self.input = test.get('input', '')
@@ -307,6 +307,7 @@ class TestCase():
         self.level = level
         self.fnmatch = test.get('fnmatch')
         self.test_suite = test_suite
+        self.index = index
 
         # set match
         if 'match' in test:
@@ -536,7 +537,7 @@ def collect_test_cases(test_sources):
             level = testsfile.get('level', 0)
             process_session_tests(testsfile.data["tests"])
             #pre_process_parts(testsfile.data["tests"])
-            test_cases = [TestCase(t, tspath, level) for t in testsfile["tests"]]
+            test_cases = [TestCase(tc, tspath, level, index) for index, tc in enumerate(testsfile["tests"])]
             all_test_cases.extend(test_cases)
 
         except tst.jsonfile.CorruptedJsonFile as e:
@@ -558,7 +559,7 @@ def collect_test_cases(test_sources):
             if fnmatch(tspath, 'test_*.py') or fnmatch(tspath, '*_test.py'):
                 script_command = f'pytest {tspath} --tst {{}} --clean'
             testsfile.data['tests'].append({'type': 'script', 'script': script_command})
-            test_cases = [TestCase(t, tspath, level=0) for t in testsfile["tests"]]
+            test_cases = [TestCase(tc, tspath, level, index) for index, tc in enumerate(testsfile["tests"])]
             all_test_cases.extend(test_cases)
 
     return all_test_cases
@@ -584,7 +585,6 @@ def run_tests_in_parallel(test_cases, test_suites, subjects, options):
     def results_to_map(threads_results):
         results = {}
         for item in threads_results:
-            results.setdefault(item['subject'], {})
             results.setdefault(item['subject'], {})
             results[item['subject']].setdefault(item['_test_suite'], "")
             results[item['subject']][item['_test_suite']] += item['summary']
@@ -644,9 +644,9 @@ def run_tests_in_parallel(test_cases, test_suites, subjects, options):
     threads = []
     subject_threads = []
     last_subject = None
-    for i, (subject, testcase) in enumerate(itertools.product(subjects, test_cases)):
+    for subject, testcase in itertools.product(subjects, test_cases):
         #if not fnmatch(subject, testcase.fnmatch or "*.py"): continue
-        testrun = TestRun(TestSubject(subject), testcase, index=i)
+        testrun = TestRun(TestSubject(subject), testcase)
         test_thread = threading.Thread(target=test_runner, args=(testrun, q))
         threads.append(test_thread)
         subject_threads.append(test_thread)
