@@ -554,13 +554,15 @@ def collect_test_cases(test_sources):
             ## fake script test file
             testsfile = JsonFile(f".{tspath}-autotest.yaml")
             testsfile.data = {'tests': []}
+            script_command = None
             if fnmatch(tspath, "*_tests.py"):
                 script_command = f'python {tspath} {{}}'
             if fnmatch(tspath, 'test_*.py') or fnmatch(tspath, '*_test.py'):
                 script_command = f'pytest {tspath} --tst {{}} --clean'
-            testsfile.data['tests'].append({'type': 'script', 'script': script_command})
-            test_cases = [TestCase(tc, tspath, level, index) for index, tc in enumerate(testsfile["tests"])]
-            all_test_cases.extend(test_cases)
+            if script_command:
+                testsfile.data['tests'].append({'type': 'script', 'script': script_command})
+                test_cases = [TestCase(tc, tspath, level, index) for index, tc in enumerate(testsfile["tests"])]
+                all_test_cases.extend(test_cases)
 
     return all_test_cases
 
