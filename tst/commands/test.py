@@ -500,14 +500,14 @@ def process_session_tests(testsfile):
                 if i % 2 == 0:
                     output_parts.append(str(part))
                 else:
-                    input_part = str(part)
+                    input_part = re.escape(str(part))
                     if input_part[-1] != "\n":
                         input_part += "\n"
                     input_parts.append(input_part)
 
             if type(part) is dict:
                 if "out" in part:
-                    output_parts.append(str(part["out"]))
+                    output_parts.append(re.escape(str(part["out"])))
                 elif "in" in part:
                     input_part = str(part["in"])
                     if input_part[-1] != "\n":
