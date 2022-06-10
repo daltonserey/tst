@@ -568,33 +568,45 @@ def collect_test_cases(test_sources):
 
 
 def run_tests_in_parallel(test_cases, test_suites, subjects, options):
-    threads_results = []
+    all_tests_results = []
     verbose = options.verbose
     t0 = time.time()
 
     def results_reader(q):
         # read queue
         while True:
-            item = q.get()
-            item["_test_suite"] = item["_testrun"].testcase.test_suite
-            item["_testcase"] = dir(item["_testrun"].testcase)
-            item["subject"] = item["_testrun"].subject.filename
-            item.pop("_testrun")
-            threads_results.append(item)
+            test_result = q.get()
+            test_result["_test_suite"] = test_result["_testrun"].testcase.test_suite
+            test_result["_testcase"] = test_result["_testrun"].testcase
+            test_result["subject"] = test_result["_testrun"].subject.filename
+            all_tests_results.append(test_result)
             q.task_done()
-            verbose > 2 and print(item['summary'], flush=True, end='', file=sys.stderr)
+            verbose > 2 and print(test_result['summary'], flush=True, end='', file=sys.stderr)
 
-    def results_to_map(threads_results):
+    def results_to_map(all_tests_results):
         results = {}
-        for item in threads_results:
-            results.setdefault(item['subject'], {})
-            results[item['subject']].setdefault(item['_test_suite'], "")
-            results[item['subject']][item['_test_suite']] += item['summary']
+
+        summaries_sizes = {}
+        for ts in test_suites:
+            summaries_sizes[ts] = sum(1 for tc in test_cases if tc.test_suite == ts)
+
+        for tr in all_tests_results:
+            if not tr['subject'] in results:
+                summaries = { ts: ['#'] * summaries_sizes[ts] for ts in test_suites }
+                results[tr['subject']] = summaries
+
+            subject_results = results[tr['subject']]
+            subject_results[tr['_test_suite']][tr['_testcase'].index] = tr['summary']
+
+        for sub in results.keys():
+            for ts in test_suites:
+                results[sub][ts] = "".join(summary for summary in results[sub][ts])
+
         return results
 
-    def print_cli_report(threads_results, total_time):
+    def print_cli_report(all_tests_results, total_time):
         width = max(len(fn) for fn in subjects)
-        results = results_to_map(threads_results)
+        results = results_to_map(all_tests_results)
         suppressed = 0
         for fn in results.keys():
             summaries = []
@@ -612,11 +624,11 @@ def run_tests_in_parallel(test_cases, test_suites, subjects, options):
         print("---")
         print(f"test suites: {' '.join(test_suites)}")
         print(f"number of subjects: {len(subjects) - suppressed} {f'(+{suppressed} omitted)' if suppressed else ''}")
-        print(f"number of tests run: {len(threads_results)}")
-        print(f"time to run all tests: {total_time:.2f}s ({1000 * (total_time / len(threads_results)):.1f} ms/test)")
+        print(f"number of tests run: {len(all_tests_results)}")
+        print(f"time to run all tests: {total_time:.2f}s ({1000 * (total_time / len(all_tests_results)):.1f} ms/test)")
 
-    def print_json_report(threads_results):
-        results = results_to_map(threads_results)
+    def print_json_report(all_tests_results):
+        results = results_to_map(all_tests_results)
         to_pop = []
         for sub, res in results.items():
             subject_passed = all(c == "." for c in "".join(res.values()))
@@ -666,7 +678,7 @@ def run_tests_in_parallel(test_cases, test_suites, subjects, options):
     verbose and print(f"* results collector ended: starting report", file=sys.stderr)
     match options.output_format:
         case 'json':
-            print_json_report(threads_results)
+            print_json_report(all_tests_results)
         case 'debug':
             print("not implemented yet")
         case 'color':
@@ -677,7 +689,7 @@ def run_tests_in_parallel(test_cases, test_suites, subjects, options):
             print("not implemented yet")
         case _:
             t1 = time.time()
-            print_cli_report(threads_results, t1 - t0)
+            print_cli_report(all_tests_results, t1 - t0)
 
 
 def validate_part_test(test):
