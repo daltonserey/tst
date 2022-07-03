@@ -299,32 +299,51 @@ class TestSubject:
 
 class TestCase():
 
-    def assert_script_test_validity(self, test):
-        return True
+    IO_TEST_PROPS = ['input', 'output', 'session', 'match', 'tokens', 'tokens-regex']
+    SCRIPT_TEST_PROPS = ['script', 'command']
+
+    def _assert_script_spec_validity(self, spec):
+        pass
+
+    def _assert_io_spec_validity(self, spec):
+        EXCLUSIVE = ['output', 'session', 'match', 'tokens', 'tokens-regex']
+        num = sum(1 for p in EXCLUSIVE if p in spec)
+        _assert(num, f"invalid io test (no output specified): {self.id}")
+        _assert(num == 1, f"invalid io test (mixed output spec): {self.id}")
+
+    def _guess_type(self, spec):
+        test_type = []
+        if any(prop in spec for prop in TestCase.IO_TEST_PROPS):
+            test_type.append('io')
+
+        if any(prop in spec for prop in TestCase.SCRIPT_TEST_PROPS):
+            test_type.append('script')
+
+        _assert(len(test_type) == 1, f"invalid test (unrecognized test type): {self.id}")
+        return test_type[0]
 
     def __init__(self, spec, test_suite, level, index):
-        def assert_io_test_validity(spec):
-            _assert('input' in spec or 'session' in spec, f"io test must have either input or session: {test_suite}::{index + 1}")
-            if not 'session' in spec or type(spec['session']) is dict: return False
-            return True
-
         # identify test type and check validity
-        self.type = spec.get('type') or ('script' if 'script' in spec else 'io')
+        self.id = f"{test_suite}::{index + 1}"
+        self.type = spec.get('type') or self._guess_type(spec)
         match self.type:
-            case 'io': assert_io_test_validity(spec)
-            case 'script': self.assert_script_test_validity(spec)
+            case 'script':
+                self._assert_script_spec_validity(spec)
+                self.script = spec.get('script') or spec.get('command')
+
+            case 'io':
+                self._assert_io_spec_validity(spec)
 
         # get data from tst.json
-        self.input = spec.get('input')
-        self.output = spec.get('output')
+        self.input = str(spec.get('input', ''))
         self.fnmatch = spec.get('fnmatch')
         self.test_suite = test_suite
         self.level = level
         self.index = index
 
+        self.output = spec.get('output')
         # set match
         if 'match' in spec:
-            _assert(self.output is None, "cannot set match and output")
             self.match = spec['match']
             _assert(isinstance(self.match, str), "match must be a string")
         else:
@@ -347,11 +366,6 @@ class TestCase():
             self.match = ".*" + ".*".join(spec["tokens-regex"]) + ".*"
 
         self.ignore = spec.get('ignore', [])
-        self.script = spec.get('script')
-        if self.type == 'script':
-            _assert(self.script, "script tests must have a script")
-            _assert(not self.input and not self.output, "script tests cannot have input/output")
-            _assert(not self.match, "script tests cannot have tokens/match")
 
         # convert ignore to a list of strings, if necessary
         if isinstance(self.ignore, str):
