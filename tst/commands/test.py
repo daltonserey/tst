@@ -13,6 +13,7 @@ import itertools
 import queue
 import threading
 import time
+import difflib
 from pathlib import Path
 from fnmatch import fnmatch
 from fnmatch import filter as fnfilter
@@ -41,10 +42,9 @@ STATUS_CODE = {
     'Error': 'e',
     'Timeout': 't',
     'Success': '.',
-    'MissingTokens': '%',
     'Fail': 'F',
     'ScriptTestError': '!',
-    'NoInterpreterError': 'X',
+    'NoInterpreterError': '?',
     'FilenameMismatch': '_',
 
     # Python ERROR codes
@@ -57,7 +57,7 @@ STATUS_CODE = {
     'ValueError': 'v',
     'TypeError': 'y',
     'NameError': 'n',
-    '[Errno 2]': '?'
+    '[Errno 2]': '2'
 }
 
 
@@ -161,7 +161,7 @@ class TestRun:
         except (FileNotFoundError, PermissionError, AssertionError) as e:
             # the test script command itself failed (or it was not found)
             self.result['status'] = 'ScriptTestError'
-            self.result['summary'] = '!'
+            self.result['summary'] = STATUS_CODE[self.result['status']]
             self.result['error'] = f'{e}'
             self.result['stderr'] = stderr if stderr else None
             self.result['stdout'] = stdout if stdout else None
@@ -172,7 +172,7 @@ class TestRun:
             # test script running too long: possibly a loop in the subject
             process.terminate()
             self.result['status'] = 'Timeout'
-            self.result['summary'] = 't'
+            self.result['summary'] = STATUS_CODE[self.result['status']]
             return self.result
 
         self.result['summary'] = summary
@@ -299,14 +299,27 @@ class TestSubject:
 
 class TestCase():
 
+    def assert_script_test_validity(self, test):
+        return True
+
     def __init__(self, test, test_suite, level, index):
+        def assert_io_test_validity(test):
+            _assert('input' in test or 'session' in test, f"io test must have either input or session: {test_suite}::{index + 1}")
+            if not 'session' in test or type(test['session']) is dict: return False
+            return True
+
+        # identify test type and check validity
+        self.type = test.get('type') or ('script' if 'script' in test else 'io')
+        match self.type:
+            case 'io': assert_io_test_validity(test)
+            case 'script': self.assert_script_test_validity(test)
 
         # get data from tst.json
-        self.input = test.get('input', '')
+        self.input = test.get('input')
         self.output = test.get('output')
-        self.level = level
         self.fnmatch = test.get('fnmatch')
         self.test_suite = test_suite
+        self.level = level
         self.index = index
 
         # set match
@@ -335,7 +348,6 @@ class TestCase():
 
         self.ignore = test.get('ignore', [])
         self.script = test.get('script')
-        self.type = test.get('type') or ('script' if self.script else 'io')
         if self.type == 'script':
             _assert(self.script, "script tests must have a script")
             _assert(not self.input and not self.output, "script tests cannot have input/output")
@@ -434,43 +446,30 @@ OPERATOR = {
 }
 
 
-def color(color, text):
-    reset = RESET
-    if REDIRECTED:
-        color = ""
-        reset = ""
-    return color + text + reset
-
-
-def get_options_from_cli_and_context(directory, spec):
+def get_options_from_cli_and_context(directory):
     DEFAULT_TEST_SOURCES = ["*.yaml", "*.json", "test_*.py", "*_test.py"]
 
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('-V', '--verbose', action="count", default=0, help='more verbose output')
+    parser.add_argument('-q', '--quiet', action="store_true", default=False, help='suppress non-essential output')
     parser.add_argument('-T', '--timeout', type=int, default=TIMEOUT_DEFAULT, help='stop execution at TIMEOUT seconds')
     parser.add_argument('-t', '--test-sources', nargs="+", default=[], help='read tests from TEST_SOURCES')
-    parser.add_argument('-f', '--output-format', type=str, choices=['cli', 'json', 'debug', 'compare'], help='choose report format')
-    parser.add_argument('-d', '--diff', action="store_true", default=False, help='shortcut for debug report format')
-    parser.add_argument('-c', '--compare', action="store_true", default=False, help='shortcut for color report format')
-    parser.add_argument('-P', '--passed', action="store_true", default=False, help='report only passed subjects')
-    parser.add_argument('-F', '--failed', action="store_true", default=False, help='report only failed subjects')
+    parser.add_argument('-f', '--output-format', type=str, choices=['default', 'json'], help='choose report format')
+    parser.add_argument('-d', '--diff', action="store_true", default=False, help='print diff output for failed io tests')
+    parser.add_argument('-c', '--compare', action="store_true", default=False, help='shortcut for compare report format')
+    parser.add_argument('-P', '--passed', action="store_true", default=False, help='suppress subjects that fail any test')
+    parser.add_argument('-F', '--failed', action="store_true", default=False, help='suppress subjects that pass all tests')
     parser.add_argument('filenames', nargs='*', default=[])
 
     # reuse argparse namespace as the options object
     options = parser.parse_args()
 
-    # process shortcut report options
-    _assert(not options.compare or not options.diff, "--compare cannot be used with debug with --diff")
-    if options.diff:
-        _assert(options.output_format in [None, "debug"], "output-format must be debug with --diff")
-        options.output_format = 'debug'
-
     if options.compare:
         _assert(options.output_format in [None, "compare"], "output-format must be compare with --compare")
         options.output_format = 'compare'
 
-    # set cli as default output_format
-    options.output_format = options.output_format or 'cli'
+    # set default as default output_format
+    options.output_format = options.output_format or 'default'
 
     # identify subjects to be tested/checked
     if not options.filenames:
@@ -500,14 +499,14 @@ def process_session_tests(testsfile):
                 if i % 2 == 0:
                     output_parts.append(str(part))
                 else:
-                    input_part = re.escape(str(part))
+                    input_part = str(part)
                     if input_part[-1] != "\n":
                         input_part += "\n"
                     input_parts.append(input_part)
 
             if type(part) is dict:
                 if "out" in part:
-                    output_parts.append(re.escape(str(part["out"])))
+                    output_parts.append(str(part["out"]))
                 elif "in" in part:
                     input_part = str(part["in"])
                     if input_part[-1] != "\n":
@@ -518,8 +517,10 @@ def process_session_tests(testsfile):
 
         if test.get("strict"):
             test["output"] = "".join(output_parts)
+            #print("* joining out parts with ''")
         else:
             test["match"] = ".*" + ".*".join(output_parts) + ".*"
+            #print("* joining out parts with '.*' and using match")
 
         del test["session"]
 
@@ -536,7 +537,6 @@ def collect_test_cases(test_sources):
             testsfile = JsonFile(tspath, array2map="tests")
             level = testsfile.get('level', 0)
             process_session_tests(testsfile.data["tests"])
-            #pre_process_parts(testsfile.data["tests"])
             test_cases = [TestCase(tc, tspath, level, index) for index, tc in enumerate(testsfile["tests"])]
             all_test_cases.extend(test_cases)
 
@@ -568,10 +568,6 @@ def collect_test_cases(test_sources):
 
 
 def run_tests_in_parallel(test_cases, test_suites, subjects, options):
-    all_tests_results = []
-    verbose = options.verbose
-    t0 = time.time()
-
     def results_reader(q):
         # read queue
         while True:
@@ -581,85 +577,45 @@ def run_tests_in_parallel(test_cases, test_suites, subjects, options):
             test_result["subject"] = test_result["_testrun"].subject.filename
             all_tests_results.append(test_result)
             q.task_done()
-            verbose > 2 and print(test_result['summary'], flush=True, end='', file=sys.stderr)
-
-    def results_to_map(all_tests_results):
-        results = {}
-
-        summaries_sizes = {}
-        for ts in test_suites:
-            summaries_sizes[ts] = sum(1 for tc in test_cases if tc.test_suite == ts)
-
-        for tr in all_tests_results:
-            if not tr['subject'] in results:
-                summaries = { ts: ['#'] * summaries_sizes[ts] for ts in test_suites }
-                results[tr['subject']] = summaries
-
-            subject_results = results[tr['subject']]
-            subject_results[tr['_test_suite']][tr['_testcase'].index] = tr['summary']
-
-        for sub in results.keys():
-            for ts in test_suites:
-                results[sub][ts] = "".join(summary for summary in results[sub][ts])
-
-        return results
-
-    def print_cli_report(all_tests_results, total_time):
-        width = max(len(fn) for fn in subjects)
-        results = results_to_map(all_tests_results)
-        suppressed = 0
-        for fn in results.keys():
-            summaries = []
-            for ts in test_suites:
-                summaries.append(results[fn][ts])
-            all_summaries = ' '.join(summaries)
-            subject_passed = all(c in '. ' for c in all_summaries)
-            if (not options.passed and not options.failed or
-                options.passed and subject_passed or
-                options.failed and not subject_passed):
-                print(f"{fn:{width}s} {all_summaries}", flush=True)
-            else:
-                suppressed += 1
-
-        print("---")
-        print(f"test suites: {' '.join(test_suites)}")
-        print(f"number of subjects: {len(subjects) - suppressed} {f'(+{suppressed} omitted)' if suppressed else ''}")
-        print(f"number of tests run: {len(all_tests_results)}")
-        print(f"time to run all tests: {total_time:.2f}s ({1000 * (total_time / len(all_tests_results)):.1f} ms/test)")
-
-    def print_json_report(all_tests_results):
-        results = results_to_map(all_tests_results)
-        to_pop = []
-        for sub, res in results.items():
-            subject_passed = all(c == "." for c in "".join(res.values()))
-            if options.passed and not subject_passed:
-                to_pop.append(sub)
-            elif options.failed and subject_passed:
-                to_pop.append(sub)
-
-        for sub in to_pop:
-            results.pop(sub)
-
-        print(json.dumps(results))
+            options.verbose > 2 and print(test_result['summary'], flush=True, end='', file=sys.stderr)
 
     def test_runner(testrun, q):
-        verbose >= 2 and print(f"* starting test: {testrun.subject.filename} X {testrun.testcase.test_suite}")
+        options.verbose >= 2 and print(f"** starting test: {testrun.subject.filename} X {testrun.testcase.test_suite}")
         testresult = testrun.run(timeout=options.timeout)
         testresult["_testrun"] = testrun
         q.put(testresult)
 
+    def ui(q):
+        time.sleep(1)
+        number_test_runs = len(subjects) * len(test_cases)
+        done = len(all_tests_results)
+        if done > number_test_runs / 2:
+            return
+
+        options.verbose >= 0 and print(f"* {number_test_runs} tests threads started (this might take some time)", file=sys.stderr)
+        while True:
+            size = q.qsize()
+            done = len(all_tests_results)
+            togo = number_test_runs - len(all_tests_results)
+            options.verbose and print(f"* {togo} threads still running", file=sys.stderr, flush=True)
+            time.sleep(3)
+
+    # main run_tests_in_parallel
+    all_tests_results = []
+    t0 = time.time()
+
     # start reader thread
-    verbose and print(f"* starting reader thread", file=sys.stderr)
+    options.verbose and print(f"* starting results reader thread", file=sys.stderr)
     q = queue.Queue()
     threading.Thread(target=results_reader, daemon=True, args=(q, )).start()
+    options.quiet or threading.Thread(target=ui, daemon=True, args=(q, )).start()
 
     # run tests threads
-    verbose and print(f"* starting test threads creation", file=sys.stderr)
+    options.verbose and print(f"* starting test threads", file=sys.stderr)
     threads = []
     subject_threads = []
     last_subject = None
     for subject, testcase in itertools.product(subjects, test_cases):
-        #if not fnmatch(subject, testcase.fnmatch or "*.py"): continue
         testrun = TestRun(TestSubject(subject), testcase)
         test_thread = threading.Thread(target=test_runner, args=(testrun, q))
         threads.append(test_thread)
@@ -671,25 +627,12 @@ def run_tests_in_parallel(test_cases, test_suites, subjects, options):
     else:
         for t in subject_threads: t.start()
 
-    verbose and print(f"* waiting all {len(threads)} threads finish their jobs", file=sys.stderr)
     for t in threads: t.join()
-    verbose and print(f"* threads ended; waiting results reader", file=sys.stderr)
+    options.verbose and print(f"* all test threads finished", file=sys.stderr)
     q.join()
-    verbose and print(f"* results collector ended: starting report", file=sys.stderr)
-    match options.output_format:
-        case 'json':
-            print_json_report(all_tests_results)
-        case 'debug':
-            print("not implemented yet")
-        case 'color':
-            print("not implemented yet")
-        case 'passed':
-            print("not implemented yet")
-        case 'failed':
-            print("not implemented yet")
-        case _:
-            t1 = time.time()
-            print_cli_report(all_tests_results, t1 - t0)
+    options.verbose and print(f"* results reader thread finished", file=sys.stderr)
+
+    return all_tests_results
 
 
 def validate_part_test(test):
@@ -760,36 +703,163 @@ def pre_process_parts(testsfile):
         testsfile[i] = create_test_from_parts(test)
 
 
+# begin: module reports
+def results_to_map(all_tests_results, test_suites, test_cases):
+    results = {}
+
+    summaries_sizes = {}
+    for ts in test_suites:
+        summaries_sizes[ts] = sum(1 for tc in test_cases if tc.test_suite == ts)
+
+    for tr in all_tests_results:
+        if not tr['subject'] in results:
+            summaries = { ts: ['#'] * summaries_sizes[ts] for ts in test_suites }
+            failed = [_tr for _tr in all_tests_results if _tr['summary'] != '.' and _tr['subject'] == tr['subject']]
+            summaries['_failed'] = failed
+            results[tr['subject']] = summaries
+
+        subject_results = results[tr['subject']]
+        subject_results[tr['_test_suite']][tr['_testcase'].index] = tr['summary']
+
+    for sub in results.keys():
+        for ts in test_suites:
+            results[sub][ts] = "".join(summary for summary in results[sub][ts])
+
+    return results
+
+
+def print_json_report(all_tests_results, test_suites, test_cases, options):
+    results = results_to_map(all_tests_results, test_suites, test_cases)
+    to_pop = []
+    for sub, res in results.items():
+        subject_passed = all(c == "." for c in "".join(res.values()))
+        if options.passed and not subject_passed:
+            to_pop.append(sub)
+        elif options.failed and subject_passed:
+            to_pop.append(sub)
+
+    for sub in to_pop:
+        results.pop(sub)
+
+    print(json.dumps(results))
+
+
+def print_cli_report(all_tests_results, subjects, test_suites, test_cases, options, total_time):
+    def indent(text):
+        _assert(not text or text[-1] == '\n', "indent deve ser chamada apenas para text terminado em newlines")
+        lines = text.splitlines()
+        text = "\n".join(["    %s" % l for l in lines])
+        return text
+
+    def color(color, text):
+        _assert(not text or text[-1] != '\n', "color não deve ser chamada pra string com newline")
+        if REDIRECTED:
+            return text
+
+        return color + text + RESET
+
+    def internal_diff(result):
+        if 'stdout' not in result:
+            return None
+
+        differ = difflib.Differ()
+        diff = differ.compare(result['stdout'].splitlines(True), result['output'].splitlines(True))
+        lines = []
+        for e in diff:
+            if e[0] == '+':
+                line = color(LGREEN, "+ ") + color('\033[1;32;100m', e[2:-1]) + '\n'
+            elif e[0] == '-':
+                line = color(LRED, "- ") + color('\033[1;31;100m', e[2:-1]) + '\n'
+            elif e[0] == '?':
+                line = color('\033[2m', e[:-1]) + '\n'
+            else:
+                line = e
+            lines.append(line)
+        return "".join(lines)
+
+    width = max(len(fn) for fn in subjects) if subjects else 0
+    results = results_to_map(all_tests_results, test_suites, test_cases)
+    suppressed = 0
+    for fn in results.keys():
+        summaries = []
+        for ts in test_suites:
+            summaries.append(results[fn][ts])
+        all_summaries = ' '.join(summaries)
+        subject_passed = all(c in '. ' for c in all_summaries)
+        if (not options.passed and not options.failed or
+            options.passed and subject_passed or
+            options.failed and not subject_passed):
+            pass
+        else:
+            suppressed += 1
+            continue
+        print(f"{fn:{width}s} {all_summaries}")
+
+        # print diff if required
+        if options.diff and not subject_passed:
+            for tr in results[fn]['_failed']:
+                testcase = f"-- {tr['_testcase'].test_suite}::{tr['_testcase'].index + 1}"
+                print(color(YELLOW, testcase) + f" ({tr.get('status')})")
+                if tr['type'] == 'io' and not tr['match'] and tr.get('summary') not in "et":
+                    print(indent(internal_diff(tr)))
+
+    # add meta data to report if required
+    if options.quiet: return
+
+    # lines 0 and 1: separator + test suites
+    print("---", file=sys.stderr)
+    print(f"{len(test_suites)} test suites", end='', file=sys.stderr)
+    print(f": {' '.join(test_suites)}" if test_suites else "", file=sys.stderr)
+
+    # line 2: number of test cases and subjects
+    print(f"{len(test_cases)} test cases, {len(subjects) - suppressed} subjects", end='', file=sys.stderr)
+    print(f" ({suppressed} suppressed)" if suppressed else "", file=sys.stderr)
+
+    # line 3: total tests run + time
+    print(f"{len(all_tests_results)} tests executed in ", end='', file=sys.stderr)
+    print(f"{total_time:.2f}s", end='', file=sys.stderr)
+    print(f" ({1000 * (total_time / len(all_tests_results)):.1f} ms/test)" if subjects else " (-.- ms/test)", file=sys.stderr)
+
+# end: module reports
+
+
 def main():
 
     # read current directory and specification
     directory = os.listdir()
     spec = tst.read_specification()
 
+    # set options namespace from cli and directory contents
+    options = get_options_from_cli_and_context(directory)
+
     # check spec required files
     for req in spec['require']:
         _assert(any((fnmatch(sub, req) for sub in directory)), "missing required files for this test: %s" % req)
 
-    # identify subjects and test_sources from cli and context
-    options = get_options_from_cli_and_context(directory, spec)
-
-    # collect test cases
+    # collect test suites and test cases
+    options.verbose and print("* collecting test cases", file=sys.stderr)
     test_cases = collect_test_cases(options.test_sources)
-    _assert(test_cases, 'no tests collected')
     test_suites = list({tc.test_suite for tc in test_cases})
 
-    # discard test_suites as invalid subjects
-    subjects = [sub for sub in options.filenames if sub not in test_suites]
-    _assert(subjects, 'no subjects')
+    # every file is a potential subject, except for test suites
+    possible_subjects = [sub for sub in options.filenames if sub not in test_suites]
 
-    # identify subjects that match test cases
-    matching_subjects = set([])
-    for sub, tc in itertools.product(subjects, test_cases):
+    # only files matching some test fnmatch property are valid subjects
+    options.verbose and print("* collecting subjects matching test cases fnmatch", file=sys.stderr)
+    subjects = set([])
+    for sub, tc in itertools.product(possible_subjects, test_cases):
         if fnmatch(sub, tc.fnmatch or "*.py"):
-            matching_subjects.add(sub)
-    _assert(matching_subjects, 'no matching subjects')
+            subjects.add(sub)
 
-    run_tests_in_parallel(test_cases, test_suites, matching_subjects, options)
+    t0 = time.time()
+    all_tests_results = run_tests_in_parallel(test_cases, test_suites, subjects, options)
+    t1 = time.time()
+
+    match options.output_format:
+        case 'json':
+            print_json_report(all_tests_results, test_suites, test_cases, options)
+        case _:
+            print_cli_report(all_tests_results, subjects, test_suites, test_cases, options, t1 - t0)
 
 
 log = logging.getLogger('tst-test')

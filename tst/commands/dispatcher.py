@@ -63,7 +63,7 @@ def main():
         dispatcher(args)
 
     except AssertionError as e:
-        cprint(LRED, e)
+        cprint(LRED, str(e) or "critical error: AssertionError")
 
     except KeyboardInterrupt:
         cprint(LRED, "\nUser interruption")
