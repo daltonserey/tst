@@ -302,52 +302,52 @@ class TestCase():
     def assert_script_test_validity(self, test):
         return True
 
-    def __init__(self, test, test_suite, level, index):
-        def assert_io_test_validity(test):
-            _assert('input' in test or 'session' in test, f"io test must have either input or session: {test_suite}::{index + 1}")
-            if not 'session' in test or type(test['session']) is dict: return False
+    def __init__(self, spec, test_suite, level, index):
+        def assert_io_test_validity(spec):
+            _assert('input' in spec or 'session' in spec, f"io test must have either input or session: {test_suite}::{index + 1}")
+            if not 'session' in spec or type(spec['session']) is dict: return False
             return True
 
         # identify test type and check validity
-        self.type = test.get('type') or ('script' if 'script' in test else 'io')
+        self.type = spec.get('type') or ('script' if 'script' in spec else 'io')
         match self.type:
-            case 'io': assert_io_test_validity(test)
-            case 'script': self.assert_script_test_validity(test)
+            case 'io': assert_io_test_validity(spec)
+            case 'script': self.assert_script_test_validity(spec)
 
         # get data from tst.json
-        self.input = test.get('input')
-        self.output = test.get('output')
-        self.fnmatch = test.get('fnmatch')
+        self.input = spec.get('input')
+        self.output = spec.get('output')
+        self.fnmatch = spec.get('fnmatch')
         self.test_suite = test_suite
         self.level = level
         self.index = index
 
         # set match
-        if 'match' in test:
+        if 'match' in spec:
             _assert(self.output is None, "cannot set match and output")
-            self.match = test['match']
+            self.match = spec['match']
             _assert(isinstance(self.match, str), "match must be a string")
         else:
             self.match = None
 
-        if 'tokens' in test:
+        if 'tokens' in spec:
             _assert(self.output is None, "cannot set output and tokens")
             _assert(self.match is None, "cannot set match and tokens")
-            if type(test["tokens"]) is str:
-                tokens = test["tokens"].split()
+            if type(spec["tokens"]) is str:
+                tokens = spec["tokens"].split()
             else:
-                tokens = test["tokens"]
+                tokens = spec["tokens"]
             _assert(all(type(e) is str for e in tokens), "tokens must be a sequence of strings"),
             self.match = ".*\\b" + "\\b.*\\b".join([re.escape(tk) for tk in tokens]) + "\\b.*"
 
-        if 'tokens-regex' in test:
+        if 'tokens-regex' in spec:
             _assert(self.output is None, "cannot set output and tokens-regex")
             _assert(self.match is None, "cannot set match and tokens-regex")
-            _assert(all(type(e) is str for e in test["tokens-regex"]), "tokens-regex must be a sequence of strings"),
-            self.match = ".*" + ".*".join(test["tokens-regex"]) + ".*"
+            _assert(all(type(e) is str for e in spec["tokens-regex"]), "tokens-regex must be a sequence of strings"),
+            self.match = ".*" + ".*".join(spec["tokens-regex"]) + ".*"
 
-        self.ignore = test.get('ignore', [])
-        self.script = test.get('script')
+        self.ignore = spec.get('ignore', [])
+        self.script = spec.get('script')
         if self.type == 'script':
             _assert(self.script, "script tests must have a script")
             _assert(not self.input and not self.output, "script tests cannot have input/output")
