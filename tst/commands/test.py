@@ -710,7 +710,7 @@ def main():
     options.verbose and print("* collecting subjects matching test cases fnmatch", file=sys.stderr)
     subjects = set([])
     for sub, tc in itertools.product(possible_subjects, test_cases):
-        if fnmatch(sub, tc.fnmatch or "*.py"):
+        if sub not in spec['ignore'] and fnmatch(sub, tc.fnmatch or "*.py"):
             subjects.add(sub)
 
     t0 = time.time()
