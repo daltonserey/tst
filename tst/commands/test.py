@@ -675,15 +675,13 @@ def results_to_map(all_tests_results, test_suites, test_cases):
     return results
 
 
-def print_json_report(all_tests_results, test_suites, test_cases, options):
-    results = results_to_map(all_tests_results, test_suites, test_cases)
+def print_json_report(results, test_suites, test_cases, options):
     to_pop = []
     for sub, res in results.items():
-        res.pop("_failed", None)
-        subject_passed = all(c == "." for c in "".join(res.values()))
-        if options.passed and not subject_passed:
+        failed = res.pop("_failed", None)
+        if options.passed and failed:
             to_pop.append(sub)
-        elif options.failed and subject_passed:
+        elif options.failed and not failed:
             to_pop.append(sub)
 
     for sub in to_pop:
@@ -692,7 +690,7 @@ def print_json_report(all_tests_results, test_suites, test_cases, options):
     print(json.dumps(results))
 
 
-def print_cli_report(all_tests_results, subjects, test_suites, test_cases, options, total_time):
+def print_cli_report(results, subjects, test_suites, test_cases, options, total_time):
     def indent(text):
         _assert(not text or text[-1] == '\n', "indent deve ser chamada apenas para text terminado em newlines")
         lines = text.splitlines()
@@ -726,7 +724,6 @@ def print_cli_report(all_tests_results, subjects, test_suites, test_cases, optio
         return "".join(lines)
 
     width = max(len(fn) for fn in subjects) if subjects else 0
-    results = results_to_map(all_tests_results, test_suites, test_cases)
     suppressed = 0
     for fn in results.keys():
         summaries = []
@@ -764,9 +761,9 @@ def print_cli_report(all_tests_results, subjects, test_suites, test_cases, optio
     print(f" ({suppressed} suppressed)" if suppressed else "", file=sys.stderr)
 
     # line 3: total tests run + time
-    print(f"{len(all_tests_results)} tests executed in ", end='', file=sys.stderr)
+    print(f"{len(results)} tests executed in ", end='', file=sys.stderr)
     print(f"{total_time:.2f}s", end='', file=sys.stderr)
-    print(f" ({1000 * (total_time / len(all_tests_results)):.1f} ms/test)" if subjects else " (-.- ms/test)", file=sys.stderr)
+    print(f" ({1000 * (total_time / len(results)):.1f} ms/test)" if subjects else " (-.- ms/test)", file=sys.stderr)
 
 # end: module reports
 
@@ -801,13 +798,14 @@ def main():
 
     t0 = time.time()
     all_tests_results = run_tests_in_parallel(test_cases, test_suites, subjects, options)
+    results = results_to_map(all_tests_results, test_suites, test_cases)
     t1 = time.time()
 
     match options.output_format:
         case 'json':
-            print_json_report(all_tests_results, test_suites, test_cases, options)
+            print_json_report(results, test_suites, test_cases, options)
         case _:
-            print_cli_report(all_tests_results, subjects, test_suites, test_cases, options, t1 - t0)
+            print_cli_report(results, subjects, test_suites, test_cases, options, t1 - t0)
 
 
 log = logging.getLogger('tst-test')
