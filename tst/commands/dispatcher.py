@@ -62,14 +62,11 @@ def main():
         args = sys.argv[:]
         dispatcher(args)
 
-    except AssertionError as e:
-        cprint(LRED, str(e) or "critical error: AssertionError")
-
     except KeyboardInterrupt:
         cprint(LRED, "\nUser interruption")
 
-    except Exception as e:
-        cprint(LRED, "ops! critical error")
+    except (AssertionError, Exception) as e:
+        cprint(LRED, "sorry, critical error")
         log.error(e)
-        cprint(LRED, e.__class__.__name__)
+        cprint(LRED, f"{e.__class__.__name__}: {e}")
 

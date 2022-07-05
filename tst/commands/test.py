@@ -25,7 +25,7 @@ from tst.utils import to_unicode
 from tst.utils import cprint
 from tst.colors import *
 
-from subprocess import Popen, PIPE, CalledProcessError, TimeoutExpired
+from subprocess import Popen, PIPE, TimeoutExpired
 
 
 PYTHON = 'python3'
@@ -198,10 +198,10 @@ class TestRun:
                 return self.result
             _assert(ext in extensions, "\nfatal: missing command for extension %s" % ext)
             command = config['run'][ext]
-            cmd_str = "%s %s" % (command, self.subject.filename)
+            cmd_str = '%s "%s"' % (command, self.subject.filename)
         else:
             # default is running through python
-            cmd_str = '%s %s' % (PYTHON, self.subject.filename)
+            cmd_str = '%s "%s"' % (PYTHON, self.subject.filename)
 
         command = shlex.split(cmd_str)
 
@@ -299,16 +299,16 @@ class TestSubject:
 
 class TestCase():
 
-    IO_TEST_PROPS = ['input', 'output', 'session', 'match', 'tokens', 'tokens-regex']
+    IO_TEST_PROPS = ['input', 'output', 'parts', 'tokens', 'tokens-regex']
     SCRIPT_TEST_PROPS = ['script', 'command']
 
     def _assert_script_spec_validity(self, spec):
         pass
 
     def _assert_io_spec_validity(self, spec):
-        EXCLUSIVE = ['output', 'session', 'match', 'tokens', 'tokens-regex']
+        EXCLUSIVE = ['output', 'parts', 'tokens', 'match', 'tokens-regex']
         num = sum(1 for p in EXCLUSIVE if p in spec)
-        _assert(num, f"invalid io test (no output specified): {self.id}")
+        _assert(num > 0, f"invalid io test (no output specified): {self.id}")
         _assert(num == 1, f"invalid io test (mixed output spec): {self.id}")
 
     def _guess_type(self, spec):
@@ -322,9 +322,57 @@ class TestCase():
         _assert(len(test_type) == 1, f"invalid test (unrecognized test type): {self.id}")
         return test_type[0]
 
+    def _preprocess_parts(self, spec):
+        in_parts, out_parts = [], []
+        for part in spec['parts']:
+            _assert(type(part) is dict, f"invalid io test (part is not an object): {self.id}")
+            _assert(len(part) == 1, f"invalid io test (part has wrong length): {self.id}")
+            if "out" in part:
+                out_parts.append(re.escape(str(part["out"])))
+
+            elif "re" in part:
+                out_parts.append(str(part["re"]))
+
+            elif "tok" in part:
+                out_parts.append(r"\b" + str(part["tok"]) + r"\b")
+
+            elif "in" in part:
+                input_part = str(part["in"])
+                in_parts.append(input_part)
+
+            elif "lin" in part:
+                input_part = str(part["lin"])
+                input_part += "\n"
+                in_parts.append(input_part)
+
+            else:
+                _assert(False, f"invalid io test (invalid part): {self.id}")
+
+        input_value = "".join(in_parts)
+        if 'strict-output' in spec.get('options', []):
+            output_value = "".join(out_parts)
+            match_value = None
+        else:
+            output_value = None
+            match_value = ".*" + ".*".join(out_parts) + ".*"
+
+        return input_value, output_value, match_value
+
+    def _preprocess_tokens(self, spec):
+        tokens = spec["tokens"] if type(spec["tokens"]) is list else spec["tokens"].split()
+        _assert(all(type(tk) is str for tk in tokens), f"invalid io test (tokens must be strings): {self.id}"),
+        match_value = ".*\\b" + "\\b.*\\b".join([re.escape(tk) for tk in tokens]) + "\\b.*"
+        return match_value
+
+
     def __init__(self, spec, test_suite, level, index):
         # identify test type and check validity
         self.id = f"{test_suite}::{index + 1}"
+        self.test_suite = test_suite
+        self.fnmatch = spec.get('fnmatch')
+        self.level = level
+        self.index = index
+
         self.type = spec.get('type') or self._guess_type(spec)
         match self.type:
             case 'script':
@@ -333,54 +381,45 @@ class TestCase():
 
             case 'io':
                 self._assert_io_spec_validity(spec)
+                self.ignore = spec.get('ignore', [])
+                if isinstance(self.ignore, str):
+                    self.ignore = self.ignore.split()
 
-        # get data from tst.json
-        self.input = str(spec.get('input', ''))
-        self.fnmatch = spec.get('fnmatch')
-        self.test_suite = test_suite
-        self.level = level
-        self.index = index
+                if 'output' in spec:
+                    _assert(type(spec['output']) in [str, float, int], f"invalid io test (output must be string): {self.id}")
+                    self.input = str(spec.get('input', ''))
+                    self.output = str(spec['output'])
+                    self.match = None
 
-        self.output = spec.get('output')
-        # set match
-        if 'match' in spec:
-            self.match = spec['match']
-            _assert(isinstance(self.match, str), "match must be a string")
-        else:
-            self.match = None
+                elif 'match' in spec:
+                    _assert(type(spec['match']) is str, f"invalid io test (match must be string): {self.id}")
+                    self.input = str(spec.get('input', ''))
+                    self.output = None
+                    self.match = str(spec['match'])
 
-        if 'tokens' in spec:
-            _assert(self.output is None, "cannot set output and tokens")
-            _assert(self.match is None, "cannot set match and tokens")
-            if type(spec["tokens"]) is str:
-                tokens = spec["tokens"].split()
-            else:
-                tokens = spec["tokens"]
-            _assert(all(type(e) is str for e in tokens), "tokens must be a sequence of strings"),
-            self.match = ".*\\b" + "\\b.*\\b".join([re.escape(tk) for tk in tokens]) + "\\b.*"
+                elif 'parts' in spec:
+                    parts_as_regex = spec.get('match', False)
+                    _assert(type(parts_as_regex) is bool, f"invalid io test (match isn't boolean): {self.id}")
+                    self.input, self.output, self.match = self._preprocess_parts(spec)
 
-        if 'tokens-regex' in spec:
-            _assert(self.output is None, "cannot set output and tokens-regex")
-            _assert(self.match is None, "cannot set match and tokens-regex")
-            _assert(all(type(e) is str for e in spec["tokens-regex"]), "tokens-regex must be a sequence of strings"),
-            self.match = ".*" + ".*".join(spec["tokens-regex"]) + ".*"
+                elif 'tokens' in spec:
+                    _assert('match' not in spec, f"invalid io test (tokens and match are incompatible): {self.id}")
+                    self.input = str(spec.get('input', ''))
+                    self.output = None
+                    self.match = self._preprocess_tokens(spec)
 
-        self.ignore = spec.get('ignore', [])
+                else:
+                    assert False, "oops! critical error"
 
-        # convert ignore to a list of strings, if necessary
-        if isinstance(self.ignore, str):
-            self.ignore = self.ignore.split()
+                if self.match:
+                    assert not self.output, "invariant violation"
+                    options = re.MULTILINE | re.DOTALL
+                    if 'case' in self.ignore:
+                        options = re.IGNORECASE | options
+                    self.re = re.compile(self.match, options)
 
-        # compile the regex object
-        if self.match and 'case' in self.ignore:
-            self.re = re.compile(self.match, re.IGNORECASE | re.MULTILINE | re.DOTALL)
-        elif self.match and 'case' not in self.ignore:
-            self.re = re.compile(self.match, re.MULTILINE | re.DOTALL)
-        else:
-            self.re = None
-
-        # set up preprocessed output
-        self.preprocessed_output = preprocess(self.output, self.ignore)
+                # set up preprocessed output
+                self.preprocessed_output = preprocess(self.output, self.ignore)
 
 
 def preprocess(text, operator_names):
@@ -503,42 +542,6 @@ def get_options_from_cli_and_context(directory):
     return options
 
 
-def process_session_tests(testsfile):
-    for test in testsfile:
-        if 'session' not in test: continue
-
-        input_parts, output_parts = [], []
-        for i, part in enumerate(test['session']):
-            if type(part) is str:
-                if i % 2 == 0:
-                    output_parts.append(str(part))
-                else:
-                    input_part = str(part)
-                    if input_part[-1] != "\n":
-                        input_part += "\n"
-                    input_parts.append(input_part)
-
-            if type(part) is dict:
-                if "out" in part:
-                    output_parts.append(str(part["out"]))
-                elif "in" in part:
-                    input_part = str(part["in"])
-                    if input_part[-1] != "\n":
-                        input_part += "\n"
-                    input_parts.append(input_part)
-
-        test["input"] = "".join(input_parts)
-
-        if test.get("strict"):
-            test["output"] = "".join(output_parts)
-            #print("* joining out parts with ''")
-        else:
-            test["match"] = ".*" + ".*".join(output_parts) + ".*"
-            #print("* joining out parts with '.*' and using match")
-
-        del test["session"]
-
-
 def collect_test_cases(test_sources):
     # collect tests...
     all_test_cases = []
@@ -550,7 +553,6 @@ def collect_test_cases(test_sources):
             # collect io test suite
             testsfile = JsonFile(tspath, array2map="tests")
             level = testsfile.get('level', 0)
-            process_session_tests(testsfile.data["tests"])
             test_cases = [TestCase(tc, tspath, level, index) for index, tc in enumerate(testsfile["tests"])]
             all_test_cases.extend(test_cases)
 
@@ -608,7 +610,6 @@ def run_tests_in_parallel(test_cases, test_suites, subjects, options):
 
         options.verbose >= 0 and print(f"* {number_test_runs} tests threads started (this might take some time)", file=sys.stderr)
         while True:
-            size = q.qsize()
             done = len(all_tests_results)
             togo = number_test_runs - len(all_tests_results)
             options.verbose and print(f"* {togo} threads still running", file=sys.stderr, flush=True)
@@ -678,6 +679,7 @@ def print_json_report(all_tests_results, test_suites, test_cases, options):
     results = results_to_map(all_tests_results, test_suites, test_cases)
     to_pop = []
     for sub, res in results.items():
+        res.pop("_failed", None)
         subject_passed = all(c == "." for c in "".join(res.values()))
         if options.passed and not subject_passed:
             to_pop.append(sub)
