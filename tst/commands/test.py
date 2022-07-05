@@ -1,4 +1,3 @@
-from builtins import str
 import os
 import re
 import sys
@@ -6,7 +5,6 @@ import json
 import shlex
 import signal
 import string
-import unicodedata
 import argparse
 import logging
 import itertools
@@ -260,8 +258,7 @@ class TestRun:
             return self.result
 
         # check for a perfect match
-        preprocessed_stdout = preprocess(stdout, self.testcase.ignore)
-        if self.testcase.preprocessed_output == preprocessed_stdout:
+        if self.testcase.output == stdout:
             self.result['status'] = 'Success'
             return self.result
 
@@ -417,86 +414,6 @@ class TestCase():
                     if 'case' in self.ignore:
                         options = re.IGNORECASE | options
                     self.re = re.compile(self.match, options)
-
-                # set up preprocessed output
-                self.preprocessed_output = preprocess(self.output, self.ignore)
-
-
-def preprocess(text, operator_names):
-    if text is None: return None
-
-    # add whites if punctuation is used
-    if 'punctuation' in operator_names and 'whites' not in operator_names:
-        operator_names = operator_names + ['whites']
-
-    # expand if all is requested
-    if operator_names == ['all']:
-        operator_names = OPERATOR.keys()
-
-    _assert(all(name in OPERATOR for name in operator_names), "unknown operator in ignore")
-
-    # sort to assure 'whites' is last
-    operators = [OPERATOR[name] for name in sorted(operator_names)]
-
-    # apply operators to text
-    for op in operators:
-        text = op(text)
-
-    return text
-
-
-def squeeze_whites(text):
-    data = [lin.strip().split() for lin in text.splitlines()]
-    data = [' '.join(line) for line in data]
-    return '\n'.join(data)
-
-
-def remove_linebreaks(text):
-    # TODO: use carefully! it substitutes linebreaks for ' '
-    return ' '.join(text.splitlines())
-
-
-def drop_whites(text):
-    # TODO: Use carefully! deletes all whites
-    #       string.whitespace = '\t\n\x0b\x0c\r '
-    table = dict((ord(char), None) for char in string.whitespace)
-    return text.translate(table)
-
-
-def punctuation_to_white(text):
-    # WARNING: preprocess() silently adds 'whites' if punctuation is used
-    # TODO: Use carefully! it substitutes punctuation for ' '
-    # TODO: The specification is wrong!
-    #       Punctuation should be changed to spaces? This will
-    #       duplicate some whites... Should punctuation be deleted?
-    #       This would merge tokens into a single one... Should we
-    #       have a mixed behavior? All punctuation surrounded by white
-    #       would be deleted and punctuation not surrounded
-    # For now, it should be used with whites to work properly.
-    table = dict((ord(char), u' ') for char in string.punctuation)
-    return text.translate(table)
-
-
-def strip_accents(text):
-    # text must be a unicode object, not str
-    try:
-        nkfd_form = unicodedata.normalize('NFKD', text.decode('utf-8'))
-        only_ascii = nkfd_form.encode('ASCII', 'ignore')
-    except:
-        nkfd_form = unicodedata.normalize('NFKD', text)
-        only_ascii = nkfd_form.encode('ASCII', 'ignore')
-
-    return only_ascii.decode('utf-8')
-
-
-OPERATOR = {
-    'case': lambda c: c.lower(),
-    'accents': strip_accents,
-    'extra_whites': squeeze_whites,
-    'linebreaks': remove_linebreaks, # not default
-    'punctuation': punctuation_to_white, # not default
-    'whites': drop_whites, # not default
-}
 
 
 def get_options_from_cli_and_context(directory):
