@@ -371,12 +371,13 @@ class TestCase():
         self.index = index
 
         self.type = spec.get('type') or self._guess_type(spec)
-        match self.type:
-            case 'script':
+        #match self.type:
+        if True:
+            if self.type == 'script':
                 self._assert_script_spec_validity(spec)
                 self.script = spec.get('script') or spec.get('command')
 
-            case 'io':
+            elif self.type == 'io':
                 self._assert_io_spec_validity(spec)
                 self.ignore = spec.get('ignore', [])
                 if isinstance(self.ignore, str):
