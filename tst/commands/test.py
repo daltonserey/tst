@@ -373,10 +373,12 @@ class TestCase():
         self.type = spec.get('type') or self._guess_type(spec)
         #match self.type:
         if True:
+            #case 'script':
             if self.type == 'script':
                 self._assert_script_spec_validity(spec)
                 self.script = spec.get('script') or spec.get('command')
 
+            #case 'io':
             elif self.type == 'io':
                 self._assert_io_spec_validity(spec)
                 self.ignore = spec.get('ignore', [])
@@ -719,10 +721,13 @@ def main():
     results = results_to_map(all_tests_results, test_suites, test_cases)
     t1 = time.time()
 
-    match options.output_format:
-        case 'json':
+    #match options.output_format:
+    if True:
+        #case 'json':
+        if options.output_format == 'json':
             print_json_report(results, test_suites, test_cases, options)
-        case _:
+        #case _:
+        else:
             print_cli_report(results, subjects, test_suites, test_cases, options, t1 - t0)
 
 
