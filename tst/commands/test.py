@@ -497,7 +497,7 @@ def collect_test_cases(test_sources):
                 script_command = f'pytest {tspath} --tst {{}} --clean'
             if script_command:
                 testsfile.data['tests'].append({'type': 'script', 'script': script_command})
-                test_cases = [TestCase(tc, tspath, level, index) for index, tc in enumerate(testsfile["tests"])]
+                test_cases = [TestCase(tc, tspath, 0, index) for index, tc in enumerate(testsfile["tests"])]
                 all_test_cases.extend(test_cases)
 
     return all_test_cases
