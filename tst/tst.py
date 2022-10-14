@@ -20,18 +20,22 @@ def coverit():
     return 1
 
 
-def run_test(subjects, test_suite):
-    command = f"tst -f json -t {test_suite} {' '.join(subjects)}"
+def run_test(subjects, test_suite, include_stderr=True, timeout=120):
+    command = f"tst -T {timeout} -f json -t {test_suite} -- {' '.join(subjects)}"
     try:
-        output = subprocess.check_output(command.split(), stderr=subprocess.STDOUT)
+        if include_stderr:
+            stderr = subprocess.STDOUT
+        else:
+            stderr = subprocess.DEVNULL
+        output = subprocess.check_output(command.split(), stderr=stderr)
         results = json.loads(output)
-        return [results[s] for s in subjects]
+        return [results.get(s, {}) for s in subjects]
 
     except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
-        print("error running tst -----------")
+        print("----- error running tst -----")
         print(e)
         print("-----------------------------")
-        sys.exit()
+        raise e
         
 
 def get_config():

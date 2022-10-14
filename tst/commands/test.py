@@ -43,7 +43,7 @@ STATUS_CODE = {
     'Fail': 'F',
     'ScriptTestError': '!',
     'NoInterpreterError': '?',
-    'FilenameMismatch': '_',
+    'FilenameMismatch': '-',
 
     # Python ERROR codes
     'AttributeError': 'a',
@@ -106,7 +106,8 @@ class TestRun:
         self.testcase = testcase
         self.result = {}
         self.result['type'] = self.testcase.type
-        self.result['fnmatch'] = fnmatch(subject.filename, testcase.fnmatch or "*.py")
+        fnmatch_options = testcase.fnmatch or ["*.py"]
+        self.result['fnmatch'] = any(fnmatch(subject.filename, opt) for opt in fnmatch_options)
 
     def run(self, timeout=TIMEOUT_DEFAULT):
         if not self.result['fnmatch']:
@@ -188,18 +189,17 @@ class TestRun:
         config = tst.get_config()
         if config.get('run'):
             # use run option
-            run = config['run']
-            extensions = run.keys()
-            ext = self.subject.filename.split('.')[-1]
-            if ext not in extensions:
+            extensions = config['run'].keys()
+            suffix = Path(self.subject.filename).suffix[1:]
+            if suffix not in extensions:
                 self.result['status'] = 'NoInterpreterError'
                 return self.result
-            _assert(ext in extensions, "\nfatal: missing command for extension %s" % ext)
-            command = config['run'][ext]
-            cmd_str = '%s "%s"' % (command, self.subject.filename)
+            _assert(suffix in extensions, "\nfatal: missing command for extension %s" % suffix)
+            command = config['run'][suffix]
+            cmd_str = f'{command} "{self.subject.filename}"'
         else:
             # default is running through python
-            cmd_str = '%s "%s"' % (PYTHON, self.subject.filename)
+            cmd_str = f'{PYTHON} "{self.subject.filename}"'
 
         command = shlex.split(cmd_str)
 
@@ -296,7 +296,7 @@ class TestSubject:
 
 class TestCase():
 
-    IO_TEST_PROPS = ['input', 'output', 'parts', 'tokens', 'tokens-regex']
+    IO_TEST_PROPS = ['input', 'output', 'parts', 'tokens', 'tokens-regex', 'match']
     SCRIPT_TEST_PROPS = ['script', 'command']
 
     def _assert_script_spec_validity(self, spec):
@@ -366,7 +366,8 @@ class TestCase():
         # identify test type and check validity
         self.id = f"{test_suite}::{index + 1}"
         self.test_suite = test_suite
-        self.fnmatch = spec.get('fnmatch')
+        config = tst.get_config()
+        self.fnmatch = spec.get('fnmatch') or [f"*.{k}" for k in config.get('run', {}).keys()]
         self.level = level
         self.index = index
 
@@ -468,7 +469,7 @@ def collect_test_cases(test_sources):
 
     ## collect yaml/json test suites and tests
     for tspath in test_sources:
-        if not tspath.endswith(".json") and not tspath.endswith(".yaml"): continue
+        if all(not fnmatch(tspath, wc) for wc in ["*.json", "*.yaml"]): continue
         try:
             # collect io test suite
             testsfile = JsonFile(tspath, array2map="tests")
@@ -493,7 +494,7 @@ def collect_test_cases(test_sources):
             script_command = None
             if fnmatch(tspath, "*_tests.py"):
                 script_command = f'python {tspath} {{}}'
-            if fnmatch(tspath, 'test_*.py') or fnmatch(tspath, '*_test.py'):
+            if fnmatch(tspath, 'test_*.py') or fnmatch(tspath, '*_test.py') or fnmatch(tspath, '*/test_*.py'):
                 script_command = f'pytest {tspath} --tst {{}} --clean'
             if script_command:
                 testsfile.data['tests'].append({'type': 'script', 'script': script_command})
@@ -713,7 +714,7 @@ def main():
     options.verbose and print("* collecting subjects matching test cases fnmatch", file=sys.stderr)
     subjects = set([])
     for sub, tc in itertools.product(possible_subjects, test_cases):
-        if sub not in spec['ignore'] and fnmatch(sub, tc.fnmatch or "*.py"):
+        if sub not in spec['ignore'] and any(fnmatch(sub, fm) for fm in tc.fnmatch):
             subjects.add(sub)
 
     t0 = time.time()
