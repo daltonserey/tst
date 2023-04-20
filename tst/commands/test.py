@@ -428,7 +428,7 @@ def get_options_from_cli_and_context(directory):
     parser.add_argument('-q', '--quiet', action="store_true", default=False, help='suppress non-essential output')
     parser.add_argument('-T', '--timeout', type=int, default=TIMEOUT_DEFAULT, help='stop execution at TIMEOUT seconds')
     parser.add_argument('-t', '--test-sources', nargs="+", default=[], help='read tests from TEST_SOURCES')
-    parser.add_argument('-f', '--output-format', type=str, choices=['default', 'json'], help='choose report format')
+    parser.add_argument('-f', '--output-format', type=str, choices=['default', 'json', 'brief'], help='choose report format')
     parser.add_argument('-d', '--diff', action="store_true", default=False, help='print diff output for failed io tests')
     parser.add_argument('-c', '--compare', action="store_true", default=False, help='shortcut for compare report format')
     parser.add_argument('-P', '--passed', action="store_true", default=False, help='suppress subjects that fail any test')
@@ -686,6 +686,36 @@ def print_cli_report(results, subjects, test_suites, test_cases, options, total_
     print(f"{total_time:.2f}s", end='', file=sys.stderr)
     print(f" ({1000 * (total_time / len(results)):.1f} ms/test)" if subjects else " (-.- ms/test)", file=sys.stderr)
 
+
+def print_brief_report(results, subjects, test_suites, test_cases, options, total_time):
+    for fn in results.keys():
+        summaries = []
+        for ts in test_suites:
+            summaries.append(results[fn][ts])
+        all_summaries = ' '.join(summaries)
+        subject_passed = all(c in '. ' for c in all_summaries)
+        brief_summary = "passed" if subject_passed else "failed"
+        print(f"{brief_summary} {fn}")
+
+    # add meta data to report if required
+    if options.quiet: return
+
+    suppressed = 0
+
+    # lines 0 and 1: separator + test suites
+    print("---", file=sys.stderr)
+    print(f"{len(test_suites)} test suites", end='', file=sys.stderr)
+    print(f": {' '.join(test_suites)}" if test_suites else "", file=sys.stderr)
+
+    # line 2: number of test cases and subjects
+    print(f"{len(test_cases)} test cases, {len(subjects) - suppressed} subjects", end='', file=sys.stderr)
+    print(f" ({suppressed} suppressed)" if suppressed else "", file=sys.stderr)
+
+    # line 3: total tests run + time
+    print(f"{len(results)} tests executed in ", end='', file=sys.stderr)
+    print(f"{total_time:.2f}s", end='', file=sys.stderr)
+    print(f" ({1000 * (total_time / len(results)):.1f} ms/test)" if subjects else " (-.- ms/test)", file=sys.stderr)
+
 # end: module reports
 
 
@@ -728,8 +758,10 @@ def main():
         if options.output_format == 'json':
             print_json_report(results, test_suites, test_cases, options)
         #case _:
+        elif options.output_format == 'brief':
+            print_brief_report(results, subjects, test_suites, test_cases, options, t1 - t0)
         else:
-            print_cli_report(results, subjects, test_suites, test_cases, options, t1 - t0)
+           print_cli_report(results, subjects, test_suites, test_cases, options, t1 - t0)
 
 
 log = logging.getLogger('tst-test')
