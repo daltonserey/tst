@@ -31,7 +31,7 @@ if sys.version_info < (3,6):
     sys.stderr.write('tst.py: requires python 3.6 or later\n')
     sys.exit(1)
 
-TIMEOUT_DEFAULT = 2
+TIMEOUT_DEFAULT = 10
 
 REDIRECTED = os.fstat(0) != os.fstat(1)
 
@@ -494,7 +494,10 @@ def collect_test_cases(test_sources):
             script_command = None
             if fnmatch(tspath, "*_tests.py"):
                 script_command = f'python {tspath} {{}}'
-            if fnmatch(tspath, 'test_*.py') or fnmatch(tspath, '*_test.py') or fnmatch(tspath, '*/test_*.py'):
+            if fnmatch(tspath, 'test_*.py') or \
+                    fnmatch(tspath, '*_test.py') or \
+                    fnmatch(tspath, '*/test_*.py') or \
+                    fnmatch(tspath, '_test_*.py'):
                 script_command = f'pytest {tspath} --tst {{}} --clean'
             if script_command:
                 testsfile.data['tests'].append({'type': 'script', 'script': script_command})
@@ -695,6 +698,8 @@ def print_brief_report(results, subjects, test_suites, test_cases, options, tota
         all_summaries = ' '.join(summaries)
         subject_passed = all(c in '. ' for c in all_summaries)
         brief_summary = "passed" if subject_passed else "failed"
+        if 't' in summaries:
+            brief_summary = 'timeout'
         print(f"{brief_summary} {fn}")
 
     # add meta data to report if required
