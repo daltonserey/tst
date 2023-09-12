@@ -700,7 +700,8 @@ def print_brief_report(results, subjects, test_suites, test_cases, options, tota
         brief_summary = "passed" if subject_passed else "failed"
         if 't' in summaries:
             brief_summary = 'timeout'
-        print(f"{brief_summary} {fn}")
+        path = Path.cwd() / fn
+        print(f"{brief_summary} {path}")
 
     # add meta data to report if required
     if options.quiet: return
