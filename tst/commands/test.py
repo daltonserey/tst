@@ -428,7 +428,7 @@ def get_options_from_cli_and_context(directory):
     parser.add_argument('-q', '--quiet', action="store_true", default=False, help='suppress non-essential output')
     parser.add_argument('-T', '--timeout', type=int, default=TIMEOUT_DEFAULT, help='stop execution at TIMEOUT seconds')
     parser.add_argument('-t', '--test-sources', nargs="+", default=[], help='read tests from TEST_SOURCES')
-    parser.add_argument('-f', '--output-format', type=str, choices=['default', 'json', 'brief'], help='choose report format')
+    parser.add_argument('-f', '--output-format', type=str, choices=['default', 'json', 'brief', 'log'], help='choose report format')
     parser.add_argument('-d', '--diff', action="store_true", default=False, help='print diff output for failed io tests')
     parser.add_argument('-c', '--compare', action="store_true", default=False, help='shortcut for compare report format')
     parser.add_argument('-P', '--passed', action="store_true", default=False, help='suppress subjects that fail any test')
@@ -690,6 +690,31 @@ def print_cli_report(results, subjects, test_suites, test_cases, options, total_
     print(f" ({1000 * (total_time / len(results)):.1f} ms/test)" if subjects else " (-.- ms/test)", file=sys.stderr)
 
 
+def print_log_report(results, subjects, test_suites, test_cases, options, total_time):
+    import hashlib
+    from datetime import datetime as dt
+    for fn in results.keys():
+        summaries = []
+        for ts in test_suites:
+            summaries.append(results[fn][ts])
+        all_summaries = ' '.join(summaries)
+        subject_passed = all(c in '. ' for c in all_summaries)
+        brief_summary = "passed" if subject_passed else "failed"
+        if 't' in summaries:
+            brief_summary = 'timeout'
+        path = Path.cwd() / fn
+        hash_digest = hashlib.md5(open(path,'rb').read()).hexdigest()
+        timestamp = dt.now().isoformat()[:19]
+        print(f"{timestamp} {hash_digest} {brief_summary} {path} {all_summaries}")
+    if not subjects:
+        timestamp = dt.now().isoformat()[:19]
+        hash_digest = hashlib.md5(b"").hexdigest()
+        brief_summary = "------"
+        path = Path.cwd() / '<NOSUBJECTFOUND>'
+        all_summaries = '!'
+        print(f"{timestamp} {hash_digest} {brief_summary} {path} {all_summaries}")
+
+
 def print_brief_report(results, subjects, test_suites, test_cases, options, total_time):
     for fn in results.keys():
         summaries = []
@@ -766,6 +791,8 @@ def main():
         #case _:
         elif options.output_format == 'brief':
             print_brief_report(results, subjects, test_suites, test_cases, options, t1 - t0)
+        elif options.output_format == 'log':
+            print_log_report(results, subjects, test_suites, test_cases, options, t1 - t0)
         else:
            print_cli_report(results, subjects, test_suites, test_cases, options, t1 - t0)
 
